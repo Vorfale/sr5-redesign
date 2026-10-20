@@ -40,11 +40,12 @@ const RU = env.SR5_RU_OUT === '' ? null : path.resolve(env.SR5_RU_OUT ?? path.jo
 const INPUTS_FILE = path.resolve(env.SR5_INPUTS_FILE ?? path.join(BUILD, 'bundle-inputs.txt'));
 const REPO = env.SR5_REPO || null;
 /** The screenshots the manifest lists (with SR5_REPO): file in media/, media type, caption. */
+const ART_CREDIT = 'Art: David Revoy / Blender Foundation (Tears of Steel), CC BY 3.0.';
 const MEDIA = [
-    ['character-skills.png', 'cover', 'Character sheet: attributes and limits, the combat sidebar, skills with their pools.'],
-    ['character-inventory-card.png', 'screenshot', 'Inventory with search, filters and sorting, and the hover card of an item.'],
-    ['character-light.png', 'screenshot', 'The character sheet in the light theme.'],
-    ['vehicle.png', 'screenshot', 'Vehicle and drone sheet: driver, control mode, damage and Matrix condition, skills, modification slots.'],
+    ['character-skills.png', 'cover', `A street samurai's character sheet: attributes and limits, the combat sidebar, skills with their pools. ${ART_CREDIT}`],
+    ['character-inventory-card.png', 'screenshot', `Inventory with search, filters and sorting, and the hover card of an item. ${ART_CREDIT}`],
+    ['character-light.png', 'screenshot', `A rigger's character sheet in the light theme. ${ART_CREDIT}`],
+    ['character-augmentations.png', 'screenshot', `The street samurai's augmentations: cyberware and bioware with their Essence cost. ${ART_CREDIT}`],
 ];
 const MEDIA_DIR = path.resolve(env.SR5_MEDIA ?? path.join(BUILD, 'media'));
 for (const [file] of MEDIA) if (!fs.existsSync(path.join(MEDIA_DIR, file))) throw new Error(`missing screenshot ${file} in ${MEDIA_DIR}`);
