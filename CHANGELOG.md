@@ -19,6 +19,17 @@ sheet) would have been a minor release.
 
 ## [Unreleased]
 
+## [0.3.58] - 2026-10-21
+
+### Added
+- Screenshots: a cover and three screenshots in the repository's `media/`, listed in `module.json`.
+- `THIRD-PARTY-NOTICES.md`: the copyright and license of Fuse.js, which the script bundles.
+
+### Changed
+- Install by the manifest URL; README sections on compatibility and the license. The script's header carries the
+  copyright, the GPL notice and the note that the system's code in it was changed.
+- The README no longer mentions the separate Russian archive.
+
 ## [0.3.57] - 2026-10-21
 
 ### Changed

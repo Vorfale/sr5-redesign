@@ -1,5 +1,7 @@
 # SR5 Redesign
 
+![The character sheet: attributes and limits, the combat sidebar, skills with their pools](media/character-skills.png)
+
 An unofficial redesign of the **Shadowrun 5e** system's sheets for Foundry VTT v14. It adds new sheets and leaves the
 system and its data alone; the system's own sheets stay available. Turn the module off and characters go back to the
 system's sheet.
@@ -39,6 +41,10 @@ load opens faster.
 smaller screens the sheet keeps its margins and the attribute plates stay readable down to Foundry's minimum window
 size.
 
+More pictures: [inventory with a hover card](media/character-inventory-card.png),
+[light theme](media/character-light.png), [vehicle and drone sheet](media/vehicle.png). The portraits are Foundry's
+default silhouette.
+
 ## In detail
 
 - Header: name, metatype and archetype, limits, sheet art.
@@ -65,24 +71,33 @@ size.
 Foundry modules live on the server, so install it on the machine that **hosts** the game. Players who connect get it
 automatically.
 
-1. Unzip `sr5-redesign-<version>.zip` into `{Foundry user data}/Data/modules/`, so that you get
-   `Data/modules/sr5-redesign/module.json`.
-2. Start Foundry, open the world, **Game Settings → Manage Modules**, enable **SR5 Redesign**, save (the world reloads).
+1. In Foundry VTT: **Add-on Modules → Install Module**, paste this into **Manifest URL** and press **Install**:
+
+   ```
+   https://github.com/Vorfale/sr5-redesign/releases/latest/download/module.json
+   ```
+
+2. Open the world, **Game Settings → Manage Modules**, enable **SR5 Redesign**, save (the world reloads).
 3. Characters open in **SR5 Redesign (experimental)** from then on. A character that was set to a particular sheet
    keeps it: header menu **Sheet** (Configure Sheet) → choose SR5 Redesign.
 
 To remove: disable the module; characters go back to the system's sheet.
 
+Updating: **Add-on Modules → Check for Updates** in Foundry. Then reload the browser with the cache bypassed
+(Ctrl+F5 / Cmd+Shift+R) so the new stylesheet and fonts are fetched.
+
+Without the manifest: download `module.zip` from [Releases](https://github.com/Vorfale/sr5-redesign/releases) and unzip
+it into `{Foundry user data}/Data/modules/sr5-redesign/`, so that you get `Data/modules/sr5-redesign/module.json`.
+
 UI skins such as Carolingian UI restyle every heading, tooltip, window header and context menu from their own
 stylesheet; the sheet, its tooltips and the windows it opens keep their own type and layout against that (0.3.1).
 
-Updating: unzip the new version over the old folder (or delete `Data/modules/sr5-redesign` first), then reload the
-browser with the cache bypassed (Ctrl+F5 / Cmd+Shift+R) so the new stylesheet and fonts are fetched.
+## Compatibility
 
-Built for Shadowrun 5e **0.37.8** (Foundry v14). Other 0.37.x releases should work; a newer system version prints a
-warning in the console and may need a rebuild of the module.
-
-Russian: the separate `sr5-ru-locale` archive holds a draft Russian translation of the system and this sheet.
+- Foundry VTT v14 (checked with 14.369).
+- Shadowrun 5e system 0.37 (checked with 0.37.8). The module carries the parts of the system code it needs, built from
+  that release. Other 0.37 releases are allowed but not checked. A newer system version prints a warning in the browser
+  console (F12) and may need a new version of the module.
 
 ## Credits and licenses
 
@@ -92,5 +107,16 @@ Russian: the separate `sr5-ru-locale` archive holds a draft Russian translation 
   Days One, Sofia Sans Condensed, Forum. The files are the original releases from the Google Fonts repository, packed
   into WOFF2 without any change; `fonts/README.md` lists authors, sources and checksums, and each font's `OFL.txt` is
   next to it.
+- Bundled code from npm: Fuse.js (Apache-2.0); its copyright and license are in `THIRD-PARTY-NOTICES.md`.
+- Icons: Font Awesome Free, from Foundry's own copy. Row pictures come from the installed system (some by Bella
+  Carvalho, CC BY-SA 4.0, as the system's README credits them).
 - Colours were measured from the SR5 rulebooks. No Catalyst Game Labs or Topps art or logos are included.
-  Shadowrun is a trademark of The Topps Company, Inc.; this is an unofficial fan work.
+
+## License
+
+SR5 Redesign, copyright (C) 2026 Ravefale, is free software under the GNU General Public License version 3 (`LICENSE`),
+without any warranty. It contains code from the Shadowrun 5e system for Foundry VTT, copyright its authors, also
+GPL-3.0, changed for this module. Source code: https://github.com/Vorfale/sr5-redesign.
+
+Shadowrun is a registered trademark and/or trademark of The Topps Company, Inc. This is an unofficial fan work, not
+affiliated with or endorsed by The Topps Company, Catalyst Game Labs or Foundry Gaming.
