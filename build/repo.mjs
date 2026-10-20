@@ -20,6 +20,7 @@ Object.assign(process.env, {
     SR5_RU_OUT: '',
     SR5_NODE_ROOT: root,
     SR5_INPUTS_FILE: path.join(root, 'dist/inputs.txt'),
+    SR5_MEDIA: path.join(root, 'media'),
 });
 process.argv[2] = version;
 await import('./build.mjs');
