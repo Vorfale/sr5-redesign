@@ -1,6 +1,6 @@
 # SR5 Redesign
 
-![The character sheet: attributes and limits, the combat sidebar, skills with their pools](media/character-skills.png)
+![A street samurai's character sheet: attributes and limits, the combat sidebar, skills with their pools](media/character-skills.png)
 
 An unofficial redesign of the **Shadowrun 5e** system's sheets for Foundry VTT v14. It adds new sheets and leaves the
 system and its data alone; the system's own sheets stay available. Turn the module off and characters go back to the
@@ -42,8 +42,9 @@ smaller screens the sheet keeps its margins and the attribute plates stay readab
 size.
 
 More pictures: [inventory with a hover card](media/character-inventory-card.png),
-[light theme](media/character-light.png), [vehicle and drone sheet](media/vehicle.png). The portraits are Foundry's
-default silhouette.
+[augmentations](media/character-augmentations.png), [light theme](media/character-light.png). The characters are test
+characters; their pictures are concept art by David Revoy for the Blender Foundation's open movie Tears of Steel
+(see Credits).
 
 ## In detail
 
@@ -110,6 +111,10 @@ stylesheet; the sheet, its tooltips and the windows it opens keep their own type
 - Bundled code from npm: Fuse.js (Apache-2.0); its copyright and license are in `THIRD-PARTY-NOTICES.md`.
 - Icons: Font Awesome Free, from Foundry's own copy. Row pictures come from the installed system (some by Bella
   Carvalho, CC BY-SA 4.0, as the system's README credits them).
+- Screenshots (`media/`, not part of the module): the portraits and header art are concept art by David Revoy /
+  Blender Foundation for Tears of Steel, CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/): "Celia - killer bots,
+  streets" and "Genghis Jones - pod active" (https://commons.wikimedia.org/wiki/Category:Concept_art_by_David_Revoy_for_Tears_of_Steel),
+  cropped and resized, and tinted by the sheet's header.
 - Colours were measured from the SR5 rulebooks. No Catalyst Game Labs or Topps art or logos are included.
 
 ## License

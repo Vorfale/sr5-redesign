@@ -1,6 +1,6 @@
 {
     "name": "sr5-redesign",
-    "version": "0.3.58",
+    "version": "0.3.61",
     "description": "SR5 Redesign: an alternative character sheet for the Shadowrun 5e system for Foundry VTT (unofficial).",
     "private": true,
     "type": "module",

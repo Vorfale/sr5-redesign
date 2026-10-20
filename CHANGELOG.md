@@ -19,6 +19,23 @@ sheet) would have been a minor release.
 
 ## [Unreleased]
 
+## [0.3.61] - 2026-10-21
+
+### Changed
+- Screenshots show the characters only: the vehicle screenshot gives way to the street samurai's augmentations.
+
+## [0.3.60] - 2026-10-21
+
+### Changed
+- Screenshots: no "fresh import" marks on the characters' items, the street samurai's header art framed on him, the
+  van with a short name.
+
+## [0.3.59] - 2026-10-21
+
+### Changed
+- Screenshots: a street samurai and a rigger made for them, with concept art by David Revoy / Blender Foundation
+  (Tears of Steel, CC BY 3.0) as portraits and header art; the credit is in the captions and the README.
+
 ## [0.3.58] - 2026-10-21
 
 ### Added
