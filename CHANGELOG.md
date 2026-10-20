@@ -19,6 +19,12 @@ sheet) would have been a minor release.
 
 ## [Unreleased]
 
+## [0.3.57] - 2026-10-21
+
+### Changed
+- The module description no longer says "Private test build".
+- The README opens with what the module covers and what it is for.
+
 ## [0.3.56] - 2026-10-20
 
 ### Fixed

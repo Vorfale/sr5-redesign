@@ -1,7 +1,45 @@
 # SR5 Redesign
 
-Alternative character sheet for the **Shadowrun 5e** system in Foundry VTT v14. It adds a sheet; it does not change
-the system, its data or the system's own sheet.
+An unofficial redesign of the **Shadowrun 5e** system's sheets for Foundry VTT v14. It adds new sheets and leaves the
+system and its data alone; the system's own sheets stay available. Turn the module off and characters go back to the
+system's sheet.
+
+Today it covers the **character sheet** and the **vehicle and drone sheet**, with the windows they open (karma, nuyen and
+reputation managers, the network manager). The goal for 1.0 is the whole interface: matrix actors, spirits, critters and
+NPCs, items, roll dialogs and chat cards.
+
+## What it is for
+
+**A sheet that looks like the books.** The colours were measured from the SR5 rulebooks: dark pages with gold accents,
+and a light theme as well. Headings, plates and tables take their cues from the books, set in free fonts picked to stand
+in for the books' typefaces (Orbitron, Barlow Condensed, Marcellus). Cyrillic text keeps the look through free
+look-alike fonts.
+
+**Less clicking at the table.**
+- Combat in one sidebar: initiative and Blitz, condition monitors with wound modifiers and overflow damage, armor,
+  movement and quick rolls (Defense, Soak, Composure, Judge Intentions, Memory, Lift/Carry, Drain or Fading), each with
+  its dice pool shown.
+- Skills show their pools. Play mode lists trained skills; search and filters (attribute, skill group, trained or
+  untrained) find the rest.
+- Inventory, augmentations, actions and magic have search, filters and sorting; every table header sorts its column,
+  remembered per user.
+- Hover cards for items, skills, attributes, limits, armor and movement, with the modifier breakdown where a value has
+  modifiers and a link to the rulebook page.
+- Favorites: drop an item on the favorites, drag to reorder.
+- A ⋮ menu in every row; sheets open at the size you last gave one.
+
+**Something to look at.** The character's art as a banner in the sheet header, moved and zoomed to frame it. The
+vehicle and drone sheet shares the look, with a portrait or the token picture.
+
+**Quick to use.** An update redraws only what changed: a damage box, Edge, karma or an item toggle costs about a third
+of a full render. Hidden tabs are drawn when the browser is idle or when you open them, and the first sheet after a page
+load opens faster.
+
+**Easier to read.** A per-user **Readable text** setting makes the condensed type a weight heavier and slightly wider. On
+smaller screens the sheet keeps its margins and the attribute plates stay readable down to Foundry's minimum window
+size.
+
+## In detail
 
 - Header: name, metatype and archetype, limits, sheet art.
 - Attribute plates with modifier cards; Edge and Essence (whole numbers without decimals).
@@ -34,9 +72,6 @@ automatically.
    keeps it: header menu **Sheet** (Configure Sheet) → choose SR5 Redesign.
 
 To remove: disable the module; characters go back to the system's sheet.
-
-An update redraws only the parts of the sheet that show what changed (0.3.2): a damage box, Edge, karma or an item
-toggle costs a third of a full render.
 
 UI skins such as Carolingian UI restyle every heading, tooltip, window header and context menu from their own
 stylesheet; the sheet, its tooltips and the windows it opens keep their own type and layout against that (0.3.1).
