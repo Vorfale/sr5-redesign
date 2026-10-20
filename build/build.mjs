@@ -287,7 +287,7 @@ write(path.join(MOD, 'lang/en.json'), `${JSON.stringify(lang, null, 4)}\n`);
 const manifest = {
     id: MODULE_ID,
     title: 'SR5 Redesign',
-    description: 'Alternative Shadowrun 5e character sheet: limits in the header, a combat sidebar with condition monitors and quick rolls, skills with dice pools and filters, list search and filters, rich item and attribute cards, karma and nuyen in a footer; and a vehicle and drone sheet in the same look. Dark and light themes. Private test build.',
+    description: 'Alternative Shadowrun 5e character sheet: limits in the header, a combat sidebar with condition monitors and quick rolls, skills with dice pools and filters, list search and filters, rich item and attribute cards, karma and nuyen in a footer; and a vehicle and drone sheet in the same look. Dark and light themes.',
     version,
     authors: [{ name: 'Ravefale' }],
     ...(REPO ? {

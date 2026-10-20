@@ -1,6 +1,6 @@
 # Where these files come from
 
-The repository holds everything SR5 Redesign 0.3.56 is built from; `npm install && npm run build` writes the module to
+The repository holds everything SR5 Redesign 0.3.57 is built from; `npm install && npm run build` writes the module to
 `dist/sr5-redesign`.
 
 | Folder | Source |
