@@ -1,0 +1,23 @@
+<div class="list-item list-item-header {{cssClass}}">
+    <div class="list-item-start">
+        <label>
+            {{localize label}}
+        </label>
+    </div>
+
+    <div class="list-item-col effect-duration-col">
+        <label>{{localize "SR5.Duration"}}</label>
+    </div>
+
+    <div class="list-item-icons {{#if @root.isPlayMode}} skinny-icons {{/if}}">
+        {{#if @root.isEditMode}}
+            {{#unless isItemEffect}}
+                <a data-action="addEffect"
+                   data-tooltip="SR5.Tooltips.Effect.CreateEffect">
+                    {{localize "SR5.Add"}}
+                    <i class="fas fa-plus"></i>
+                </a>
+            {{/unless}}
+        {{/if}}
+    </div>
+</div>

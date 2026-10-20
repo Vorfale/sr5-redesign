@@ -1,0 +1,51 @@
+{{!-- Attribute plates in three groups: physical, mental, special (Edge, Magic/Resonance, Essence).
+      Big number = current value (with augmentations), small box = base rating.
+      Edge: points still available on top, the rating below. Essence: current on top, the base before implants below.
+      Below them the limits in one row, like the limit line at the bottom of the official ATTRIBUTES block. --}}
+{{#*inline "abilityScore"}}
+<li class="ability-score{{#if attribute.physical}} physical{{/if}}{{#if attribute.mental}} mental{{/if}}{{#unless attribute.rollable}} static{{/unless}}"
+    data-attribute-id="{{attribute.id}}" data-context-menu="attribute">
+    {{#if (and attribute.rollable @root.isPlayMode)}}
+        <button type="button" class="label rollable" data-action="rollAttribute" data-attribute-modifier-tooltip="{{attribute.id}}"
+                data-tooltip="{{attribute.label}}" data-tooltip-direction="UP" aria-label="{{localize 'SR5.Redesign.RollAttribute' name=attribute.label}}">{{attribute.short}}</button>
+    {{else}}
+        <span class="label" data-tooltip="{{attribute.label}}" data-tooltip-direction="UP" data-attribute-modifier-tooltip="{{attribute.id}}">{{attribute.short}}</span>
+    {{/if}}
+    <div class="mod{{#if (and (eq attribute.id 'essence') (not (essenceIsWhole attribute.value)))}} fraction{{/if}}" {{#if (and attribute.rollable @root.isPlayMode)}}aria-hidden="true"{{/if}}>
+        {{~#if (eq attribute.id 'essence')}}{{essenceValue attribute.value}}{{else if (eq attribute.id 'edge')}}{{@root.edgeRemaining}}{{else}}{{attribute.value}}{{/if~}}
+    </div>
+    {{#if (and @root.isEditMode attribute.rollable)}}
+        <div class="score">
+            <label class="sr-only" for="{{@root.rootId}}-attr-{{attribute.id}}">{{attribute.label}}</label>
+            {{formInput attribute.field.fields.base value=attribute.base classes="uninput" id=(concat @root.rootId "-attr-" attribute.id)}}
+        </div>
+    {{else if (eq attribute.id 'edge')}}
+        <div class="score" data-tooltip="SR5.Redesign.EdgeRating" data-tooltip-direction="DOWN">{{attribute.value}}</div>
+    {{else if attribute.rollable}}
+        <div class="score" data-tooltip="SR5.Redesign.BaseRating" data-tooltip-direction="DOWN">{{attribute.base}}</div>
+    {{else if (eq attribute.id 'essence')}}
+        {{!-- read-only: the system fixes the base (6 for characters) and applies losses / bonuses on top --}}
+        <div class="score" data-tooltip="SR5.Redesign.EssenceBase" data-tooltip-direction="DOWN">{{essenceValue attribute.base}}</div>
+    {{/if}}
+</li>
+{{/inline}}
+<section class="sr-abilities" aria-label="{{localize 'SR5.Attributes'}}">
+    <div class="ability-groups">
+        {{#each attributeGroups as |group|}}
+            <ul class="ability-row unlist {{group.id}}">
+                {{#each group.attributes as |attribute|}}
+                    {{> abilityScore attribute=attribute}}
+                {{/each}}
+            </ul>
+        {{/each}}
+    </div>
+    {{#if attributeLimits.length}}
+        <ul class="limit-row unlist">
+            {{#each attributeLimits as |limit|}}
+                <li class="limit limit-{{limit.id}}" data-limit-modifier-tooltip="{{limit.id}}" data-tooltip-direction="DOWN">
+                    <span class="label">{{limit.label}}</span><span class="value">{{limit.value}}</span>
+                </li>
+            {{/each}}
+        </ul>
+    {{/if}}
+</section>

@@ -1,0 +1,7 @@
+{{#if item.system.level}}
+    <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-signal" aria-hidden="true"></i>{{localize "SR5.PowerLevel"}}&nbsp;{{item.system.level}}</label>
+{{/if}}
+<label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-bolt" aria-hidden="true"></i>{{localize "SR5.PP"}}&nbsp;{{item.system.pp}}</label>
+{{#unless (empty item.system.type)}}
+    <label class="prop-dup" data-prop="time"><i class="prop-icon fas fa-clock" aria-hidden="true"></i>{{localizeOb item.system.type @root.config.adeptPower.types}}</label>
+{{/unless}}

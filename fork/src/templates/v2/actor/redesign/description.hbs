@@ -1,0 +1,21 @@
+{{!-- Description tab: the biography text in a card, like every other block of the sheet; when there is none yet,
+      play mode says how to add it (the edit mode toggle in the window header). --}}
+<section class="tab sr-description{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+    <div class="items-section card">
+        <div class="list-item list-item-header">
+            <div class="list-item-start">
+                <label>{{localize "SR5.Description"}}</label>
+            </div>
+        </div>
+        <div class="description-body">
+            {{#if @root.isEditMode}}
+                {{formInput systemFields.description.fields.value value=source.system.description.value rootId=@root.rootId}}
+            {{else if source.system.description.value}}
+                {{{biographyHTML}}}
+            {{else}}
+                <p class="empty-hint">{{localize "SR5.Redesign.EmptyDescription"}}</p>
+            {{/if}}
+        </div>
+    </div>
+</section>

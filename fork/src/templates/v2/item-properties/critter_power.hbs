@@ -1,0 +1,12 @@
+{{#unless (empty item.system.powerType)}}
+    <label class="prop-dup" data-prop="kind"><i class="prop-icon fas fa-paw" aria-hidden="true"></i>{{localizeOb item.system.powerType @root.config.critterPower.types}}</label>
+{{/unless}}
+{{#unless (empty item.system.duration)}}
+    <label class="prop-dup" data-prop="time"><i class="prop-icon fas fa-hourglass-half" aria-hidden="true"></i>{{localizeOb item.system.duration @root.config.critterPower.durations}}</label>
+{{/unless}}
+{{#unless (empty item.system.range)}}
+    <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-ruler" aria-hidden="true"></i>{{localizeOb item.system.range @root.config.critterPower.ranges}}</label>
+{{/unless}}
+{{#if item.system.rating}}
+    <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-signal" aria-hidden="true"></i>{{localize "SR5.Rating"}}&nbsp;{{item.system.rating}}</label>
+{{/if}}

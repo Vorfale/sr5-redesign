@@ -1,0 +1,62 @@
+{{#with item.system.action as |action|}}
+    {{#if action.type}}
+        {{#unless (eq ../item.type 'weapon')}}
+            {{#unless (or (eq action.type 'varies') (eq action.type 'none'))}}
+                <label class="prop-action-type" data-prop="time"><i class="prop-icon fas fa-clock" aria-hidden="true"></i>{{localizeOb action.type @root.config.actionTypes}}</label>
+            {{/unless}}
+        {{/unless}}
+    {{/if}}
+    {{#if (or action.skill action.attribute action.attribute2 action.mod action.threshold.base action.limit.value action.limit.attribute)}}
+        <label data-prop="roll"><i class="prop-icon fas fa-dice-six" aria-hidden="true"></i>
+            {{#if action.skill}}
+                {{localizeActionSkill action.skill}}&nbsp;+&nbsp;{{localizeOb action.attribute @root.config.attributes}}
+            {{else if action.attribute2}}
+                {{localizeOb action.attribute @root.config.attributes}}&nbsp;+&nbsp;{{localizeOb action.attribute2 @root.config.attributes}}
+            {{else if action.attribute}}
+                {{localizeOb action.attribute @root.config.attributes}}
+            {{/if}}
+            {{#if action.mod}}
+                <span data-tooltip="SR5.ItemMod">{{numberFormat action.mod sign=true}}</span>
+            {{/if}}
+            {{#if (or action.limit.value action.limit.attribute)}}
+                <span data-tooltip="{{#if (eq ../item.type 'weapon')}}{{localize "SR5.Accuracy"}}{{else}}{{localize "SR5.Limit"}}{{/if}}">
+                    [
+                    {{#if action.limit.attribute}}{{localizeOb action.limit.attribute @root.config.limits}}{{/if}}
+                    {{#if (and action.limit.value action.limit.attribute)}}+{{/if}}
+                    {{#if action.limit.value}}{{action.limit.value}}{{/if}}
+                    ]
+                </span>
+            {{/if}}
+            {{#if action.threshold.base}}
+                <span data-tooltip="SR5.Threshold">({{action.threshold.base}})</span>
+            {{/if}}
+        </label>
+    {{/if}}
+    {{#with action.damage as |damage|}}
+        {{#if (or damage.value damage.attribute)}}
+            <label data-prop="stat"><i class="prop-icon fas fa-burst" aria-hidden="true"></i>
+                {{localize "SR5.DV"}}
+                {{#if damage.attribute}}{{localizeOb damage.attribute @root.config.attributes}}{{/if}}
+                {{#if (and damage.value damage.attribute)}}
+                    {{objValue @root.config.actionDamageFormulaOperators damage.base_formula_operator}}
+                {{/if}}
+                {{#if damage.value}}{{damage.value}}{{/if}}
+                {{damageAbbreviation damage.type.value}}
+                {{#if damage.element.value}}
+                    <i data-tooltip="{{localizeOb damage.element.value @root.config.elementTypes}}"
+                       class="{{elementIcon damage.element.value}}"></i>
+                {{/if}}
+            </label>
+            {{#if (or damage.ap.value damage.ap.attribute)}}
+                <label data-prop="stat"><i class="prop-icon fas fa-crosshairs" aria-hidden="true"></i>
+                    {{localize "SR5.AP"}}
+                    {{#if damage.ap.attribute}}{{localizeOb damage.ap.attribute @root.config.attributes}}{{/if}}
+                    {{#if (and damage.ap.value damage.ap.attribute)}}
+                        {{objValue @root.config.actionDamageFormulaOperators damage.ap.base_formula_operator}}
+                    {{/if}}
+                    {{#if damage.ap.value}}{{damage.ap.value}}{{/if}}
+                </label>
+            {{/if}}
+        {{/if}}
+    {{/with}}
+{{/with}}

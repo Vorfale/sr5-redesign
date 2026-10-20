@@ -1,0 +1,16 @@
+{{!-- Font Awesome Free icons (the module has no Pro license) --~}}
+{{#unless (empty item.system.type)}}
+    <label data-prop="kind"><i class="prop-icon fas fa-house" aria-hidden="true"></i>{{localizeOb item.system.type @root.config.lifestyleTypes}}</label>
+{{/unless}}
+{{#unless (empty item.system.neighborhood)}}
+    <label data-prop="stat"><i data-tooltip="{{localize "SR5.LifestyleNeighborhood"}}" class="fas fa-building"></i>&nbsp;{{item.system.neighborhood}}</label>
+{{/unless}}
+{{#unless (empty item.system.comforts)}}
+    <label data-prop="stat"><i data-tooltip="{{localize "SR5.LifestyleComforts"}}" class="fas fa-mattress-pillow"></i>&nbsp;{{item.system.comforts}}</label>
+{{/unless}}
+{{#unless (empty item.system.security)}}
+    <label data-prop="stat"><i data-tooltip="{{localize "SR5.LifestyleSecurity"}}" class="fas fa-shield-halved"></i>&nbsp;{{item.system.security}}</label>
+{{/unless}}
+{{#unless (empty item.system.guests)}}
+    <label data-prop="stat"><i data-tooltip="{{localize "SR5.LifestyleGuests"}}" class="fas fa-people-group"></i>&nbsp;{{item.system.guests}}</label>
+{{/unless}}

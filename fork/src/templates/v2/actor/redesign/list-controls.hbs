@@ -1,0 +1,60 @@
+{{!-- Search and a filter menu over the lists of a tab. Filtering happens in place (SR5CharacterSheetRedesign
+      #applyListFilter): rows that do not match get hidden, cards and tables left without a visible row hide too,
+      collapsed cards show their matching rows. The filter button opens a checkbox menu (a popover, so the card's
+      clip-path cannot cut it): options of one group are alternatives (any of them), different groups all have to
+      match. Hidden by CSS on a tab without rows; only on the tabs the sheet gives a listFilter (LIST_SEARCH_TABS). --}}
+{{#if listFilter}}
+<div class="list-controls" data-list-controls="{{tab.id}}" role="search">
+    <span class="list-search">
+        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+        <label class="sr-only" for="{{@root.rootId}}-list-search-{{tab.id}}">{{localize "SR5.Redesign.ListSearch"}}</label>
+        <input type="search" id="{{@root.rootId}}-list-search-{{tab.id}}" class="list-search-input" autocomplete="off" spellcheck="false"
+               placeholder="{{localize 'SR5.Redesign.ListSearch'}}…"/>
+    </span>
+    {{#if listFilter.groups.length}}
+    <button type="button" class="list-filter-button" popovertarget="{{@root.rootId}}-list-filters-{{tab.id}}" aria-haspopup="menu"
+            aria-label="{{localize 'SR5.Redesign.ListFilters'}}" data-tooltip="SR5.Redesign.ListFilters">
+        <i class="fas fa-filter" aria-hidden="true"></i>
+        <span class="list-filter-count sr-only"></span>
+    </button>
+    <div class="list-filter-menu" id="{{@root.rootId}}-list-filters-{{tab.id}}" data-list-filters="{{tab.id}}" role="menu"
+         aria-label="{{localize 'SR5.Redesign.ListFilters'}}" popover="auto">
+        {{#each listFilter.groups as |group|}}
+            {{#if group.label}}<div class="list-filter-group" role="presentation">{{localize group.label}}</div>{{/if}}
+            <div class="list-filter-items{{#if group.columns}} columns{{/if}}" role="group"{{#if group.label}} aria-label="{{localize group.label}}"{{/if}}>
+                {{#each group.chips as |chip|}}
+                    <button type="button" class="list-filter-option" role="menuitemcheckbox" tabindex="-1" aria-checked="false"
+                            data-action="toggleListFilter" data-filter="{{chip.id}}">
+                    {{#if chip.icon}}<i class="fas {{chip.icon}}" aria-hidden="true"></i>{{/if}}
+                        <span>{{localize chip.label}}</span>
+                        <i class="fas fa-check check" aria-hidden="true"></i>
+                    </button>
+                {{/each}}
+            </div>
+        {{/each}}
+        <button type="button" class="list-filter-option list-filter-clear" role="menuitem" tabindex="-1" data-action="clearListFilters">
+            <i class="fas fa-xmark" aria-hidden="true"></i><span>{{localize "SR5.Redesign.ListFiltersClear"}}</span>
+        </button>
+    </div>
+    {{/if}}
+    {{!-- sort button (as dnd5e's): cycles the tab's cards through the sheet order, name A-Z, name Z-A; icon and name
+          set by SR5CharacterSheetRedesign#syncListSortButtons --}}
+    <button type="button" class="list-sort-button" data-action="cycleListSort" aria-label="{{localize 'SR5.Redesign.ListSort.Label'}}"
+            data-tooltip="SR5.Redesign.ListSort.Sheet">
+        <i class="fas fa-arrow-down-short-wide" aria-hidden="true"></i>
+    </button>
+    {{!-- the tab's view, the same button on every tab that has views (Actions: one table / by kind; Magic: spells by
+          category / one list; Vehicles & Drones: by type / by category / one list; SR5CharacterSheetRedesign
+          listGrouping): a click goes to the next view, filled while it is not the tab's default, the tooltip names
+          it. Play mode only: edit mode keeps the cards that Add works in --}}
+    {{#if listGrouping}}
+    <button type="button" class="list-group-button{{#unless listGrouping.isDefault}} active{{/unless}}" data-action="{{listGrouping.action}}"
+            aria-pressed="{{#if listGrouping.isDefault}}false{{else}}true{{/if}}"
+            aria-label="{{localize 'SR5.Redesign.ListView'}}: {{localize listGrouping.label}}" data-tooltip="{{localize listGrouping.label}}">
+        <i class="fas {{listGrouping.icon}}" aria-hidden="true"></i>
+    </button>
+    {{/if}}
+    <output class="sr-only list-count" aria-live="polite"></output>
+</div>
+<p class="list-no-match" hidden>{{localize "SR5.Redesign.ListNoMatch"}}</p>
+{{/if}}

@@ -1,0 +1,43 @@
+{{!-- Matrix actions (after tabs/matrix/matrix-actions.hbs) as one table per limit: Attack, Sleaze, Data Processing,
+      Firewall, then actions without a limit. Titles are gold like every table title.
+      Columns sort like the skill tables (name A-Z by default; each table sorts on its own), and each table
+      collapses from its header outside the sort buttons, or its chevron (shares the inventory's toggleExpanded state). In edit mode every table is shown and
+      its Add button creates a matrix action with that limit. --}}
+<section class="tab hide-overflow{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{#each matrixActionGroups as |group|}}
+        <div class="matrix-action-group{{#unless (or group.isOpen @root.isEditMode)}} collapsed{{/unless}}" data-limit="{{group.key}}">
+            <div class="list-item list-item-header matrix-action-header{{#if @root.isPlayMode}} collapsible-header{{/if}}"
+                 data-sort-table="matrix_{{group.key}}" data-item-type="{{group.type}}"{{#if @root.isPlayMode}} data-action="toggleExpanded"{{/if}}>
+                <div class="list-item-start" role="columnheader">
+                    <button type="button" class="unbutton sort-button group-title" data-action="sortSkills" data-sort="name">
+                        <span>{{group.label}}</span>
+                    </button>
+                </div>
+                <div class="list-item-col" role="columnheader">
+                    <button type="button" class="unbutton sort-button" data-action="sortSkills" data-sort="marks">
+                        <span>{{localize "SR5.Marks"}}</span>
+                    </button>
+                </div>
+                <div class="list-item-col" role="columnheader">
+                    <button type="button" class="unbutton sort-button" data-action="sortSkills" data-sort="type">
+                        <span>{{localize "SR5.ActionType.Label"}}</span>
+                    </button>
+                </div>
+                <div class="list-item-icons">
+                    {{#if @root.isEditMode}}
+                        <a data-action="addItem" data-tooltip="{{createItemHeaderLabel 'matrix_action'}}" data-item-type="matrix_action"
+                           data-action-categories='["matrix"]' data-matrix-limit="{{group.key}}">
+                            {{localize "SR5.Add"}}&nbsp;<i class="fas fa-plus"></i>
+                        </a>
+                    {{/if}}
+                    {{> "systems/shadowrun5e/dist/templates/v2/list-items/toggle-expand-icon.hbs" isOpen=group.isOpen type=group.type }}
+                </div>
+            </div>
+            {{!-- rendered when collapsed too (CSS hides them), so the list search finds them --}}
+            {{#each group.actions}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/matrix-action-row.hbs'
+                    item=this.action name=this.name sortMarks=this.sortMarks sortType=this.sortType }}
+            {{/each}}
+        </div>
+    {{/each}}
+</section>

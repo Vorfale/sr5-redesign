@@ -1,0 +1,69 @@
+{{!-- Magic tab as separate cards, like the inventory: adept powers, one card per spell category, rituals, summonings.
+      Each card is its own table with its own header, so a category header never stacks on top of another one.
+      Cards: redesign/card-table.hbs. --}}
+{{#*inline "spellColumns"}}
+    <div class="list-item-col"><label>{{localize "SR5.Spell.Type"}}</label></div>
+    <div class="list-item-col"><label>{{localize "SR5.Spell.Range"}}</label></div>
+    <div class="list-item-col"><label>{{localize "SR5.Duration"}}</label></div>
+    <div class="list-item-col"><label>{{localize "SR5.Drain"}}</label></div>
+{{/inline}}
+<section class="tab sr-magic{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+{{#if tabEmpty}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-tab.hbs' }}
+{{else}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
+    {{#if (isType actor 'character')}}
+        {{#if (or @root.isEditMode itemType.adept_power.length)}}
+            {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='adept_power' type='adept_power' addType='adept_power' label='SR5.Powers' list=itemType.adept_power}}
+                <div class="list-item-col"><label>{{localize "SR5.PowerType"}}</label></div>
+                <div class="list-item-col"><label>{{localize "SR5.PowerLevel"}}</label></div>
+                <div class="list-item-col"><label>{{localize "SR5.PowerPoints"}}</label></div>
+            {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+        {{/if}}
+    {{/if}}
+
+    {{!-- one list (the view button, play mode): every spell in one table, its category a column of its own
+          (SR5CharacterSheetRedesign#addSpellCategoryColumn); else a card per category --}}
+    {{#if spellsOneList}}
+    {{#if itemType.spell.length}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='spell' type='spell_all' addType='spell' label='SR5.Spell.Spells' list=itemType.spell}}
+            <div class="list-item-col spell-category-col"><label>{{localize "SR5.Redesign.ListFilter.SpellCategory"}}</label></div>
+            {{> spellColumns}}
+        {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+    {{/if}}
+    {{else}}
+    {{!-- spells without a known category (each category card adds its own); edit mode draws every category card --}}
+    {{#if spells.notfound.length}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='spell' type='spell' addType='spell' label='SR5.Spell.Spells' list=spells.notfound}}{{> spellColumns}}{{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+    {{/if}}
+    {{#if (or @root.isEditMode spells.combat.length)}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='spell' type='combatspells' addType='combatspells' label='SR5.Spell.CatCombat' list=spells.combat}}{{> spellColumns}}{{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+    {{/if}}
+    {{#if (or @root.isEditMode spells.detection.length)}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='spell' type='detectionspells' addType='detectionspells' label='SR5.Spell.CatDetection' list=spells.detection}}{{> spellColumns}}{{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+    {{/if}}
+    {{#if (or @root.isEditMode spells.health.length)}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='spell' type='healthspells' addType='healthspells' label='SR5.Spell.CatHealth' list=spells.health}}{{> spellColumns}}{{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+    {{/if}}
+    {{#if (or @root.isEditMode spells.illusion.length)}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='spell' type='illusionspells' addType='illusionspells' label='SR5.Spell.CatIllusion' list=spells.illusion}}{{> spellColumns}}{{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+    {{/if}}
+    {{#if (or @root.isEditMode spells.manipulation.length)}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='spell' type='manipulationspells' addType='manipulationspells' label='SR5.Spell.CatManipulation' list=spells.manipulation}}{{> spellColumns}}{{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+    {{/if}}
+    {{/if}}
+
+    {{#if (or @root.isEditMode itemType.ritual.length)}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='ritual' type='ritual' addType='ritual' label='SR5.Labels.ActorSheet.Rituals' list=itemType.ritual}}{{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+    {{/if}}
+    {{#if (isType actor 'character')}}
+        {{#if (or @root.isEditMode itemType.summoning.length)}}
+            {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='call_in_action' type='call_in_action' addType='call_in_action' addData=(callInActionHeaderAddData 'spirit') label='SR5.CallInAction.Summoning' list=itemType.summoning}}
+                <div class="list-item-col thicc-col"><label>{{localize "SR5.SpiritType"}}</label></div>
+                <div class="list-item-col skinny-col"><label>{{localize "SR5.Force"}}</label></div>
+            {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+        {{/if}}
+    {{/if}}
+{{/if}}
+</section>

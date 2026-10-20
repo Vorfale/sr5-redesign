@@ -1,0 +1,38 @@
+{{!-- Critter powers tab (after the upstream critter-powers.hbs) as cards: the powers, and in edit mode the enabled and
+      disabled optional powers as two more cards. --}}
+<section class="tab sr-critter-powers{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+{{#if tabEmpty}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-tab.hbs' }}
+{{else}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
+    {{#if (or @root.isEditMode critterPowerCounts.shown)}}
+    <div class="items-section card" data-type="critter_power">
+        {{> 'systems/shadowrun5e/dist/templates/v2/list-items/critter_power/header.hbs' label="SR5.Labels.ActorSheet.CritterPowers" type="critter_power" }}
+        {{#each itemType.critter_power}}
+            {{#if (or (and @root.isPlayMode (eq this.system.optional "enabled_option"))
+                      (or (not this.system.optional) (eq this.system.optional "standard")))}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/list-items/critter_power/item.hbs' item=this }}
+            {{/if}}
+        {{/each}}
+        {{#unless critterPowerCounts.shown}}{{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}{{/unless}}
+    </div>
+    {{/if}}
+    {{#if @root.isEditMode}}
+        <div class="items-section card" data-type="critter_power-enabled">
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/critter_power/header.hbs' label="SR5.Labels.ActorSheet.EnabledOptionCritterPowers" type="critter_power" }}
+            {{#each itemType.critter_power}}
+                {{#ife this.system.optional "enabled_option"}}{{> 'systems/shadowrun5e/dist/templates/v2/list-items/critter_power/item.hbs' item=this }}{{/ife}}
+            {{/each}}
+            {{#unless critterPowerCounts.enabled}}{{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}{{/unless}}
+        </div>
+        <div class="items-section card" data-type="critter_power-disabled">
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/critter_power/header.hbs' label="SR5.Labels.ActorSheet.DisabledOptionCritterPowers" type="critter_power" }}
+            {{#each itemType.critter_power}}
+                {{#ife this.system.optional "disabled_option"}}{{> 'systems/shadowrun5e/dist/templates/v2/list-items/critter_power/item.hbs' item=this }}{{/ife}}
+            {{/each}}
+            {{#unless critterPowerCounts.disabled}}{{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}{{/unless}}
+        </div>
+    {{/if}}
+{{/if}}
+</section>

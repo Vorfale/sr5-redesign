@@ -1,0 +1,8 @@
+{{!-- Font Awesome Free icons (the module has no Pro license) --~}}
+{{#unless @root.isEditMode}}
+    <a data-action="toggleExpanded" aria-expanded="{{#if isOpen}}true{{else}}false{{/if}}"
+       data-tooltip="{{#if isOpen}}SR5.Collapse{{else}}SR5.Expand{{/if}}"
+       data-item-type="{{type}}">
+        <i class="{{#if isOpen}}fas fa-square-caret-down{{else}}fas fa-square-caret-right{{/if}}"></i>
+    </a>
+{{/unless}}

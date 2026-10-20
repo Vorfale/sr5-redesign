@@ -1,0 +1,32 @@
+{{!-- Rich hover card of an item or skill (SR5RichTooltip): head, stats, description,
+      tags, source; attributes and other actor values show an icon and their modifier breakdown (the middle-click lock hint is left out: notes/backlog.md). Plain markup: it is injected into Foundry's #tooltip, outside the sheet. --}}
+<section class="sr-rich">
+    <header class="sr-rich-head">
+        {{#if icon}}<span class="sr-rich-img sr-rich-icon"><i class="fas {{icon}}" aria-hidden="true"></i></span>
+        {{else}}<span class="sr-rich-img"><img src="{{img}}" alt=""></span>{{/if}}
+        <div class="sr-rich-titles">
+            <h3>{{name}}</h3>
+            {{#if detail}}<p>{{detail}}</p>{{/if}}
+        </div>
+        <span class="sr-rich-kind">{{kind}}</span>
+    </header>
+    {{#if stats.length}}
+    <dl class="sr-rich-stats">
+        {{#each stats}}<div><dt>{{label}}</dt><dd>{{value}}</dd></div>{{/each}}
+    </dl>
+    {{/if}}
+    {{#if description}}<div class="sr-rich-desc">{{{description}}}</div>{{/if}}
+    {{!-- attributes, limits, armor, movement: the system's modifier breakdown (common/modifiers-tooltip.hbs) --}}
+    {{#if breakdown}}<div class="sr-rich-breakdown">{{{breakdown}}}</div>{{/if}}
+    {{#if tags.length}}
+    <div class="sr-rich-tags">
+        {{#if tagsLabel}}<span class="sr-rich-tags-label">{{tagsLabel}}</span>{{/if}}
+        {{#each tags}}<span class="sr-rich-tag">{{this}}</span>{{/each}}
+    </div>
+    {{/if}}
+    {{#if source}}
+    {{!-- the source link of the rows (SR5CharacterSheetRedesign#addSourceLinks); opens from a hover-locked card. No
+         data-tooltip: hovering it would bring up a plain tooltip in place of the card --}}
+    <footer class="sr-rich-foot"><a class="source-link sr-rich-source" data-source="{{source}}" aria-label="{{localize 'SR5.OpenSource'}}: {{sourceLabel source}}"><i class="fas {{sourceIcon source}}" aria-hidden="true"></i> {{sourceLabel source}}</a></footer>
+    {{/if}}
+</section>

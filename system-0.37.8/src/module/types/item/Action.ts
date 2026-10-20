@@ -1,0 +1,218 @@
+import { SR5 } from "@/module/config";
+import { BaseItemData, ItemBase } from "./ItemBase";
+import { ModifiableField } from "../fields/ModifiableField";
+import { ModifiableValueLinked, BaseValuePair, ChangeList } from "../template/Base";
+import { TagifyMultiField } from '@/module/types/fields/TagifyMultiField';
+import { INTERVAL_UNITS } from '@/module/utils/timeUnits';
+const { SchemaField, NumberField, BooleanField, StringField } = foundry.data.fields;
+
+const ResultActionData = () => ({
+    action: new StringField({
+        blank: true,
+        required: true,
+        choices: ['modifyCombatantInit', 'forceReboot']
+    }),
+    label: new StringField({ required: true }),
+    value: new StringField({ required: true })
+});
+
+const ActionResultData = () => ({
+    // TODO success: Record<string, any>
+    success: new SchemaField({
+        matrix: new SchemaField({
+            placeMarks: new BooleanField(),
+        }),
+    })
+});
+
+export const MinimalActionData = () => ({
+    attribute: new StringField({
+        blank: true,
+        required: true,
+        choices: SR5.attributes
+    }),
+    attribute2: new StringField({
+        blank: true,
+        required: true,
+        choices: SR5.attributes
+    }),
+    armor: new BooleanField(),
+    limit: new ModifiableField(ModifiableValueLinked()),
+    mod: new NumberField({ required: true, nullable: false, integer: true, initial: 0 }),
+    skill: new StringField({ required: true }),
+});
+
+export const ActionCategory = () => ({
+    matrix: new SchemaField({
+        owner: new BooleanField(),
+        marks: new NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 }),
+    }),
+});
+
+export const DamageData = ({ normal_weapon = false } = {}) => ({
+    ...ModifiableValueLinked(),
+    type: new SchemaField({
+        base: new StringField({
+            blank: true,
+            required: true,
+            choices: SR5.damageTypes,
+        }),
+        value: new StringField({
+            blank: true,
+            required: true,
+            choices: SR5.damageTypes,
+        }),
+    }),
+    element: new SchemaField({
+        base: new StringField({
+            blank: true,
+            required: true,
+            choices: SR5.elementTypes,
+        }),
+        value: new StringField({
+            blank: true,
+            required: true,
+            choices: SR5.elementTypes
+        }),
+    }),
+    ap: new ModifiableField(ModifiableValueLinked()),
+    biofeedback: new StringField({
+        blank: true,
+        required: true,
+        choices: SR5.biofeedbackOptions,
+    }),
+    attribute: new StringField({
+        blank: true,
+        required: true,
+        choices: SR5.attributes
+    }),
+    source: new SchemaField({
+        actorId: new StringField({ required: true }),
+        itemId: new StringField({ required: true }),
+        itemName: new StringField({ required: true }),
+        itemType: new StringField({ required: true }),
+    }, { required: false }),
+    normal_weapon: new BooleanField({ initial: normal_weapon }),
+});
+
+export const OpposedActionRollData = ({ type = '', opposedTest = 'OpposedTest', resistTest = '' } = {}) =>
+    new SchemaField({
+        test: new StringField({ required: true, initial: opposedTest }),
+        type: new StringField({ required: true, initial: type }),
+        description: new StringField({ required: true }),
+        mod: new NumberField({ required: true, nullable: false, integer: true, initial: 0 }),
+        skill: new StringField({ required: true }),
+        attribute: new StringField({
+            blank: true,
+            required: true,
+            choices: SR5.attributes
+        }),
+        attribute2: new StringField({
+            blank: true,
+            required: true,
+            choices: SR5.attributes
+        }),
+        armor: new BooleanField(),
+        resist: new SchemaField({
+            test: new StringField({ required: true, initial: resistTest }),
+            skill: new StringField({ required: true }),
+            mod: new NumberField({ required: true, nullable: false, integer: true, initial: 0 }),
+            attribute: new StringField({
+                blank: true,
+                required: true,
+                choices: SR5.attributes
+            }),
+            attribute2: new StringField({
+                blank: true,
+                required: true,
+                choices: SR5.attributes
+            }),
+            armor: new BooleanField(),
+        }),
+    });
+
+export const ActionRollData = (
+    {
+        test = 'SuccessTest',
+        opposedTest = '',
+        resistTest = '',
+        followedTest = '',
+        type = '',
+        normal_weapon = false,
+    } = {}
+) => ({
+    ...MinimalActionData(),
+    test: new StringField({ required: true, initial: test }),
+    type: new StringField({ required: true, initial: type, blank: true, choices: SR5.actionTypes }),
+    initiative_mod: new NumberField({ required: true, nullable: false, integer: true, initial: 0 }),
+    category: new SchemaField(ActionCategory()),
+    categories: new TagifyMultiField(),
+    spec: new BooleanField(),
+    mod_description: new StringField({ required: true }),
+    threshold: new SchemaField(BaseValuePair()),
+    extended: new SchemaField({
+        value: new NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 }),
+        unit: new StringField({ required: true, initial: 'minutes', choices: INTERVAL_UNITS }),
+    }),
+    modifiers: new TagifyMultiField(),
+    damage: new ModifiableField(DamageData({ normal_weapon })),
+    opposed: OpposedActionRollData({ opposedTest, resistTest }),
+    followed: new SchemaField({
+        test: new StringField({ required: true, initial: followedTest }),
+        mod: new NumberField({ required: true, nullable: false, integer: true, initial: 0 }),
+        skill: new StringField({ required: true }),
+        attribute: new StringField({
+            blank: true,
+            required: true,
+            choices: SR5.attributes
+        }),
+        attribute2: new StringField({
+            blank: true,
+            required: true,
+            choices: SR5.attributes
+        }),
+        armor: new BooleanField(),
+    }),
+    alt_mod: new NumberField({ required: true, nullable: false, integer: true, initial: 0 }),
+    dice_pool_mod: ChangeList(),
+    roll_mode: new StringField({
+        blank: true,
+        required: true,
+        choices: CONFIG.ChatMessage.modes,
+    }),
+});
+
+export const ActionPartData = (args: {
+    test?: string;
+    opposedTest?: string;
+    resistTest?: string;
+    followedTest?: string;
+    type?: string;
+    normal_weapon?: boolean;
+} = {}) => ({
+    action: new SchemaField(ActionRollData(args)),
+});
+
+const ActionData = () => ({
+    ...BaseItemData(),
+    ...ActionPartData(),
+
+    result: new SchemaField(ActionResultData()),
+});
+
+export type DamageType = foundry.data.fields.SchemaField.InitializedData<ReturnType<typeof DamageData>>;
+export type DamageTypeType = DamageType['type']['base'];
+export type ActionRollType = foundry.data.fields.SchemaField.InitializedData<ReturnType<typeof ActionRollData>>;
+export type OpposedTestType = ActionRollType['opposed'];
+export type ActionResultType = foundry.data.fields.SchemaField.InitializedData<ReturnType<typeof ActionResultData>>;
+export type ResultActionType = foundry.data.fields.SchemaField.InitializedData<ReturnType<typeof ResultActionData>>;
+export type MinimalActionType = foundry.data.fields.SchemaField.InitializedData<ReturnType<typeof MinimalActionData>>;
+export type BiofeedbackDamageType = DamageType['biofeedback'];
+
+export class Action extends ItemBase<ReturnType<typeof ActionData>> {
+    static override defineSchema() {
+        return ActionData();
+    }
+}
+
+console.log("ActionData", ActionData(), new Action());

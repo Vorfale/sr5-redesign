@@ -1,0 +1,82 @@
+{{!-- "Vehicle" tab: the skills with their pools on the left (as rolled: the driver's values in manual, remote and rigger
+      control, the vehicle's own Pilot on autopilot); on the right the modification slots (Rigger 5.0: Body slots in
+      each category, a drone's mod points) and the autosofts. With nothing for the right column in play mode (no
+      modifications in, no autosofts) the skills take the whole width. --}}
+<section class="tab sr-details sr-vehicle-details{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    <div class="col-2{{#if detailsSingleColumn}} single{{/if}}">
+        <div class="left">
+            <div class="card skills">
+                {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/skills.hbs' }}
+            </div>
+        </div>
+        <div class="right">
+            {{#if (or @root.isEditMode modSlots.anyUsed)}}
+            <div class="items-section card mod-slots" data-type="mod-slots">
+                <div class="list-item list-item-header">
+                    <div class="list-item-start"><label>{{modSlots.label}}</label></div>
+                    <div class="list-item-col value-col"><label>{{localize "SR5.Redesign.Rigging.SlotsUsed"}}</label></div>
+                    <div class="list-item-icons"></div>
+                </div>
+                {{#each modSlots.rows as |row|}}
+                    <div class="list-item slot-row{{#if row.over}} over{{/if}}" data-slot="{{row.id}}">
+                        <div class="list-item-start">
+                            <i class="prop-icon fas {{row.icon}}" aria-hidden="true"></i>
+                            <label>{{row.label}}</label>
+                        </div>
+                        <div class="list-item-col value-col">
+                            {{!-- the row's rich card lists the modifications in it (SR5RichTooltip, kind modslots) --}}
+                            <span class="slots" aria-label="{{row.used}} / {{row.max}}"><span class="used" aria-hidden="true">{{#each row.usedDigits}}<span class="d">{{this}}</span>{{/each}}</span><span class="of" aria-hidden="true">/</span><span class="max" aria-hidden="true">{{#each row.maxDigits}}<span class="d">{{this}}</span>{{/each}}</span></span>
+                        </div>
+                        <div class="list-item-icons"></div>
+                    </div>
+                {{/each}}
+            </div>
+            {{/if}}
+
+            {{#if (or @root.isEditMode autosofts.length)}}
+            <div class="items-section card autosofts{{#unless (or openSections.autosofts @root.isEditMode)}} collapsed{{/unless}}" data-type="autosofts">
+                {{!-- the equipment list's header (Chummer brings autosofts in as equipment), folding under its own key --}}
+                <div class="list-item list-item-header{{#if @root.isPlayMode}} collapsible-header{{/if}}"
+                     {{#unless @root.isEditMode}}data-action="toggleExpanded" data-item-type="autosofts"{{/unless}}>
+                    <div class="list-item-start{{#unless openSections.autosofts}} label-collapsed{{/unless}}">
+                        <label>{{localize "SR5.Redesign.Rigging.Autosofts"}}</label>
+                    </div>
+                    <div class="list-item-col rtg-col"><label>{{localize "SR5.Rtg"}}</label></div>
+                    <div class="list-item-icons">
+                        {{> "systems/shadowrun5e/dist/templates/v2/list-items/header-add-icon.hbs" type='equipment' }}
+                        {{> "systems/shadowrun5e/dist/templates/v2/list-items/toggle-expand-icon.hbs" isOpen=openSections.autosofts type='autosofts' }}
+                    </div>
+                </div>
+                {{!-- a narrow card: name and rating only (the equipment row's quantity and icon lane would not fit); the
+                      row keeps the item row's data attributes, so its menu, drag, tooltip and expansion work --}}
+                {{#each autosofts as |item|}}
+                    <div class="list-item-container{{#if (hasKey @root.expandedUuids item.uuid)}} expanded{{/if}}">
+                        <div class="list-item autosoft-row draggable" data-source="{{item.system.description.source}}" data-item-id="{{item.id}}" data-context-menu="item" data-uuid="{{item.uuid}}">
+                            <div class="list-item-start">
+                                {{> "systems/shadowrun5e/dist/templates/v2/list-items/item-roll-image.hbs" item }}
+                                {{> "systems/shadowrun5e/dist/templates/v2/list-items/item-name.hbs" item }}
+                            </div>
+                            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/item-rating-col.hbs' item }}
+                            <div class="list-item-icons">
+                                {{#if @root.isEditMode}}
+                                    {{> 'systems/shadowrun5e/dist/templates/v2/list-items/edit-delete-icons.hbs' item }}
+                                {{/if}}
+                            </div>
+                        </div>
+                        <div class="list-item-desc">
+                            <div class="list-item-properties">
+                                {{> 'systems/shadowrun5e/dist/templates/v2/item-properties/technology.hbs' item=item }}
+                            </div>
+                            <div class="description-body">
+                                {{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}
+                            </div>
+                        </div>
+                    </div>
+                {{else}}
+                    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}
+                {{/each}}
+            </div>
+            {{/if}}
+        </div>
+    </div>
+</section>

@@ -1,0 +1,71 @@
+{{!-- One skill row (active, language or knowledge); same data attributes and actions as list-items/skill/item.hbs, plus attribute and pool columns. --}}
+<div class="list-item-container {{#if (hasKey @root.expandedSkills skill.id)}} expanded {{/if}}"
+     data-sort-name="{{skill.label}}" data-sort-attr="{{pool.attribute}}" data-sort-rtg="{{skill.value}}"
+     data-sort-pool="{{#if (isDefined pool.pool)}}{{pool.pool}}{{else}}-1{{/if}}">
+    <div class="list-item draggable"
+         data-source="{{lookup @root.skillSources skill.id}}"
+         data-item-id="{{skill.id}}"
+         data-skill-id="{{skill.id}}"
+         data-skill-name="{{skill.name}}"
+         data-category="{{#if category}}{{category}}{{else}}active{{/if}}"
+         {{#if subcategory}}data-subcategory="{{subcategory}}"{{/if}}
+         data-context-menu="skill">
+        <div class="list-item-start">
+            <button type="button" class="list-item-image-container icon sr5-icon"
+                    data-tooltip="{{localize 'SR5.Labels.ActorSheet.TestKBoardModifiers' skip=@root.bindings.skip descr=@root.bindings.card}}"
+                    aria-label="{{#if @root.isPlayMode}}{{localize 'SR5.Redesign.RollSkill' name=skill.label}}{{else}}{{localize 'SR5.Edit'}} {{skill.label}}{{/if}}"
+                    {{#if @root.isPlayMode}} data-action="rollSkill" {{else}} data-action="editSkill" {{/if}}>
+                <img src="{{skill.img}}" alt="" class="{{#if @root.isEditMode}}list-item-image-edit{{else}}list-item-image-roll{{/if}}"/>
+            </button>
+            {{!-- the specializations sit under the name but outside its button: a link inside a button never gets the
+                  click (it opened the description); each one rolls the skill with its specialization --}}
+            <div class="skill-name-stack">
+                <button type="button" class="unbutton skill-name {{skillClass skill}}" data-action="openSkillDescription">
+                    <span class="label">{{skill.label}}</span>
+                </button>
+                {{#if @root.isPlayMode}}{{#with (skillSpecializations skill) as |specs|}}{{#if specs}}<span class="specs">{{specs}}</span>{{/if}}{{/with}}{{/if}}
+            </div>
+        </div>
+        <div class="list-item-col attr-col">{{pool.attribute}}</div>
+        <div class="list-item-col rtg-col">
+            {{#if @root.isEditMode}}
+                <input type="number" data-system-action="changeSkillRating" class="short skinny" value="{{skill.base}}"
+                       data-skill="{{skill.id}}" aria-label="{{skill.label}}" {{#if skill.group}}disabled{{/if}}>
+            {{else}}
+                <span data-skill-modifier-tooltip="{{skill.id}}">{{#if skill.system.skill.language.isNative}}{{localize "SR5.Skill.abbr.Native"}}{{else}}{{skill.value}}{{/if}}</span>
+            {{/if}}
+        </div>
+        <div class="list-item-col pool-col">
+            {{#if skill.system.skill.language.isNative}}<span class="pool none">&ndash;</span>
+            {{!-- the pool as it will be rolled (wounds and global modifiers included); red when they take dice away --}}
+            {{else if (isDefined pool.pool)}}<span class="pool{{#unless skill.value}} defaulting{{/unless}}{{#unless pool.pool}} none{{/unless}}{{#if pool.reduced}} reduced{{/if}}"
+                data-tooltip="{{pool.tooltip}}">{{pool.pool}}</span>
+            {{else}}<span class="pool none" data-tooltip="SR5.Redesign.NoDefaulting">&ndash;</span>{{/if}}
+        </div>
+        <div class="list-item-icons" data-item-id="{{skill.id}}">
+            {{#if @root.isEditMode}}
+                {{!-- favorites, like the item rows (favorite-icon.hbs): the skill then sits in the sidebar's favorites.
+                      No edit button: the image button on the left already opens the skill in edit mode, and a third
+                      icon wrapped twice as many skill names in the default window width --}}
+                <button type="button" class="unbutton" data-action="favoriteItem" data-tooltip="SR5.Tooltips.Item.ToggleFavorite"
+                        aria-label="{{localize 'SR5.Tooltips.Item.ToggleFavorite'}}: {{skill.label}}" aria-pressed="{{#if (lookup @root.favoriteIds skill.id)}}true{{else}}false{{/if}}">
+                    <i class="{{#if (lookup @root.favoriteIds skill.id)}}fas{{else}}far{{/if}} fa-star" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="unbutton" data-action="deleteItem" data-tooltip="SR5.DeleteSkill" aria-label="{{localize 'SR5.DeleteSkill'}} {{skill.label}}">
+                    <i class="fas fa-trash" aria-hidden="true"></i>
+                </button>
+            {{/if}}
+        </div>
+    </div>
+    <div class="list-item-desc">
+        <div class="list-item-properties">
+            {{!-- marked like the item properties (#arrangeProperties): the attribute the skill rolls with, its group --}}
+            <label data-prop="roll"><i class="prop-icon fas fa-dice-six" aria-hidden="true"></i>{{localizeOb skill.attribute @root.config.attributes}}</label>
+            {{#if skill.group}}<label data-prop="kind"><i class="prop-icon fas fa-layer-group" aria-hidden="true"></i>{{skill.group}}</label>{{/if}}
+            {{#if skill.canDefault}}<label data-prop="kind"><i class="prop-icon fas fa-circle-check" aria-hidden="true"></i>{{localize "SR5.CanDefault"}}</label>{{/if}}
+        </div>
+        <div class="description-body">
+            {{{objValue (objValue @root.expandedSkills skill.id) 'html'}}}
+        </div>
+    </div>
+</div>

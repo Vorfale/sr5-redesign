@@ -1,0 +1,85 @@
+
+export const TestRules = {
+
+    /**
+     * The modifier value applied for each extended test iteration
+     */
+    extendedModifierValue: -1,
+
+    /**
+     * Calculate the modifier for the next extended test run.
+     *
+     * @param current The current extended test modifier or zero.
+     */
+    calcNextExtendedModifier: (current = 0): number => {
+        return current + TestRules.extendedModifierValue;
+    },
+
+    /**
+     * Can a test be extended further?
+     *
+     * Only the threshold ends a test here. SR5 also ends one when the pool runs out, but
+     * modifiers a user applies by hand aren't part of the pool we can see, so an empty pool
+     * is left as the users call rather than a hard stop. A test without a threshold answers
+     * 'how far did I get' and runs until it is ended by hand.
+     *
+     * @param threshold The extended test threshold to be met
+     * @param extendedHits The summed up hits across all test iterations
+     * @returns When true, test can be extended.
+     */
+    canExtendTest: (threshold: number, extendedHits: number): boolean => {
+        if (threshold > 0) return extendedHits < threshold;
+
+        return true;
+    },
+
+    /**
+     * Has a Success Test been successful?
+     * @param hits Amount of hits (reduced by limit) scored on a test
+     * @param threshold Threshold to reach for a test. 0 should none be applied.
+     * @returns true, when hits vs threshold score a success
+     */
+    success:(hits: number, threshold: number): boolean => {
+        // Don't allow any negative values.
+        hits = Math.max(hits, 0);
+        threshold = Math.max(threshold, 0);
+
+        // Either check against meeting the threshold or simply any hits.
+        if (threshold > 0) return hits >= threshold;
+        else return hits > 0;
+    },
+
+    /**
+     * Has a Success Test glitched?
+     *
+     * @param glitches The amount of dice with glitch value
+     * @param pool The amount of dice used for the test as a whole
+     * @returns If true, the given success test values result in a glitched test
+     */
+    glitched: (glitches: number, pool: number): boolean => {
+        // Don't allow any negative values.
+        glitches = Math.max(glitches, 0);
+        pool = Math.max(pool, 1);
+
+        return glitches > Math.floor(pool / 2);
+    },
+
+    /**
+     * Has a Success Test glitched critically?
+     *
+     * @param hits Amount of hits achieved
+     * @param glitched Has a test been glitched?
+     */
+    criticalGlitched: (hits: number, glitched: boolean): boolean => {
+        return hits === 0 && glitched;
+    },
+
+    /*
+     * Calculate the number of hits that can be bought with the given pool.
+     * @param pool The pool of the test.
+     * @returns The number of hits that can be bought.
+     */
+    buyHits: (pool: number): number => {
+        return Math.floor(pool / 4);
+    }
+}

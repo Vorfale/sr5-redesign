@@ -1,0 +1,8 @@
+{{#if item.system.technology.rating}}
+    <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-signal" aria-hidden="true"></i>{{localize 'SR5.Rating'}}&nbsp;{{item.system.technology.rating}}</label>
+{{/if}}
+{{#each system.licenses}}
+    {{#unless (empty this.name)}}
+        <label data-prop="stat"><i class="prop-icon fas fa-id-card" aria-hidden="true"></i>{{this.name}}&nbsp;({{this.rtg}})</label>
+    {{/unless}}
+{{/each}}

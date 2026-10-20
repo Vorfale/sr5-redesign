@@ -1,0 +1,29 @@
+{{!-- Effects tab as two cards, like the other tabs: the actor's own effects, then the effects of its items. In play
+      mode an empty card is left out, and a tab with no effects at all shows the tab's empty state; edit mode keeps
+      the actor's card, empty with its empty row. --}}
+<section class="tab sr-effects{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+{{#if tabEmpty}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-tab.hbs' }}
+{{else}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
+    {{#if (or @root.isEditMode effects.length)}}
+    <div class="items-section card" data-type="effects">
+        {{> 'systems/shadowrun5e/dist/templates/v2/list-items/effect/header.hbs' label='SR5.Effects' }}
+        {{#each effects}}
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/effect/item.hbs' item=this }}
+        {{else}}
+            {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}
+        {{/each}}
+    </div>
+    {{/if}}
+    {{#if itemEffects.length}}
+    <div class="items-section card" data-type="item-effects">
+        {{> 'systems/shadowrun5e/dist/templates/v2/list-items/effect/header.hbs' label='SR5.Labels.Sheet.ItemEffects' isItemEffect=true }}
+        {{#each itemEffects}}
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/effect/item.hbs' item=this isItemEffect=true }}
+        {{/each}}
+    </div>
+    {{/if}}
+{{/if}}
+</section>

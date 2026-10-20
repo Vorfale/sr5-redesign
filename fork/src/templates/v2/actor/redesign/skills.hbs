@@ -1,0 +1,87 @@
+{{!-- Active skills with their dice pools (rating + attribute), after the regular active-skills.hbs.
+      Keeps the ids and data attributes the base sheet's filter and drag/drop code look for. --}}
+<div class="fill-container skill-table">
+    {{!-- Sortable column headers: click sorts and highlights the column, a second click returns to the default (name). --}}
+    <div class="list-item list-item-header skill-table-header active-skills-header" data-sort-table="active">
+        <div class="list-item-start" role="columnheader">
+            <button type="button" class="unbutton sort-button" data-action="sortSkills" data-sort="name">
+                <h3>{{localize "SR5.ActiveSkills"}}</h3>
+            </button>
+        </div>
+        <div class="list-item-col attr-col" role="columnheader">
+            <button type="button" class="unbutton sort-button" data-action="sortSkills" data-sort="attr">
+                <span>{{localize "SR5.Redesign.AttrColumn"}}</span>
+            </button>
+        </div>
+        <div class="list-item-col rtg-col" role="columnheader">
+            <button type="button" class="unbutton sort-button numeric" data-action="sortSkills" data-sort="rtg">
+                <span>{{localize "SR5.Rtg"}}</span>
+            </button>
+        </div>
+        <div class="list-item-col pool-col" role="columnheader">
+            <button type="button" class="unbutton sort-button numeric" data-action="sortSkills" data-sort="pool">
+                <span>{{localize "SR5.Redesign.Pool"}}</span>
+            </button>
+        </div>
+        <div class="list-item-icons">
+            {{#if @root.isEditMode}}
+                {{> "systems/shadowrun5e/dist/templates/v2/list-items/add-icon.hbs"
+                    action='addItem' tooltip="SR5.Add" type='skill' data=(skillAddItemData 'active') }}
+            {{/if}}
+        </div>
+    </div>
+    {{!-- search + filter menu (training, attribute, skill group), same controls as the list search of the other tabs;
+          SR5CharacterSheetRedesign#_isSkillFiltered applies the menu on top of the base sheet's text filter --}}
+    <div class="list-item skill-filter">
+        {{!-- the id is the base sheet's filter selector (scoped to the sheet); labelled by aria-label, as a label's
+              for would find the first open sheet's field --}}
+        <span class="skill-search"><input id="filter-active-skills" class="short text" type="search" placeholder="{{localize 'SR5.Filter'}}…" aria-label="{{localize 'SR5.Filter'}}" autocomplete="off"/></span>
+        {{#if skillFilter.groups.length}}
+        <button type="button" class="list-filter-button" popovertarget="{{@root.rootId}}-skill-filters" aria-haspopup="menu"
+                aria-label="{{localize 'SR5.Redesign.ListFilters'}}" data-tooltip="SR5.Redesign.ListFilters">
+            <i class="fas fa-filter" aria-hidden="true"></i>
+            <span class="list-filter-count sr-only"></span>
+        </button>
+        <div class="list-filter-menu" id="{{@root.rootId}}-skill-filters" role="menu" aria-label="{{localize 'SR5.Redesign.ListFilters'}}" popover="auto">
+            {{#each skillFilter.groups as |group|}}
+                {{#if group.label}}<div class="list-filter-group" role="presentation">{{localize group.label}}</div>{{/if}}
+                <div class="list-filter-items{{#if group.columns}} columns{{/if}}" role="group"{{#if group.label}} aria-label="{{localize group.label}}"{{/if}}>
+                    {{#each group.chips as |chip|}}
+                        <button type="button" class="list-filter-option" role="menuitemcheckbox" tabindex="-1" aria-checked="false"
+                                data-action="toggleSkillFilter" data-filter="{{chip.id}}">
+                            <span>{{localize chip.label}}</span>
+                            <i class="fas fa-check check" aria-hidden="true"></i>
+                        </button>
+                    {{/each}}
+                </div>
+            {{/each}}
+            <button type="button" class="list-filter-option list-filter-clear" role="menuitem" tabindex="-1" data-action="clearSkillFilters">
+                <i class="fas fa-xmark" aria-hidden="true"></i><span>{{localize "SR5.Redesign.ListFiltersClear"}}</span>
+            </button>
+        </div>
+        {{/if}}
+        {{!-- sort button (as the item tabs'): every skill table by name A-Z, Z-A, pool or rating highest first; icon and
+              name set by SR5CharacterSheetRedesign#syncSkillSortButton --}}
+        <button type="button" class="list-sort-button skill-sort-button" data-action="cycleSkillSort"
+                aria-label="{{localize 'SR5.Redesign.ListSort.Label'}}" data-tooltip="SR5.Redesign.ListSort.NameAsc">
+            <i class="fas fa-arrow-down-a-z" aria-hidden="true"></i>
+        </button>
+    </div>
+    <section id="active-skills-scroll" class="scrollable">
+        {{#each system.skills.active as |skill|}}
+            {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/skill-row.hbs' skill=skill pool=(lookup @root.skillPools skill.id) }}
+        {{/each}}
+        {{!-- play mode lists the trained skills: none at all (a drone without autosofts) says so, as the item tables do --}}
+        {{#if (and @root.isPlayMode (eq @root.trainedSkillCount 0))}}
+            {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}
+        {{/if}}
+
+        {{!-- skill groups: in play mode only when the character has any (edit mode keeps the header to add one) --}}
+        {{#if (or @root.isEditMode skillGroups.length)}}
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/skill-group/header.hbs' addAction='addItem' }}
+            {{#each skillGroups as |group|}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/list-items/skill-group/item.hbs' group=group }}
+            {{/each}}
+        {{/if}}
+    </section>
+</div>

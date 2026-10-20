@@ -1,0 +1,45 @@
+{{!-- confirmPersonaReboot: the device, then what the reboot does to the actor (MatrixRebootFlow), or why it cannot. --}}
+<div class="reboot-body">
+    <div class="reboot-device">
+        {{#if device}}
+            <i class="reboot-device-image fas {{device.icon}}" aria-hidden="true"></i>
+            <span class="reboot-device-text">
+                <span class="reboot-device-name">{{device.name}}</span>
+                <span class="reboot-device-detail">{{device.detail}}</span>
+            </span>
+        {{else}}
+            <i class="reboot-device-image fas fa-brain" aria-hidden="true"></i>
+            <span class="reboot-device-text">
+                <span class="reboot-device-name">{{localize "SR5.LivingPersona"}}</span>
+            </span>
+        {{/if}}
+    </div>
+    {{#if linkLocked}}
+        <p class="reboot-warning"><i class="fas fa-lock"></i><span>{{localize "SR5.Errors.LinkLockedReboot"}}</span></p>
+    {{else}}
+        <p class="reboot-intro">{{localize "SR5.Redesign.Reboot.Intro"}}</p>
+        <ul class="reboot-effects">
+            <li><span>{{localize "SR5.Redesign.Reboot.Marks"}}</span><span class="reboot-value">{{marked}}</span></li>
+            {{#if disconnects}}
+                <li><span>{{localize "SR5.Redesign.Reboot.Disconnects" network=disconnects}}</span></li>
+            {{/if}}
+            {{!-- the score only for who may know it: the GM (marked as hidden from the player), a Baby Monitor's user --}}
+            <li>
+                <span>{{localize "SR5.Redesign.Reboot.Overwatch"}}</span>
+                {{#if overwatchShown}}
+                    <span class="reboot-value{{#if overwatchGmOnly}} gm-only{{/if}}"{{#if overwatchGmOnly}} data-tooltip="SR5.Redesign.Reboot.OverwatchGmOnly"
+                          data-tooltip-class="sr5-redesign-tooltip"{{/if}}>{{#if overwatchGmOnly}}<i class="fas fa-eye-slash" aria-hidden="true"></i>{{/if}}{{overwatch}} → 0</span>
+                {{/if}}
+            </li>
+            {{#if dumpshock}}
+                <li class="danger">
+                    <span class="reboot-effect">
+                        <span>{{localize "SR5.Redesign.Reboot.Dumpshock" mode=dumpshock.mode}}</span>
+                        <span class="reboot-note">{{localize "SR5.Redesign.Reboot.DumpshockNote" minutes=dumpshock.minutes}}</span>
+                    </span>
+                    <span class="reboot-value">{{damageCode dumpshock.damage}}</span>
+                </li>
+            {{/if}}
+        </ul>
+    {{/if}}
+</div>

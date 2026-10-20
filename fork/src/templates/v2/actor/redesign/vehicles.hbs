@@ -1,0 +1,119 @@
+{{!-- Vehicles & Drones tab (as Chummer's): the vehicles and drones this character drives, two cards like the inventory's.
+      A vehicle is an actor of its own (type vehicle); it belongs to the character the system's way, by its driver
+      (system.driver = this actor's uuid; SR5Actor#getVehicleDriver, ActorOwnershipFlow). Dropping one on the sheet
+      makes this character its driver, unlinking takes the driver off, Add creates one already driven by it
+      (SR5CharacterSheetRedesign#vehicleSections, #createVehicle, #unlinkVehicle). Rows open the vehicle's own sheet
+      and carry a rich card; they drag like any actor (onto the canvas for a token). Empty states as on every tab.
+      Search, filters and the grouping button (by type / by category / one list, SR5CharacterSheetRedesign
+      #cycleVehicleGrouping) as on the other lists; edit mode always by type, where Add makes a vehicle or a drone.
+      A name expands the row like an item's: what it is, acceleration and seats, the book page, the vehicle's own
+      condition monitors (its damage, not the character's: #modifyVehicleMonitor) and its description. --}}
+{{#*inline "vehicleMonitor"}}
+    {{#if max}}
+    <div class="horizontal-cell-input vehicle-monitor {{id}}" data-id="{{id}}">
+        {{!-- the system's monitor markup (common/horizontal-cells.hbs): the icon in its link, no roll behind it --}}
+        <div class="icon-container"><a data-tooltip="{{localize label}}"><i class="fas {{icon}}" aria-hidden="true"></i></a></div>
+        <div class="clear-container">
+            <a data-tooltip="{{localize label}}:&nbsp;0/{{max}}" data-action="clearVehicleMonitor" data-id="{{id}}"{{#unless editable}} hidden{{/unless}}>
+                <i class="fas fa-ban"></i>
+            </a>
+        </div>
+        <div class="cell-container">
+            {{#for 1 (sum max 1)}}
+                <div class="cell {{#iflte this ../value}}filled{{/iflte}}"
+                     {{#if ../editable}}data-action="modifyVehicleMonitor"{{/if}} data-id="{{../id}}" data-value="{{this}}"
+                     data-tooltip="{{localize ../label}}:&nbsp;{{this}}/{{../max}}"></div>
+            {{/for}}
+        </div>
+    </div>
+    {{/if}}
+{{/inline}}
+<section class="tab sr-vehicles{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+{{#if tabEmpty}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-tab.hbs' text='SR5.Redesign.Vehicles.EmptyTab' }}
+{{else}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
+    {{#each vehicleSections as |section|}}
+        {{#if (or @root.isEditMode section.rows.length)}}
+        <div class="items-section card{{#unless (or section.isOpen @root.isEditMode)}} collapsed{{/unless}}" data-type="{{section.type}}">
+            <div class="list-item list-item-header{{#if @root.isPlayMode}} collapsible-header{{/if}}"
+                 {{#unless @root.isEditMode}}data-action="toggleExpanded" data-item-type="{{section.type}}"{{/unless}}>
+                <div class="list-item-start{{#unless section.isOpen}} label-collapsed{{/unless}}">
+                    <label>{{localize section.label}}</label>
+                </div>
+                {{#each @root.vehicleColumns as |column|}}
+                    <div class="list-item-col vehicle-stat-col"><label data-tooltip="{{column.tooltip}}">{{localize column.label}}</label></div>
+                {{/each}}
+                <div class="list-item-icons">
+                    {{#if (and @root.isEditMode @root.canCreateVehicles section.addLabel)}}
+                        <a data-action="createVehicle" data-drone="{{section.isDrone}}" data-tooltip="{{localize section.addLabel}}">
+                            {{localize "SR5.Add"}}&nbsp;<i class="fas fa-plus"></i>
+                        </a>
+                    {{/if}}
+                    {{> "systems/shadowrun5e/dist/templates/v2/list-items/toggle-expand-icon.hbs" isOpen=section.isOpen type=section.type }}
+                </div>
+            </div>
+            {{#each section.rows as |row|}}
+            <div class="list-item-container{{#if (hasKey @root.expandedUuids row.uuid)}} expanded{{/if}}">
+                <div class="list-item vehicle-row" data-uuid="{{row.uuid}}" data-vehicle-uuid="{{row.uuid}}" data-source="{{row.source}}"
+                     data-context-menu="vehicle" draggable="true">
+                    <div class="list-item-start">
+                        {{!-- as an item's picture (item-roll-image.hbs): a click opens it, here its sheet --}}
+                        {{#if row.canView}}
+                            <button type="button" class="list-item-image-container icon sr5-icon" data-action="openUuid" data-tooltip="SR5.Redesign.Vehicles.Open">
+                                <img src="{{row.img}}" class="list-item-image-info" alt="">
+                            </button>
+                        {{else}}
+                            <span class="list-item-image-container"><img src="{{row.img}}" alt=""></span>
+                        {{/if}}
+                        <span class="vehicle-name">
+                            {{!-- the description needs Limited (as the vehicle's own sheet) --}}
+                            {{#if row.canView}}
+                                <a class="item-name-link" data-action="showItemDescription">{{row.name}}</a>
+                            {{else}}
+                                <span class="item-name-link">{{row.name}}</span>
+                            {{/if}}
+                            {{#if row.kind}}<span class="vehicle-kind">{{row.kind}}</span>{{/if}}
+                        </span>
+                    </div>
+                    {{#each row.stats}}<div class="list-item-col vehicle-stat-col"><label>{{this}}</label></div>{{/each}}
+                    {{!-- as an item row's icons: edit mode the edit (its sheet) and delete buttons; the ⋮ menu (RowMenu)
+                          closes the lane in both modes --}}
+                    <div class="list-item-icons">
+                        {{#unless row.canView}}
+                            <span class="vehicle-locked" data-tooltip="SR5.Redesign.Vehicles.NoPermission"><i class="fas fa-lock"></i></span>
+                        {{/unless}}
+                        {{#if @root.isEditMode}}
+                            {{#if row.canView}}<a data-action="openUuid" data-tooltip="SR5.Redesign.Vehicles.Open"><i class="fas fa-pen-to-square"></i></a>{{/if}}
+                            {{#if row.canEdit}}
+                                <a data-action="unlinkVehicle" data-tooltip="SR5.Redesign.Vehicles.Unlink"><i class="fas fa-link-slash"></i></a>
+                                <a data-action="deleteVehicle" data-tooltip="SR5.Redesign.Vehicles.Delete"><i class="fas fa-trash"></i></a>
+                            {{/if}}
+                        {{/if}}
+                    </div>
+                </div>
+                <div class="list-item-desc">
+                    <div class="list-item-properties">
+                        {{#each row.props as |prop|}}
+                            <label class="{{#if prop.dup}}prop-dup{{/if}}" data-prop="{{prop.prop}}"{{#if prop.tooltip}} data-tooltip="{{prop.tooltip}}"{{/if}}><i class="prop-icon fas {{prop.icon}}" aria-hidden="true"></i>{{prop.text}}</label>
+                        {{/each}}
+                        {{#each row.monitors as |monitor|}}
+                            <div class="condition-monitor-container matrix-condition-monitor-property vehicle-monitor-property" data-vehicle-uuid="{{row.uuid}}">
+                                {{> vehicleMonitor id=monitor.id label=monitor.label icon=monitor.icon value=monitor.value max=monitor.max editable=row.canEdit }}
+                            </div>
+                        {{/each}}
+                    </div>
+                    <div class="description-body">
+                        {{{objValue (objValue @root.expandedUuids row.uuid) 'html'}}}
+                    </div>
+                </div>
+            </div>
+            {{else}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}
+            {{/each}}
+        </div>
+        {{/if}}
+    {{/each}}
+{{/if}}
+</section>

@@ -1,0 +1,24 @@
+{{!-- One list table as a card, like the inventory sections: own header (label, the block's columns, add + collapse
+      icons) and the rows of one upstream list-item type. In play mode it collapses from its header, with the same
+      toggleExpanded action and state as the inventory.
+      Params: partial (list-items folder), type (open state + toggle key), addType, addData, label, list, noEmpty (no
+      empty row: another card holds the rows, e.g. the spell categories). --}}
+<div class="items-section card{{#unless (or (lookup @root.openSections type) @root.isEditMode)}} collapsed{{/unless}}" data-type="{{type}}">
+    <div class="list-item list-item-header{{#if @root.isPlayMode}} collapsible-header{{/if}}"
+         {{#unless @root.isEditMode}}data-action="toggleExpanded" data-item-type="{{type}}"{{/unless}}>
+        <div class="list-item-start{{#unless (lookup @root.openSections type)}} label-collapsed{{/unless}}">
+            <label>{{localize label}}</label>
+        </div>
+        {{> @partial-block }}
+        <div class="list-item-icons">
+            {{> "systems/shadowrun5e/dist/templates/v2/list-items/header-add-icon.hbs" type=addType data=addData }}
+            {{> "systems/shadowrun5e/dist/templates/v2/list-items/toggle-expand-icon.hbs" isOpen=(lookup @root.openSections type) type=type }}
+        </div>
+    </div>
+    {{!-- rendered when collapsed too (CSS hides them), so the list search finds them --}}
+    {{#each list}}
+        {{> (concat "systems/shadowrun5e/dist/templates/v2/list-items/" ../partial "/item.hbs") item=this }}
+    {{else}}
+        {{#unless noEmpty}}{{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}{{/unless}}
+    {{/each}}
+</div>

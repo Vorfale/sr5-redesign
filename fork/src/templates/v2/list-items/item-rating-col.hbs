@@ -1,0 +1,8 @@
+<div class="list-item-col rtg-col">
+    {{!-- item ratings start at 1 (SR5#237 for devices); 0 means the item has none --}}
+    {{#if this.system.technology.rating}}
+        <label>{{this.system.technology.rating}}</label>
+    {{else}}
+        <label data-tooltip="SR5.NoRating">&ndash;</label>
+    {{/if}}
+</div>

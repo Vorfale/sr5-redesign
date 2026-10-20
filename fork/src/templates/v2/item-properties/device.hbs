@@ -1,0 +1,8 @@
+{{#unless (empty item.system.category)}}
+    <label data-prop="kind"><i class="prop-icon fas fa-mobile-screen" aria-hidden="true"></i>{{localizeOb item.system.category @root.config.deviceCategories}}</label>
+{{/unless}}
+{{#each item.system.atts}}
+    {{#if this.value}}
+        <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-microchip" aria-hidden="true"></i>{{localizeOb this.att @root.config.matrixAttributes}}&nbsp;{{this.value}}</label>
+    {{/if}}
+{{/each}}

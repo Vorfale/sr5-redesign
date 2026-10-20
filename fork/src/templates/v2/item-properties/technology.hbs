@@ -1,0 +1,10 @@
+{{#if item.system.technology.rating}}
+    {{#unless (isType item 'container')}}
+        <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-signal" aria-hidden="true"></i>{{localize "SR5.Rating"}}&nbsp;{{item.system.technology.rating}}</label>
+    {{/unless}}
+{{/if}}
+{{#if item.system.technology.conceal.value}}
+    <label data-prop="stat" data-tooltip="SR5.Conceal">
+        <i class="fas fa-magnifying-glass"></i>&nbsp;{{numberFormat item.system.technology.conceal.value sign=true}}
+    </label>
+{{/if}}

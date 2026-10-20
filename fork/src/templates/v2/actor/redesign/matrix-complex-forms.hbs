@@ -1,0 +1,19 @@
+{{!-- complex forms (after tabs/matrix/complex-forms.hbs) with a note when the list is empty that says why,
+      by the Shadowrun rules and the way the system fills the list. --}}
+<section class="tab hide-overflow{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    <div class="fill-container">
+        {{> 'systems/shadowrun5e/dist/templates/v2/list-items/complex_form/header.hbs'
+            label='SR5.ItemTypes.ComplexForm'
+            type='complex_form'
+            cssClass="header-for-scrollable" }}
+        <div id="complex-forms-scroll" class="scrollable">
+        {{#each itemType.complex_form}}
+            {{> "systems/shadowrun5e/dist/templates/v2/list-items/complex_form/item.hbs"
+                item=this }}
+        {{else}}
+            {{!-- empty: why, by Shadowrun rules and the way the system fills this list --}}
+            <p class="empty-note matrix-empty">{{#if @root.emerged}}{{localize "SR5.Redesign.MatrixEmpty.complexForms"}}{{else}}{{localize "SR5.Redesign.MatrixEmpty.complexFormsNotEmerged"}}{{/if}}</p>
+        {{/each}}
+        </div>
+    </div>
+</section>

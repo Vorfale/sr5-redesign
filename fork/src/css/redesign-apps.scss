@@ -1,0 +1,492 @@
+// lab/sheet-redesign: the small apps the SR5 Redesign sheet opens (karma, nuyen and reputation managers) in the
+// sheet's look: its palette, type, chamfered frames and buttons. The sheet adds `sr5-redesign-app` and its own theme
+// to them (SR5CharacterSheetRedesign#openApp); opened from the regular sheet they keep the upstream look.
+// Window: a crimson title bar like the sheet's plaques, chamfered top-left and bottom-right.
+
+@use 'actor-redesign' as sheet;
+
+.application.sr5v2.sr5-redesign-app {
+    @include sheet.sr-tokens;
+
+    font-family: var(--sr-font-label);
+    font-size: 14px;
+    color: var(--sr-text);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .55)) drop-shadow(0 2px 6px rgba(0, 0, 0, .35));
+    &.theme-light { filter: drop-shadow(0 12px 24px rgba(40, 20, 20, .25)); }
+
+    a, button, label { text-shadow: none; }
+    :is(button, a, input, select, [tabindex]):focus-visible { outline: 2px solid var(--sr-focus); outline-offset: -2px; box-shadow: none; }
+    :is(button, a, input):focus:not(:focus-visible) { outline: none; box-shadow: none; }
+
+    // ---------- window ----------
+    > .window-header {
+        @include sheet.chamfer-frame(10px, var(--sr-crimson-800), 1px, (tl));
+        border-bottom: 2px solid var(--sr-crimson-800);
+        height: 36px;
+        padding: 0 6px 0 14px;
+        // flat crimson like the sheet's plaques (Favorites, Quick Rolls), no art or gradient
+        background: var(--sr-crimson-700);
+        color: #fff;
+        .window-title { @include sheet.heading(12px, 700); letter-spacing: calc(.04em + var(--sr-tracking, 0em)); color: #fff; text-shadow: none; }
+        // the upstream style hides every header button of the managers; the close cross comes back. The other
+        // windows' controls (the ⋮ menu of the network manager and the reboot prompt) look the same: no box of
+        // their own, crimson under the pointer
+        .header-control[data-action="close"] { visibility: visible; }
+        .header-control {
+            width: 24px;
+            height: 24px;
+            margin: 0;
+            border: none;
+            border-radius: 0;
+            @include sheet.chamfer(5px, (tl, tr, br, bl));
+            background: none;
+            color: #fff;
+            font-size: 12px;
+            &:hover, &:focus-visible { background: var(--sr-crimson-900); color: #fff; }
+        }
+    }
+    > .window-content {
+        @include sheet.chamfer-frame(10px, var(--sr-crimson-800), 1px, (br));
+        border-top: none;
+        gap: 0;
+        padding: 0;
+        background: var(--sr-card-bg);
+        color: var(--sr-text);
+    }
+    .fill-container { padding: 16px var(--tbl-pad-x) 14px; }
+
+    // ---------- values: caption over the number, the change coloured ----------
+    label { color: inherit; }
+    label.label {
+        @include sheet.heading(22px, 700);
+        letter-spacing: var(--sr-tracking, 0em);
+        color: var(--sr-text);
+        &.positive { color: var(--sr-positive-text); text-shadow: none; }
+        &.negative { color: var(--sr-label-phys); text-shadow: none; }
+    }
+    .input-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        > label.label { white-space: nowrap; }
+    }
+    .manager-value {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        > label { @include sheet.label(12px); text-transform: uppercase; letter-spacing: calc(.06em + var(--sr-tracking, 0em)); color: var(--sr-accent); }
+        span { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+        // career karma in brackets, after the karma you can spend
+        span > label.label + label.label { font-size: 14px; color: var(--sr-text-muted); &.positive { color: var(--sr-positive-text); } }
+    }
+    .manager-operator { font-size: 12px; color: var(--sr-text-muted); }
+    &.nuyen-manager .input-row > label.label { font-size: 18px; }
+
+    // ---------- the change: steps above and below the field (karma, nuyen), around it (reputation) ----------
+    .input-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .mod-button-container { display: flex; gap: 4px; }
+    button.mod-step {
+        height: 24px;
+        min-height: 0;
+        width: auto;
+        min-width: 32px;
+        margin: 0;
+        padding: 0 8px;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        @include sheet.chamfer(4px, (tl, br));
+        @include sheet.label(12px);
+        background: var(--sr-graphite-700);
+        color: #fff;
+        cursor: pointer;
+        &:hover, &:focus-visible { background: var(--sr-crimson-700); color: #fff; }
+    }
+    input.mod-input {
+        width: 88px;
+        height: 28px;
+        padding: 0 6px;
+        background: var(--sr-input-bg);
+        color: var(--sr-text);
+        border: 1px solid var(--sr-line-soft);
+        border-radius: 0;
+        box-shadow: none;
+        @include sheet.heading(16px, 700);
+        text-align: center;
+        &:focus { border-color: var(--sr-text-muted); }
+    }
+
+    // reputation: one table row per rating, name | − field + | value
+    .fill-container > .list-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto 40px;
+        align-items: center;
+        gap: 12px;
+        min-height: var(--tbl-row-h);
+        padding: 4px 0;
+        border-bottom: 1px solid var(--sr-row-border);
+        background: none;
+        &:last-child { border-bottom: none; }
+        .list-item-start label { @include sheet.label(14px, 600); color: var(--sr-text); }
+        .list-item-col { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 0; } // font-size: the &nbsp; between the controls
+        .list-item-col:last-child label.label { font-size: 18px; }
+        input.mod-input { width: 48px; }
+    }
+    &.reputation-manager .fill-container { padding-top: 6px; padding-bottom: 6px; }
+
+    // ---------- buttons: Submit is the primary action (crimson), Cancel the quiet one ----------
+    .sheet-footer {
+        display: flex;
+        gap: 8px;
+        margin: 0;
+        padding: 10px var(--tbl-pad-x) 12px;
+        border-top: 1px solid var(--sr-row-border);
+        .sr5-button {
+            flex: 1;
+            height: 36px;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 0;
+            @include sheet.label(13px);
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            @include sheet.chamfer(6px, (tl, br));
+            &:hover, &:focus, &:focus-visible { box-shadow: none; }
+            i { font-size: 13px; margin: 0; }
+        }
+        // the managers' Submit / Cancel, a prompt dialog's confirm / cancel (the reboot). A focused button keeps its
+        // colour: the system's form dialogs fill a focused button with their hover crimson (test.scss, 0,6,0), which
+        // turned the reboot prompt's Cancel red as it opens focused; `.sr5-button:is(...)` outweighs that rule
+        .sr5-button:is(.sr5-submit, .confirm), .sr5-button:is(.sr5-cancel, .cancel) {
+            &, &:focus { border: none; box-shadow: none; color: #fff; }
+        }
+        .sr5-button:is(.sr5-submit, .confirm) { &, &:focus { background: var(--sr-crimson-700); } &:hover, &:focus-visible { background: var(--sr-red-600); } }
+        .sr5-button:is(.sr5-cancel, .cancel) { &, &:focus { background: var(--sr-graphite-700); } &:hover, &:focus-visible { background: var(--sr-graphite-600); } }
+    }
+
+    // ---------- matrix: the network manager (RedesignNetworkManager) and the reboot prompt ----------
+    // Like the sheet: the window's background, cards on it (a framed device or connection, tables with a black head),
+    // 12px inside the window, 16px between the groups. All icons of a row in the text colour.
+    &:is(.network-manager, .reboot-dialog) > .window-content { background: var(--sr-app-bg); }
+    &.network-manager > .window-content { max-height: min(640px, calc(100vh - 120px)); overflow: hidden auto; }
+    .network-manager-body, .reboot-body, .network-lists {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-m);
+        padding: 12px;
+    }
+    // search, no-match line and the two tables: one group, its items 8px apart
+    .network-lists { gap: var(--sp-s); padding: 0; }
+    // the network now / the device to reboot: an image, its name over what it is
+    .network-connection, .reboot-device {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 56px;
+        padding: 8px 12px;
+        background: var(--sr-card-bg);
+        @include sheet.chamfer-frame(8px, var(--sr-line-soft));
+        > img, > i { flex: 0 0 auto; width: 36px; height: 36px; border: none; object-fit: contain; }
+        > i { display: grid; place-items: center; font-size: 22px; color: var(--sr-text-muted); }
+    }
+    .network-connection:not(.offline) { @include sheet.chamfer-frame(8px, var(--sr-pill-pos-line)); }
+    :is(.connection-text, .reboot-device-text) {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .connection-caption { @include sheet.label(11px); text-transform: uppercase; letter-spacing: calc(.06em + var(--sr-tracking, 0em)); color: var(--sr-positive-text); }
+    // names like the sheet's device card title (Barlow 15 bold caps)
+    :is(.connection-name, .reboot-device-name) {
+        @include sheet.label(15px, 700);
+        color: var(--sr-text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    a.connection-name:hover { color: var(--sr-accent-hover); }
+    :is(.connection-detail, .reboot-device-detail) { font-size: 13px; color: var(--sr-text-muted); }
+    button.connection-disconnect {
+        flex: 0 0 auto;
+        width: auto;
+        height: 28px;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        padding: 0 12px;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        @include sheet.chamfer(5px, (tl, br));
+        @include sheet.label(12px);
+        background: var(--sr-graphite-700);
+        color: #fff;
+        i { font-size: 12px; margin: 0; }
+        &:hover, &:focus-visible { background: var(--sr-crimson-700); color: #fff; }
+    }
+
+    // search, filters, sort over the tables: the sheet's list controls. They stay at the top of the window while a long
+    // list scrolls (b137), on the window's background, which they lift off of with 8px of it around them
+    .network-controls {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        margin-block: -8px;
+        padding-block: 8px;
+        background: var(--sr-app-bg);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        .list-search {
+            @include sheet.search-field;
+            flex: 1 1 auto;
+            min-width: 0;
+            > i { position: absolute; left: 10px; top: 50%; translate: 0 -50%; font-size: 12px; color: var(--sr-text-muted); pointer-events: none; }
+            > input.list-search-input { padding-left: 28px; }
+        }
+    }
+    @include sheet.list-filter-controls;
+    .filter-hidden { display: none !important; }
+    .network-no-match { margin: 0; @include sheet.label(14px, 500); text-transform: none; letter-spacing: var(--sr-tracking, 0em); color: var(--sr-text-muted); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+    // tables: name | type or rating | up to four actions (three ways to a mark, then connect, always in the last box)
+    .network-table {
+        --network-cols: var(--tbl-icon) minmax(0, 1fr) var(--tbl-lane-m) var(--tbl-icons);
+        background: var(--sr-card-bg);
+        @include sheet.chamfer-frame(8px, var(--sr-line));
+    }
+    .network-head, .network-row {
+        display: grid;
+        grid-template-columns: var(--network-cols);
+        align-items: center;
+        column-gap: var(--tbl-gap);
+        padding: 0 var(--tbl-pad-x);
+    }
+    .network-head {
+        min-height: var(--tbl-head-h);
+        background: var(--sr-table-head-bg);
+        color: var(--sr-table-head-fg);
+        @include sheet.label(12px); // the sheet's table heads
+        .network-head-name { grid-column: 1 / 3; }
+    }
+    .network-head-icons, .network-actions {
+        display: grid;
+        grid-template-columns: repeat(4, 24px);
+        gap: var(--tbl-icon-gap);
+        justify-content: end;
+    }
+    .network-row {
+        min-height: var(--tbl-row-h);
+        border-bottom: 1px solid var(--sr-row-border);
+        &:last-child { border-bottom: none; }
+        &:hover { background: var(--sr-row-hover); }
+        &.connected { background: var(--sr5v2-list-selected-bg); }
+        &.empty { display: flex; font-size: 13px; color: var(--sr-text-muted); &:hover { background: none; } }
+    }
+    .network-image { width: var(--tbl-icon); height: var(--tbl-icon); border: none; object-fit: contain; }
+    .network-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        font-size: 15px;
+        > a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sr-text); &:hover { color: var(--sr-accent-hover); } }
+    }
+    // the white SVG icons of grids and hosts, darkened on the light theme's white cards as the sheet's rows
+    &.theme-light :is(.network-image, .network-connection > img)[src$='.svg'] {
+        filter: brightness(0) saturate(100%) invert(13%) sepia(13%) saturate(756%) hue-rotate(176deg) brightness(93%) contrast(88%);
+    }
+    .network-hidden { flex: 0 0 auto; font-size: 12px; color: var(--sr-text-muted); }
+    .network-detail { font-size: 14px; color: var(--sr-text); white-space: nowrap; &.unknown { color: var(--sr-text-muted); } } // value columns as the sheet's
+    button.network-icon {
+        width: 24px;
+        height: 24px;
+        min-height: 0;
+        display: grid;
+        place-items: center;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        background: none;
+        color: var(--sr-text);
+        font-size: 14px;
+        i { margin: 0; }
+        // as the sheet's row icons: no red; the glyph gold on the dark theme, a faint neutral fill on the light one,
+        // the keyboard's focus ring for the keyboard
+        &:hover { color: var(--sr-accent-hover); }
+        &:focus-visible { outline: 2px solid var(--sr-focus); outline-offset: -2px; }
+        &.network-connect { grid-column: 4; }
+    }
+    &.theme-light button.network-icon:hover { color: var(--sr-text); background: color-mix(in srgb, var(--sr-text) 10%, transparent); }
+    // the current network's mark in the connect box: shown, not a button
+    .network-icon.network-connected {
+        width: 24px;
+        height: 24px;
+        display: grid;
+        place-items: center;
+        font-size: 14px;
+        color: var(--sr-text); // the row icons' colour: the green read badly on the dark row
+    }
+
+    // reboot: what it does, a value per line, dumpshock in the physical red
+    .reboot-intro { margin: 0; font-size: 14px; line-height: 1.35; }
+    .reboot-effects {
+        display: flex;
+        flex-direction: column;
+        margin: calc(-1 * var(--sp-s)) 0 0; // the intro introduces the list: closer to it than a group gap
+        padding: 0;
+        list-style: none;
+        li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 30px;
+            border-bottom: 1px solid var(--sr-row-border);
+            font-size: 14px;
+            &:last-child { border-bottom: none; }
+            &.danger .reboot-value { color: var(--sr-label-phys); }
+        }
+        li:has(.reboot-note) { padding: 4px 0; } // a two-line effect keeps the rows' air
+    }
+    // an effect over its note (the dumpshock's resistance and after-effect): one item, so 2px apart
+    .reboot-effect { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .reboot-note { font-size: 13px; color: var(--sr-text-muted); }
+    // counts in the label face as the sheet's ("0 / 9"), a step under the device name so they do not outweigh it
+    .reboot-value {
+        @include sheet.label(15px, 600);
+        white-space: nowrap;
+        // the GM's view of a score the player does not see: quieter, with a crossed eye
+        &.gm-only { display: inline-flex; align-items: center; gap: 6px; color: var(--sr-text-muted); i { font-size: 11px; } }
+    }
+    .reboot-warning {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        padding: 8px 12px;
+        border: 1px solid var(--sr-pill-neg-line);
+        background: rgba(126, 15, 18, .22);
+        color: var(--sr-text);
+        font-size: 14px;
+        i { color: var(--sr-label-phys); }
+    }
+
+    // ---------- the sheet's prompt and confirm dialogs (Foundry's DialogV2: a group's name, removing a group) ----------
+    // the text or field 16px / 12px in, the footer's buttons as the managers': the main one crimson, the other
+    // graphite (the default, safe answer of a removal gets the focus ring, not the crimson)
+    &.redesign-dialog {
+        > .window-content { gap: 0; }
+        .dialog-content {
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-s);
+            margin: 0;
+            padding: var(--sp-m) var(--tbl-pad-x);
+            p { margin: 0; font-size: 14px; line-height: 1.4; color: var(--sr-text); }
+            input[type="text"] {
+                width: 100%;
+                height: 32px;
+                margin: 0;
+                padding: 0 10px;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                background: var(--sr-input-bg);
+                color: var(--sr-text);
+                @include sheet.label(15px, 500);
+                text-transform: none;
+                letter-spacing: var(--sr-tracking, 0em);
+                @include sheet.chamfer-frame(5px, var(--sr-line-soft));
+                &:focus { outline: 2px solid var(--sr-focus); outline-offset: -2px; }
+            }
+            // a choice of one (move to inventory): table-like rows, the picked one marked like a selected row
+            fieldset {
+                display: flex;
+                flex-direction: column;
+                margin: 0;
+                padding: 0;
+                border: none;
+                label.checkbox {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    min-height: 32px;
+                    margin: 0;
+                    padding: 0 10px;
+                    border-bottom: 1px solid var(--sr-row-border);
+                    cursor: pointer;
+                    color: var(--sr-text-muted);
+                    @include sheet.label(15px, 500);
+                    text-transform: none;
+                    letter-spacing: var(--sr-tracking, 0em);
+                    &:last-child { border-bottom: none; }
+                    &:hover { background: var(--sr-row-hover); color: var(--sr-text); }
+                    &:has(input:checked) { color: var(--sr-text); }
+                }
+                input[type="radio"] {
+                    appearance: none;
+                    flex: 0 0 auto;
+                    width: 14px;
+                    height: 14px;
+                    margin: 0;
+                    border: 1px solid var(--sr-text-muted);
+                    border-radius: 50%;
+                    background: transparent;
+                    box-shadow: none;
+                    &:checked { border-color: var(--sr-accent); background: radial-gradient(var(--sr-accent) 0 3px, transparent 3.5px); }
+                    &:focus-visible { outline: 2px solid var(--sr-focus); outline-offset: 2px; }
+                    &::before, &::after { content: none; }
+                }
+            }
+        }
+        .form-footer {
+            display: flex;
+            gap: 8px;
+            margin: 0;
+            padding: 10px var(--tbl-pad-x) 12px;
+            border-top: 1px solid var(--sr-row-border);
+            button {
+                flex: 1;
+                height: 36px;
+                min-height: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                margin: 0;
+                padding: 0 12px;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                @include sheet.chamfer(6px, (tl, br));
+                @include sheet.label(13px);
+                background: var(--sr-graphite-700);
+                color: #fff;
+                &:hover, &:focus-visible { background: var(--sr-graphite-600); color: #fff; box-shadow: none; }
+                i { margin: 0; font-size: 13px; }
+            }
+            button:is([data-action="ok"], [data-action="yes"]) {
+                background: var(--sr-crimson-700);
+                &:hover, &:focus-visible { background: var(--sr-red-600); }
+            }
+        }
+    }
+}

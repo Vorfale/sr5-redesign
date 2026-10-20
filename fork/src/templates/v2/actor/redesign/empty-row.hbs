@@ -1,0 +1,3 @@
+{{!-- The empty state of one table: a row-high note under its header (edit mode points at the header's Add). Shown
+      wherever an empty table is drawn (edit mode; play mode leaves empty tables out). --}}
+<p class="empty-row">{{#if @root.isEditMode}}{{localize "SR5.Redesign.EmptyTableEdit"}}{{else}}{{localize "SR5.Redesign.EmptyTable"}}{{/if}}</p>

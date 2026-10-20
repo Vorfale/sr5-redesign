@@ -1,0 +1,112 @@
+{{!-- RedesignNetworkManager: the current connection on top, a search with filters and sort like the sheet's
+      (list-controls.hbs), then one table per network type, a row per network with the actions the actor has on it
+      (place a mark: visible networks; connect: networks it can reach). The GM sees networks hidden from players,
+      marked with a crossed eye. Name and image open the network's card (RedesignMatrixApps networkCard). --}}
+{{#*inline "network-table"}}
+    <section class="network-table" aria-label="{{localize label}}">
+        <div class="network-head">
+            <span class="network-head-name">{{localize label}}</span>
+            <span class="network-head-detail">{{localize detailLabel}}</span>
+            <span class="network-head-icons"></span>
+        </div>
+        {{#each rows}}
+            <div class="network-row{{#if connected}} connected{{/if}}" data-uuid="{{uuid}}" data-name="{{name}}" data-rank="{{rank}}" data-filters="{{filters}}">
+                <img class="network-image" src="{{img}}" alt="" data-tooltip-html="{{tooltip}}" data-tooltip-class="sr5-redesign-tooltip sr-rich-tooltip">
+                <span class="network-name">
+                    <a data-action="openUuid" data-uuid="{{uuid}}" data-tooltip-html="{{tooltip}}" data-tooltip-class="sr5-redesign-tooltip sr-rich-tooltip">{{name}}</a>
+                    {{#if (and @root.isGM hidden)}}<i class="network-hidden fas fa-eye-slash" data-tooltip="SR5.Redesign.NetworkManager.Filter.Hidden"
+                       aria-label="{{localize "SR5.Redesign.NetworkManager.Filter.Hidden"}}"></i>{{/if}}
+                </span>
+                <span class="network-detail{{#if detailUnknown}} unknown{{/if}}">{{detail}}</span>
+                <span class="network-actions">
+                    {{#if canMark}}
+                        <button type="button" class="network-icon" data-action="inviteMark" data-tooltip="SR5.NetworkManager.InviteMark"
+                                aria-label="{{localize "SR5.NetworkManager.InviteMark"}}"><i class="fas fa-door-open"></i></button>
+                        <button type="button" class="network-icon" data-action="bruteForce" data-tooltip="SR5.NetworkManager.BruteForce"
+                                aria-label="{{localize "SR5.NetworkManager.BruteForce"}}"><i class="fas fa-explosion"></i></button>
+                        <button type="button" class="network-icon" data-action="hackOnTheFly" data-tooltip="SR5.NetworkManager.HackOnTheFly"
+                                aria-label="{{localize "SR5.NetworkManager.HackOnTheFly"}}"><i class="fas fa-microchip"></i></button>
+                    {{/if}}
+                    {{!-- the current network: a mark in the connect box, not a second way to disconnect (the banner above has
+                          the button, b134) --}}
+                    {{#if connected}}
+                        <span class="network-icon network-connect network-connected" data-tooltip="SR5.Redesign.NetworkManager.Connected"
+                              aria-label="{{localize "SR5.Redesign.NetworkManager.Connected"}}" role="img"><i class="fas fa-plug-circle-check" aria-hidden="true"></i></span>
+                    {{/if}}
+                    {{#if canConnect}}
+                        <button type="button" class="network-icon network-connect" data-action="connectToNetwork" data-tooltip="SR5.ConnectToNetwork"
+                                aria-label="{{localize "SR5.ConnectToNetwork"}}"><i class="fas fa-right-to-bracket"></i></button>
+                    {{/if}}
+                </span>
+            </div>
+        {{else}}
+            <div class="network-row empty">{{localize empty}}</div>
+        {{/each}}
+    </section>
+{{/inline}}
+
+<div class="network-manager-body">
+    <div class="network-connection{{#unless connection}} offline{{/unless}}">
+        {{#if connection}}
+            <img class="network-image" src="{{connection.img}}" alt="">
+            <span class="connection-text">
+                <span class="connection-caption">{{localize "SR5.NetworkManager.ConnectedTo"}}</span>
+                <a class="connection-name" data-action="openUuid" data-uuid="{{connection.uuid}}">{{connection.name}}</a>
+                <span class="connection-detail">{{connection.type}}{{#if connection.detail}} · {{connection.detail}}{{/if}}</span>
+            </span>
+            <button type="button" class="connection-disconnect" data-action="disconnectNetwork">
+                <i class="fas fa-right-from-bracket"></i><span>{{localize "SR5.Redesign.NetworkManager.Disconnect"}}</span>
+            </button>
+        {{else}}
+            <i class="connection-offline-icon fas fa-plug-circle-xmark"></i>
+            <span class="connection-text">
+                <span class="connection-name">{{localize "SR5.NetworkManager.NoNetwork"}}</span>
+                <span class="connection-detail">{{localize "SR5.Redesign.NetworkManager.NoNetworkHint"}}</span>
+            </span>
+        {{/if}}
+    </div>
+    {{!-- the lists group: the controls act on both tables, so they sit closer to them (8px) than to the connection (16px) --}}
+    <div class="network-lists">
+    <div class="network-controls list-controls" role="search">
+        <span class="list-search">
+            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+            <label class="sr-only" for="{{rootId}}-network-search">{{localize "SR5.Redesign.ListSearch"}}</label>
+            <input type="search" id="{{rootId}}-network-search" class="list-search-input" autocomplete="off" spellcheck="false"
+                   placeholder="{{localize 'SR5.Redesign.ListSearch'}}…"/>
+        </span>
+        <button type="button" class="list-filter-button" popovertarget="{{rootId}}-network-filters" aria-haspopup="menu"
+                aria-label="{{localize 'SR5.Redesign.ListFilters'}}" data-tooltip="SR5.Redesign.ListFilters">
+            <i class="fas fa-filter" aria-hidden="true"></i>
+        </button>
+        <div class="list-filter-menu" id="{{rootId}}-network-filters" role="menu" aria-label="{{localize 'SR5.Redesign.ListFilters'}}" popover="auto">
+            {{#each filterGroups as |group|}}
+                <div class="list-filter-group" role="presentation">{{localize group.label}}</div>
+                <div class="list-filter-items" role="group" aria-label="{{localize group.label}}">
+                    {{#each group.chips as |chip|}}
+                        <button type="button" class="list-filter-option" role="menuitemcheckbox" tabindex="-1" aria-checked="false"
+                                data-action="toggleNetworkFilter" data-filter="{{chip.id}}">
+                            {{#if chip.icon}}<i class="fas {{chip.icon}}" aria-hidden="true"></i>{{/if}}
+                            <span>{{localize chip.label}}</span>
+                            <i class="fas fa-check check" aria-hidden="true"></i>
+                        </button>
+                    {{/each}}
+                </div>
+            {{/each}}
+            <button type="button" class="list-filter-option list-filter-clear" role="menuitem" tabindex="-1" data-action="clearNetworkFilters">
+                <i class="fas fa-xmark" aria-hidden="true"></i><span>{{localize "SR5.Redesign.ListFiltersClear"}}</span>
+            </button>
+        </div>
+        <button type="button" class="list-sort-button" data-action="cycleNetworkSort" aria-label="{{localize 'SR5.Redesign.ListSort.Label'}}"
+                data-tooltip="SR5.Redesign.ListSort.NameAsc">
+            <i class="fas fa-arrow-down-a-z" aria-hidden="true"></i>
+        </button>
+        {{!-- reloads both tables (a GM may have shown or hidden networks meanwhile) --}}
+        <button type="button" class="list-sort-button network-refresh" data-action="refresh" data-tooltip="SR5.Redesign.NetworkManager.Refresh"
+                aria-label="{{localize "SR5.Redesign.NetworkManager.Refresh"}}"><i class="fas fa-rotate" aria-hidden="true"></i></button>
+        <output class="sr-only network-count" aria-live="polite"></output>
+    </div>
+    <p class="network-no-match" hidden>{{localize "SR5.Redesign.ListNoMatch"}}</p>
+    {{> network-table label="SR5.Grids" detailLabel="SR5.NetworkManager.NetworkType" rows=gridRows empty="SR5.Redesign.NetworkManager.NoGrids"}}
+    {{> network-table label="SR5.Hosts" detailLabel="SR5.Rating" rows=hostRows empty="SR5.Redesign.NetworkManager.NoHosts"}}
+    </div>
+</div>

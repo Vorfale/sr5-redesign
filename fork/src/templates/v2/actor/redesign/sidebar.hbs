@@ -1,0 +1,430 @@
+{{!-- Left sidebar, visible on every tab.
+      Order follows what is used most during a run. The card: Edge and initiative (spent and rolled at the start of a
+      turn) under the portrait, then the condition monitors (with wounds and overflow), then armor / movement (armor
+      is a secondary stat, a line in Core Combat Info on the official sheet). Below the card: favorites (when there
+      are any), quick rolls, and the persona (Matrix only, used by few characters) last.
+      Monitor and Edge cells are buttons so they work from the keyboard; data-action contract matches the regular sheet. --}}
+<aside class="sr-sidebar" aria-label="{{localize 'SR5.Redesign.CombatSummary'}}">
+    <div class="card sr-card">
+        {{!-- the sheet's own picture when one is chosen (actor flag sheetPortrait), else the actor's portrait; edit mode
+              only: choose one (the token and the actors list keep the portrait) or go back to the portrait. A click on
+              the picture changes what it shows: the sheet's picture, or the actor's portrait as before. --}}
+        {{!-- a vehicle can show its token instead (vehicle sheet, edit mode: Portrait | Token, as dnd5e's sheets): the
+              token's art fitted whole into the frame, not cut to its top --}}
+        <div class="portrait{{#if tokenPortrait}} token{{/if}}">
+            {{#if @root.isEditMode}}
+                {{#if tokenPortrait}}
+                    <img src="{{tokenImage}}" alt="{{actor.name}}">
+                {{else if sheetPortrait}}
+                    <img src="{{sheetPortrait}}" alt="{{actor.name}}" data-action="setSheetPortrait"
+                         role="button" tabindex="0" aria-label="{{localize 'SR5.Redesign.SheetPortrait.Set'}}">
+                {{else}}
+                    <img src="{{actor.img}}" alt="{{actor.name}}" data-action="editImage" data-edit="img"
+                         role="button" tabindex="0" aria-label="{{localize 'SR5.Redesign.ChangePortrait'}}">
+                {{/if}}
+                <div class="portrait-controls">
+                    {{#if isVehicle}}
+                    <div class="portrait-mode" role="radiogroup" aria-label="{{localize 'SR5.Redesign.PortraitMode.Label'}}">
+                        <button type="button" class="art-button" role="radio" aria-checked="{{#if tokenPortrait}}false{{else}}true{{/if}}"
+                                data-action="setPortraitMode" data-mode="portrait">{{localize "SR5.Redesign.PortraitMode.Portrait"}}</button>
+                        <button type="button" class="art-button" role="radio" aria-checked="{{#if tokenPortrait}}true{{else}}false{{/if}}"
+                                data-action="setPortraitMode" data-mode="token">{{localize "SR5.Redesign.PortraitMode.Token"}}</button>
+                    </div>
+                    {{/if}}
+                    {{#unless tokenPortrait}}
+                    <button type="button" class="art-button" data-action="setSheetPortrait" data-tooltip="SR5.Redesign.SheetPortrait.SetHint">
+                        <i class="fas fa-image" aria-hidden="true"></i>{{localize "SR5.Redesign.SheetPortrait.Set"}}</button>
+                    {{/unless}}
+                    {{#if (and sheetPortrait (not tokenPortrait))}}
+                    <button type="button" class="art-button" data-action="clearSheetPortrait" data-tooltip="SR5.Redesign.SheetPortrait.ClearHint">
+                        <i class="fas fa-rotate-left" aria-hidden="true"></i>{{localize "SR5.Redesign.SheetPortrait.Clear"}}</button>
+                    {{/if}}
+                </div>
+            {{else}}
+                <img src="{{#if tokenPortrait}}{{tokenImage}}{{else if sheetPortrait}}{{sheetPortrait}}{{else}}{{actor.img}}{{/if}}" alt="{{actor.name}}">
+            {{/if}}
+        </div>
+
+        <div class="stats">
+            <div class="top">
+                {{#unless isLimited}}
+                {{#if edgeCells.length}}
+                    <div class="edge-track" data-id="edge" role="group"
+                         aria-label="{{localize 'SR5.AttrEdge'}}: {{edgeRemaining}}/{{system.attributes.edge.value}}">
+                        <span class="track-caption" aria-hidden="true">{{localize "SR5.AttrEdge"}}</span>
+                        {{#each edgeCells as |cell|}}
+                            <button type="button" class="pip{{#if cell.filled}} filled{{/if}}" data-action="modifyConditionMonitor"
+                                    data-id="edge" data-value="{{cell.uses}}" aria-pressed="{{cell.filled}}"
+                                    aria-label="{{#if cell.filled}}{{localize 'SR5.Redesign.SpendEdge'}}{{else}}{{localize 'SR5.Redesign.RestoreEdge'}}{{/if}} {{cell.value}}"
+                                    data-tooltip="{{localize 'SR5.AttrEdge'}}: {{@root.edgeRemaining}}/{{@root.system.attributes.edge.value}}"></button>
+                        {{/each}}
+                    </div>
+                {{/if}}
+                {{/unless}}
+            </div>
+
+            {{#unless isLimited}}
+            {{!-- a vehicle's controls (SR5#265), first under the portrait: who drives it and how (the control mode, a menu
+                  like the initiative's); its initiative follows, then the conditions it drives in --}}
+            {{#with rigging as |rig|}}
+            {{!-- the driver: the portrait and the name open their sheet, how they control it on the right; edit mode: the
+                  × stops them driving. No driver: the field picks the controlled token (or drop a character on the sheet) --}}
+            <div class="control-bar driver-bar" role="group" aria-labelledby="{{@root.rootId}}-driver-caption">
+                {{!-- Font Awesome Free icon (the module has no Pro license) --}}
+                <div class="init-caption" id="{{@root.rootId}}-driver-caption"><i class="fas fa-car" aria-hidden="true"></i><span>{{localize "SR5.Vehicle.Driver"}}</span></div>
+                <div class="bar{{#unless rig.driver}} empty{{/unless}}">
+                    {{#if rig.driver}}
+                        <button type="button" class="init-roll driver-portrait" data-action="openUuid" data-uuid="{{rig.driver.uuid}}"
+                                data-tooltip="SR5.Redesign.Rigging.OpenDriver" aria-label="{{localize 'SR5.Redesign.Rigging.OpenDriver'}}: {{rig.driver.name}}">
+                            <img src="{{rig.driver.img}}" alt="">
+                        </button>
+                        <button type="button" class="init-trigger driver-name" data-action="openUuid" data-uuid="{{rig.driver.uuid}}"
+                                data-tooltip="{{rig.driver.name}}">
+                            <span class="mode">{{rig.driver.name}}</span>
+                            <span class="formula">{{rig.driverRole}}</span>
+                        </button>
+                        {{#if (and @root.isEditMode @root.isEditable)}}
+                        <button type="button" class="driver-remove" data-action="removeVehicleDriver"
+                                data-tooltip="SR5.Redesign.Rigging.RemoveDriver" aria-label="{{localize 'SR5.Redesign.Rigging.RemoveDriver'}}: {{rig.driver.name}}">
+                            <i class="fas fa-xmark" aria-hidden="true"></i>
+                        </button>
+                        {{/if}}
+                    {{else}}
+                        {{!-- no driver: a dropdown like the control mode's, listing the characters who can drive it, with a
+                              search (SR5VehicleSheetRedesign#wireDriverMenu fills it when it opens) --}}
+                        <span class="init-roll control-icon" aria-hidden="true"><i class="fas fa-user-plus"></i></span>
+                        <button type="button" class="init-trigger driver-pick" popovertarget="{{@root.rootId}}-driver-menu" aria-haspopup="dialog"
+                                {{#unless @root.isEditable}}disabled{{/unless}}
+                                aria-label="{{localize 'SR5.Redesign.Rigging.ChooseDriver'}}">
+                            <span class="mode">{{localize "SR5.Redesign.Rigging.NoDriver"}}</span>
+                            <i class="fas fa-caret-down dropdown-caret" aria-hidden="true"></i>
+                        </button>
+                    {{/if}}
+                </div>
+                {{#unless rig.driver}}
+                <div class="init-menu driver-menu" id="{{@root.rootId}}-driver-menu" role="dialog" aria-label="{{localize 'SR5.Redesign.Rigging.ChooseDriver'}}" popover="auto" data-picker>
+                    <span class="driver-search"><input type="search" placeholder="{{localize 'SR5.Redesign.Rigging.SearchDrivers'}}" autocomplete="off"
+                                                       aria-label="{{localize 'SR5.Redesign.Rigging.SearchDrivers'}}"></span>
+                    <div class="driver-list">
+                        {{!-- the list's first row: the controlled token's character (the upstream sheet's "select token"); a character
+                              dropped on the sheet still becomes the driver (SR5VehicleSheetRedesign#_onDropActor) --}}
+                        <button type="button" class="init-option driver-option driver-token" data-action="pickDriver">
+                            <i class="fas fa-crosshairs" aria-hidden="true"></i>
+                            <span class="mode">{{localize "SR5.Redesign.Rigging.SelectedToken"}}</span>
+                            <span class="formula"></span>
+                        </button>
+                        <div class="driver-options" role="listbox" aria-label="{{localize 'SR5.Redesign.Rigging.ChooseDriver'}}"></div>
+                    </div>
+                    <div class="driver-drop-hint"><i class="fas fa-hand-pointer" aria-hidden="true"></i>{{localize "SR5.Redesign.Rigging.DropDriverHint"}}</div>
+                </div>
+                {{/unless}}
+            </div>
+            <div class="control-bar" role="group" aria-labelledby="{{@root.rootId}}-control-caption">
+                <div class="init-caption" id="{{@root.rootId}}-control-caption"><i class="fas fa-gamepad" aria-hidden="true"></i><span>{{localize "SR5.Vehicle.ControlMode"}}</span></div>
+                <div class="bar">
+                    <span class="init-roll control-icon" aria-hidden="true"><i class="fas {{rig.mode.icon}}"></i></span>
+                    <button type="button" class="init-trigger" popovertarget="{{@root.rootId}}-control-menu" aria-haspopup="menu"
+                            {{#unless @root.isEditable}}disabled{{/unless}}
+                            aria-label="{{localize 'SR5.Vehicle.ControlMode'}}: {{rig.mode.label}}">
+                        <span class="mode">{{rig.mode.label}}</span>
+                        <i class="fas fa-caret-down dropdown-caret" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="init-menu" id="{{@root.rootId}}-control-menu" role="menu" aria-label="{{localize 'SR5.Vehicle.ControlMode'}}" popover="auto">
+                    {{#each rig.modes as |mode|}}
+                        <button type="button" class="init-option" role="menuitemradio" tabindex="-1"
+                                aria-checked="{{#if mode.active}}true{{else}}false{{/if}}" data-action="setControlMode" data-mode="{{mode.value}}">
+                            <i class="fas {{mode.icon}}" aria-hidden="true"></i>
+                            <span class="mode">{{mode.label}}</span>
+                        </button>
+                    {{/each}}
+                </div>
+            </div>
+            {{/with}}
+
+            {{!-- initiative group: caption, one row (the mode icon rolls in combat, the rest opens a menu with every mode
+                  and its formula; placement and keyboard: SR5CharacterSheetRedesign#wireInitiativeMenu), then the Blitz switch --}}
+            {{#with initiativeMode as |current|}}
+            <div class="initiative-bar{{#if @root.system.initiative.blitz}} blitz{{/if}}" role="group" aria-labelledby="{{@root.rootId}}-init-caption">
+                <div class="init-caption" id="{{@root.rootId}}-init-caption"><i class="fas fa-forward-fast" aria-hidden="true"></i><span>{{localize "SR5.Initiative"}}</span></div>
+                <div class="bar">
+                    <button type="button" class="init-roll" data-action="rollInitiative"
+                            {{#unless (and @root.isPlayMode @root.canRollInitiative)}}disabled{{/unless}}
+                            aria-label="{{localize 'SR5.Tooltips.Actor.RollInitiative'}}"
+                            data-tooltip="{{#if @root.canRollInitiative}}SR5.Tooltips.Actor.RollInitiative{{else}}SR5.Tooltips.Actor.NoCombatant{{/if}}">
+                        <i class="fas {{current.icon}}" aria-hidden="true"></i>
+                    </button>
+                    {{!-- one mode only (a vehicle): the row says it, nothing to open; its tooltip says whose initiative it is --}}
+                    {{#if current.hint}}
+                    <span class="init-trigger" tabindex="0" data-tooltip="{{current.hint}}"
+                          aria-label="{{localize 'SR5.Initiative'}}: {{localize current.label}} {{current.formula}}. {{current.hint}}">
+                        <span class="mode">{{localize current.label}}</span>
+                        <span class="formula">{{current.formula}}</span>
+                    </span>
+                    {{else}}
+                    <button type="button" class="init-trigger" popovertarget="{{@root.rootId}}-init-menu" aria-haspopup="menu"
+                            {{#if (eq @root.initiativeModes.length 1)}}disabled{{/if}}
+                            aria-label="{{localize 'SR5.Initiative'}}: {{localize current.label}} {{current.formula}}{{#if @root.system.initiative.blitz}} ({{localize 'SR5.Blitz'}}){{/if}}">
+                        <span class="mode">{{localize current.label}}</span>
+                        <span class="formula">{{current.formula}}</span>
+                        {{#unless (eq @root.initiativeModes.length 1)}}<i class="fas fa-caret-down dropdown-caret" aria-hidden="true"></i>{{/unless}}
+                    </button>
+                    {{/if}}
+                </div>
+                {{!-- a popover: drawn in the top layer, so the sidebar card's chamfer clip-path cannot cut it off --}}
+                <div class="init-menu" id="{{@root.rootId}}-init-menu" role="menu" aria-label="{{localize 'SR5.Initiative'}}" popover="auto">
+                    {{#each @root.initiativeModes as |mode|}}
+                        <button type="button" class="init-option" role="menuitemradio" tabindex="-1"
+                                aria-checked="{{#if mode.active}}true{{else}}false{{/if}}" data-action="setInitiativeMode" data-mode="{{mode.value}}">
+                            <i class="fas {{mode.icon}}" aria-hidden="true"></i>
+                            <span class="mode">{{localize mode.label}}</span>
+                            <span class="formula">{{mode.formula}}</span>
+                        </button>
+                    {{/each}}
+                </div>
+                {{!-- Blitz spends Edge: nothing to spend on a vehicle --}}
+                {{#unless @root.isVehicle}}
+                <button type="button" class="init-blitz" data-action="toggleInitiativeBlitz"
+                        aria-pressed="{{#if @root.system.initiative.blitz}}true{{else}}false{{/if}}"
+                        {{#unless @root.blitzAvailable}}disabled{{/unless}} data-tooltip="SR5.Tooltips.Actor.Blitz">
+                    <span class="mode">{{localize "SR5.Blitz"}}</span>
+                    <span class="hint">{{localize "SR5.Redesign.BlitzHint"}}</span>
+                    <i class="fas {{#if @root.system.initiative.blitz}}fa-toggle-on{{else}}fa-toggle-off{{/if}}" aria-hidden="true"></i>
+                </button>
+                {{/unless}}
+            </div>
+            {{/with}}
+
+
+
+            {{!-- actions of the Action Phase (SR5CharacterSheetRedesign#actionTracker), as lozenges like armor / walk / run:
+                  how many Free, Simple and Complex Actions are left. A click spends one, a right click (or Shift + click)
+                  gets one back; a spent Simple Action locks the Complex one and the other way round. In combat a new
+                  initiative pass gives them back by itself; out of combat the reset button does. Edit mode: how many
+                  Free Actions. --}}
+            {{#with actionTracker as |actions|}}
+            <div class="action-tracker{{#if actions.noPhase}} no-phase{{/if}}" role="group" aria-labelledby="{{@root.rootId}}-actions-caption">
+                <div class="actions-head">
+                    <span class="actions-caption" id="{{@root.rootId}}-actions-caption"><i class="fas fa-stopwatch" aria-hidden="true"></i><span>{{localize "SR5.Redesign.Actions.Label"}}</span></span>
+                    {{#if actions.inCombat}}<span class="actions-pass">{{localize "SR5.Redesign.Actions.Pass" pass=actions.pass}}</span>{{/if}}
+                    <button type="button" class="actions-reset" data-action="resetActions" {{#unless actions.spent}}disabled{{/unless}}
+                            aria-label="{{localize 'SR5.Redesign.Actions.Reset'}}" data-tooltip="SR5.Redesign.Actions.Reset">
+                        <i class="fas fa-rotate-left" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="lozenges action-lozenges">
+                    {{#each actions.slots as |slot|}}
+                    <div class="lozenge small{{#unless slot.left}} spent{{/unless}}{{#if slot.locked}} locked{{/if}}">
+                        {{#if (and @root.isEditMode (eq slot.kind "free"))}}
+                            <div class="value free-count">
+                                <button type="button" class="slot-step" data-action="changeFreeActions" data-delta="-1"
+                                        {{#if (eq slot.max 1)}}disabled{{/if}} aria-label="{{localize 'SR5.Redesign.Actions.FewerFree'}}"
+                                        data-tooltip="SR5.Redesign.Actions.FreeCountHint"><i class="fas fa-minus" aria-hidden="true"></i></button>
+                                <span>{{slot.max}}</span>
+                                <button type="button" class="slot-step" data-action="changeFreeActions" data-delta="1"
+                                        {{#if (eq slot.max @root.maxFreeActions)}}disabled{{/if}} aria-label="{{localize 'SR5.Redesign.Actions.MoreFree'}}"
+                                        data-tooltip="SR5.Redesign.Actions.FreeCountHint"><i class="fas fa-plus" aria-hidden="true"></i></button>
+                            </div>
+                        {{else}}
+                            <button type="button" class="value" data-action="spendAction" data-kind="{{slot.kind}}"
+                                    {{#if slot.disabled}}aria-disabled="true"{{/if}}
+                                    aria-label="{{localize slot.label}}: {{slot.left}} / {{slot.max}}"
+                                    data-tooltip="{{slot.tooltip}}">{{slot.left}}</button>
+                        {{/if}}
+                        <div class="label">{{localize slot.label}}</div>
+                    </div>
+                    {{/each}}
+                </div>
+            </div>
+            {{/with}}
+
+            <div class="monitors">
+            {{#each monitors as |monitor|}}
+                <div class="meter-group" data-id="{{monitor.id}}" role="group"
+                     aria-label="{{monitor.label}}: {{monitor.value}}/{{monitor.max}}">
+                    <div class="meter-label">
+                        {{#if monitor.rollable}}
+                        <button type="button" class="unbutton meter-roll" data-action="rollConditionMonitor"
+                                data-tooltip="{{localize 'SR5.Redesign.RollMonitor'}}">
+                            <i class="fas {{monitor.icon}}" aria-hidden="true"></i>
+                            <span>{{monitor.label}}</span>
+                        </button>
+                        {{else}}
+                        <span class="meter-roll meter-caption">
+                            <i class="fas {{monitor.icon}}" aria-hidden="true"></i>
+                            <span>{{monitor.label}}</span>
+                        </span>
+                        {{/if}}
+                        <span class="meter-value">{{monitor.value}} / {{monitor.max}}</span>
+                        <button type="button" class="unbutton meter-clear" data-action="clearConditionMonitor" data-id="{{monitor.id}}"
+                                aria-label="{{localize 'SR5.Redesign.ClearMonitor'}}: {{monitor.label}}"
+                                data-tooltip="{{localize 'SR5.Redesign.ClearMonitor'}}"><i class="fas fa-ban" aria-hidden="true"></i></button>
+                    </div>
+                    <div class="meter {{monitor.id}}" style="--cols: {{monitor.columns}}">
+                        {{#each monitor.cells as |cell|}}
+                            <button type="button" class="cell{{#if cell.filled}} filled{{/if}}" data-action="modifyConditionMonitor"
+                                    data-id="{{monitor.id}}" data-value="{{cell.value}}" aria-pressed="{{cell.filled}}"
+                                    aria-label="{{monitor.label}} {{cell.value}}/{{monitor.max}}"
+                                    data-tooltip="{{monitor.label}}: {{cell.value}}/{{monitor.max}}">{{#if cell.wound}}{{cell.wound}}{{/if}}</button>
+                        {{/each}}
+                    </div>
+                </div>
+            {{/each}}
+            {{#if system.wounds.value}}
+                <div class="wound-line" role="status">
+                    <i class="fas fa-user-injured" aria-hidden="true"></i>
+                    <span>{{localize "SR5.Redesign.WoundModifier"}}</span>
+                    <span class="value">-{{system.wounds.value}}</span>
+                </div>
+            {{/if}}
+            {{!-- a damaged vehicle handles worse (SR5#201): −1 on Handling tests per three boxes --}}
+            {{#if handlingPenalty}}
+                <div class="wound-line" role="status" data-tooltip="SR5.Redesign.Rigging.DamagedHint">
+                    <i class="fas fa-car-burst" aria-hidden="true"></i>
+                    <span>{{localize "SR5.Redesign.Rigging.Damaged"}}</span>
+                    <span class="value">-{{handlingPenalty}}</span>
+                </div>
+            {{/if}}
+            </div>
+
+            <div class="lozenges">
+                <div class="lozenge small">
+                    <div class="value" data-tooltip="{{localize 'SR5.Redesign.ArmorRating'}}" data-modifier-tooltip-path="system.armor.rating">{{system.armor.rating.value}}</div>
+                    <div class="label">{{localize "SR5.Redesign.ArmorShort"}}</div>
+                </div>
+                {{!-- a vehicle: its movement rates by Speed (SR5#202, metres per Combat Turn), named for a vehicle --}}
+                <div class="lozenge small">
+                    <div class="value" data-tooltip="SR5.WalkingSpeed">{{system.movement.walk.value}}</div>
+                    <div class="label">{{#if isVehicle}}{{localize "SR5.Redesign.Rigging.Move.walkShort"}}{{else}}{{localize "SR5.Redesign.Walk"}}{{/if}}</div>
+                </div>
+                <div class="lozenge small">
+                    <div class="value" data-tooltip="SR5.RunningSpeed">{{system.movement.run.value}}</div>
+                    <div class="label">{{#if isVehicle}}{{localize "SR5.Redesign.Rigging.Move.runShort"}}{{else}}{{localize "SR5.Redesign.Run"}}{{/if}}</div>
+                </div>
+            </div>
+
+
+            {{/unless}}
+        </div>
+    </div>
+
+    {{#unless isLimited}}
+    {{!-- favorites first (what this character rolls most). Rows and items dropped here become favorites, favorites
+          dragged here move; while there are none the section shows only in edit mode and during a drag --}}
+    <section class="favorites{{#unless favorites.length}} is-empty{{/unless}}" aria-labelledby="{{rootId}}-favorites" data-favorites>
+        <h3 class="plaque" id="{{rootId}}-favorites"><span class="plaque-tab"><i class="fas fa-star" aria-hidden="true"></i><span>{{localize "SR5.Redesign.Favorites"}}</span></span></h3>
+        <ul class="unlist">
+            {{!-- items and skills; a skill rolls as a skill test (data-skill-id / -name, like the skill rows) --}}
+            {{#each favorites as |favorite|}}
+                <li class="favorite" data-item-id="{{favorite.item.id}}" data-uuid="{{favorite.item.uuid}}"
+                    {{#if favorite.isSkill}}data-skill-id="{{favorite.item.id}}" data-skill-name="{{favorite.item.name}}" data-context-menu="skill"
+                    {{else}}data-context-menu="item"{{/if}}>
+                    {{#if @root.isPlayMode}}
+                        {{!-- like an inventory row: the avatar rolls (the dice shows on its hover), the name opens the sheet --}}
+                        <div class="favorite-row">
+                            <button type="button" class="unbutton favorite-roll" data-action="{{#if favorite.isSkill}}rollSkill{{else}}rollItem{{/if}}"
+                                    data-tooltip="{{localize 'SR5.Labels.ActorSheet.TestKBoardModifiers' skip=@root.bindings.skip descr=@root.bindings.card}}"
+                                    aria-label="{{localize 'SR5.Redesign.RollFavorite' name=favorite.title}}">
+                                <img class="item-icon{{#if (or favorite.isSkill (hasRoll favorite.item))}} can-roll{{/if}}" src="{{favorite.item.img}}" alt="">
+                            </button>
+                            <button type="button" class="unbutton favorite-name" data-action="editItem" data-tooltip="{{favorite.title}}">
+                                <span class="name-stacked">
+                                    <span class="title">{{favorite.title}}</span>
+                                    <span class="subtitle">{{favorite.subtitle}}</span>
+                                </span>
+                            </button>
+                        </div>
+                    {{else}}
+                        <button type="button" class="unbutton favorite-row" data-action="favoriteItem" data-tooltip="SR5.Tooltips.Actor.RemoveFavorite"
+                                aria-label="{{localize 'SR5.Tooltips.Actor.RemoveFavorite'}}: {{favorite.title}}"
+                                aria-description="{{localize 'SR5.Redesign.FavoriteMove'}}" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown">
+                            <img class="item-icon" src="{{favorite.item.img}}" alt="">
+                            <span class="name-stacked">
+                                <span class="title">{{favorite.title}}</span>
+                                <span class="subtitle">{{favorite.subtitle}}</span>
+                            </span>
+                            <i class="fas fa-xmark remove" aria-hidden="true"></i>
+                        </button>
+                    {{/if}}
+                </li>
+            {{else}}
+                <li class="empty">{{localize "SR5.Redesign.FavoritesEmpty"}}</li>
+            {{/each}}
+        </ul>
+    </section>
+
+    {{#if quickRolls.length}}
+    <section class="quick-rolls" aria-labelledby="{{rootId}}-quick-rolls">
+        <h3 class="plaque" id="{{rootId}}-quick-rolls"><span class="plaque-tab"><i class="fas fa-dice-six" aria-hidden="true"></i><span>{{localize "SR5.Redesign.QuickRolls.title"}}</span></span></h3>
+        <ul class="unlist quick-roll-grid">
+            {{#each quickRolls as |roll|}}
+                <li data-uuid="{{roll.uuid}}">
+                    <button type="button" class="quick-roll" data-action="rollItem"
+                            {{#unless @root.isPlayMode}}disabled{{/unless}}
+                            aria-label="{{roll.name}}, {{localize 'SR5.Redesign.Pool'}} {{roll.pool}}"
+                            data-tooltip="{{roll.tooltip}}">
+                        <span class="name">{{roll.short}}</span>
+                        <span class="pool{{#if roll.reduced}} reduced{{/if}}">{{roll.pool}}</span>
+                    </button>
+                </li>
+            {{/each}}
+        </ul>
+    </section>
+    {{/if}}
+
+    {{!-- persona: a section of its own at the bottom, two separate tiles like the quick rolls. The mode tile switches
+          running silent (the system takes -2 off every Matrix test while it is on, MatrixTestDataFlow); the network
+          tile names the network the persona is on and opens it, or opens the network manager while it is on none. --}}
+    {{#if (and system.matrix actor.hasPersona)}}
+    <section class="persona-section" aria-labelledby="{{rootId}}-persona">
+        {{!-- a vehicle or drone is no persona but a device icon (SR5#219); a rigger jumping in merges with it (SR5#266) --}}
+        <h3 class="plaque" id="{{rootId}}-persona"><span class="plaque-tab"><i class="fas {{#if isVehicle}}fa-tower-broadcast{{else}}fa-user-astronaut{{/if}}" aria-hidden="true"></i><span>{{#if isVehicle}}{{localize "SR5.Redesign.Rigging.MatrixIcon"}}{{else}}{{localize "SR5.Redesign.Persona"}}{{/if}}</span></span></h3>
+        <div class="persona-tiles">
+            <button type="button" class="persona-tile persona-toggle{{#if system.matrix.running_silent}} silent{{/if}}" data-action="togglePersonaRunningSilent"
+                    aria-pressed="{{#if system.matrix.running_silent}}true{{else}}false{{/if}}"
+                    aria-label="{{localize 'SR5.RunningSilent'}}"
+                    data-tooltip="{{#if system.matrix.running_silent}}SR5.Redesign.SilentPenalty{{else if isVehicle}}SR5.Redesign.Rigging.IconVisibleHint{{else}}SR5.Labels.ActorSheet.DisplayingPersona{{/if}}">
+                <i class="fas {{#if system.matrix.running_silent}}fa-user-secret{{else}}fa-wifi{{/if}}" aria-hidden="true"></i>
+                <span class="name">{{#if system.matrix.running_silent}}{{localize "SR5.RunningSilent"}}{{else}}{{localize "SR5.Redesign.PersonaVisible"}}{{/if}}</span>
+                {{#if system.matrix.running_silent}}<span class="value" aria-hidden="true">&minus;2</span>{{/if}}
+            </button>
+            {{#if network}}
+                <button type="button" class="persona-tile persona-network" data-action="openUuid" data-uuid="{{network.uuid}}"
+                        data-tooltip="{{localize 'SR5.Labels.ActorSheet.ConnectedTo'}}: {{network.name}}">
+                    <i class="fas fa-network-wired" aria-hidden="true"></i>
+                    <span class="name">{{network.name}}</span>
+                </button>
+            {{else}}
+                <button type="button" class="persona-tile persona-network" data-action="openNetworkManager"
+                        data-tooltip="SR5.OpenNetworkManager" aria-label="{{localize 'SR5.OpenNetworkManager'}}">
+                    <i class="fas fa-network-wired" aria-hidden="true"></i>
+                    <span class="name">{{localize "SR5.NetworkManager.NoNetwork"}}</span>
+                </button>
+            {{/if}}
+        </div>
+    </section>
+    {{/if}}
+
+    {{!-- a vehicle's conditions, a section of its own at the bottom like the matrix icon above: the chase environment
+          (which limit vehicle tests take, SR5#203) and the road (which handling / speed / acceleration apply), each a
+          pair of tiles in the persona tiles' look with the one in use filled --}}
+    {{#with rigging as |rig|}}
+    <section class="conditions-section" aria-labelledby="{{@root.rootId}}-conditions">
+        <h3 class="plaque" id="{{@root.rootId}}-conditions"><span class="plaque-tab"><i class="fas fa-road" aria-hidden="true"></i><span>{{localize "SR5.Redesign.Rigging.Conditions"}}</span></span></h3>
+        <div class="condition-switches">
+            {{#each rig.switches as |group|}}
+            <div class="segmented" role="radiogroup" aria-label="{{group.label}}" data-tooltip="{{group.hint}}">
+                {{#each group.options as |option|}}
+                <button type="button" class="segment" role="radio" aria-checked="{{#if option.active}}true{{else}}false{{/if}}"
+                        data-action="{{group.action}}" data-value="{{option.value}}" {{#unless @root.isEditable}}disabled{{/unless}}>
+                    <i class="fas {{option.icon}}" aria-hidden="true"></i>
+                    <span class="mode">{{option.label}}</span>
+                </button>
+                {{/each}}
+            </div>
+            {{/each}}
+        </div>
+    </section>
+    {{/with}}
+    {{/unless}}
+</aside>

@@ -1,0 +1,9 @@
+<a class="item-name-link {{#if (isBroken this)}}faded {{/if}}{{#if this.system.importFlags.isFreshImport}}{{#if (itemMarking "COLOR")}}fresh-import{{/if}}{{/if}}"
+   data-action="showItemDescription"
+>
+    {{#if name}}
+        {{name}}
+    {{else}}
+        {{item.name}}
+    {{/if}}
+</a>

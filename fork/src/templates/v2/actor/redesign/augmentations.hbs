@@ -1,0 +1,50 @@
+{{!-- Augmentations tab: cyberware and bioware as cards, like the inventory sections (same headers, rows and
+      collapse state). It has its own lists, separate from the inventory tab's inventories: "Installed" (implants in
+      no list) and the implant lists (inventories of type IMPLANT_INVENTORY_TYPE, which the inventory tab leaves out).
+      New implants go into the chosen list; in edit mode lists can be created, renamed and removed here. Implants
+      attached to another implant are shown by their parent row, as in the inventory. --}}
+<section class="tab sr-augmentations{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+        <div class="inventory-controls">
+            <label for="{{rootId}}-implant-inventory">{{localize 'SR5.Labels.Inventory.OpenInventory'}}</label>
+            <span class="plaque-select secondary">
+                <select id="{{rootId}}-implant-inventory" class="sr5-select implant-inventory-select">
+                    {{#each implantInventories as |inventory|}}
+                        <option value="{{inventory.name}}" {{#ife ../implantInventory inventory.name}}selected="selected"{{/ife}}>{{inventory.label}}</option>
+                    {{/each}}
+                </select>
+                <i class="fas fa-caret-down dropdown-caret" aria-hidden="true"></i>
+            </span>
+            {{#if @root.isEditMode}}
+                {{#if (inventoryCanRename implantInventory)}}
+                    <button type="button" class="unbutton" data-action="renameInventory" data-inventory="{{implantInventory}}"
+                            data-tooltip="SR5.Redesign.RenameInventory" aria-label="{{localize 'SR5.Redesign.RenameInventory'}}"><i class="fas fa-pen-to-square" aria-hidden="true"></i></button>
+                {{/if}}
+                {{#if (inventoryCanRemove implantInventory)}}
+                    <button type="button" class="unbutton" data-action="removeInventory" data-inventory="{{implantInventory}}"
+                            data-tooltip="SR5.Redesign.RemoveInventory" aria-label="{{localize 'SR5.Redesign.RemoveInventory'}}"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                {{/if}}
+                <button type="button" class="unbutton" data-action="createInventory" data-tooltip="SR5.Labels.ActorSheet.CreateInventory"
+                        aria-label="{{localize 'SR5.Labels.ActorSheet.CreateInventory'}}"><i class="fas fa-plus" aria-hidden="true"></i></button>
+            {{/if}}
+        </div>
+    {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs'}}
+{{#if tabEmpty}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-tab.hbs' text='SR5.Redesign.NoAugmentations' }}
+{{else}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
+    {{#each implantSections as |section|}}
+        {{#if (or @root.isEditMode section.items.length)}}
+        <div class="items-section card{{#unless (or section.isOpen @root.isEditMode)}} collapsed{{/unless}}" data-type="{{section.type}}">
+            {{> (concat "systems/shadowrun5e/dist/templates/v2/list-items/" section.type "/header.hbs") label=section.label isOpen=section.isOpen type=section.type rootId=@root.rootId }}
+            {{!-- rendered when collapsed too (CSS hides them), so the list search finds them --}}
+            {{#each section.items}}
+                {{> (concat "systems/shadowrun5e/dist/templates/v2/list-items/" section.type "/item.hbs") item=this rootId=@root.rootId }}
+            {{else}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}
+            {{/each}}
+        </div>
+        {{/if}}
+    {{/each}}
+{{/if}}
+</section>

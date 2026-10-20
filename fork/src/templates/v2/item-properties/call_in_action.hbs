@@ -1,0 +1,11 @@
+{{#if (eq item.system.actor_type 'sprite')}}
+    {{#unless (empty item.system.sprite.type)}}
+        <label class="prop-dup" data-prop="kind"><i class="prop-icon fas fa-robot" aria-hidden="true"></i>{{localize 'SR5.Compilation.SpriteType'}}&nbsp;{{localizeTypeOr item.system.sprite.type @root.config.spriteTypes}}</label>
+    {{/unless}}
+    <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-signal" aria-hidden="true"></i>{{localize 'SR5.Level'}}&nbsp;{{item.system.sprite.level}}</label>
+{{else if (eq item.system.actor_type 'spirit')}}
+    {{#unless (empty item.system.spirit.type)}}
+        <label class="prop-dup" data-prop="kind"><i class="prop-icon fas fa-ghost" aria-hidden="true"></i>{{localize 'SR5.SpiritType'}}&nbsp;{{localizeTypeOr item.system.spirit.type @root.config.spiritTypes}}</label>
+    {{/unless}}
+    <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-bolt" aria-hidden="true"></i>{{localize 'SR5.Force'}}&nbsp;{{item.system.spirit.force}}</label>
+{{/if}}

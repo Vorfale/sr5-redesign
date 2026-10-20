@@ -1,0 +1,30 @@
+{{!-- Social tab as separate cards (redesign/card-table.hbs), like the inventory: SIN and lifestyles on the left,
+      contacts on the right. In play mode an empty list is left out, nothing at all shows the tab's empty state; edit
+      mode draws every list, an empty one with its empty row. --}}
+<section class="tab sr-social{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+{{#if tabEmpty}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-tab.hbs' }}
+{{else}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
+    <div class="column">
+        {{#if (or @root.isEditMode itemType.sin.length)}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='sin' type='sin' addType='sin' label='SR5.SIN' list=itemType.sin}}
+            <div class="list-item-col rtg-col"><label>{{localize "SR5.Rtg"}}</label></div>
+        {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+        {{/if}}
+        {{#if (or @root.isEditMode itemType.lifestyle.length)}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='lifestyle' type='lifestyle' addType='lifestyle' label='SR5.Lifestyles' list=itemType.lifestyle}}
+            <div class="list-item-col cost-col"><label>{{localize "SR5.Cost"}}</label></div>
+        {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+        {{/if}}
+    </div>
+    <div class="column">
+        {{#if (or @root.isEditMode itemType.contact.length)}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='contact' type='contact' addType='contact' label='SR5.Contacts' list=itemType.contact}}
+            <div class="list-item-col skinny-col"><label data-tooltip="SR5.Contact.LoyaltyConnectionHelp">{{localize "SR5.Contact.LoyaltyConnectionLabel"}}</label></div>
+        {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
+        {{/if}}
+    </div>
+{{/if}}
+</section>

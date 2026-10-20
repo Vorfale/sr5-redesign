@@ -1,0 +1,39 @@
+{{!-- Vehicle stat plates over the Vehicle tab, built like the character's attribute plates (attributes.hbs): the value in
+      play big (handling, speed and acceleration of the road the vehicle is on), the base rating in the box under it,
+      so a modification or an effect that changes a stat shows as on the character sheet. Handling and speed roll the
+      pilot skill with that limit, body / pilot / sensor the attribute. Edit mode: the on-road base in the box (the
+      off-road bases are on the Configuration tab). Under them the limits, as the character's. --}}
+<section class="sr-abilities vehicle" aria-label="{{localize 'SR5.Vehicle.Vehicle'}}">
+    <div class="ability-groups">
+        <ul class="ability-row unlist vehicle-stats">
+            {{#each vehiclePlates as |plate|}}
+            <li class="ability-score vehicle-stat{{#unless plate.roll}} static{{/unless}}" data-attribute-id="{{plate.id}}" data-context-menu="attribute">
+                {{#if (and plate.roll @root.isPlayMode)}}
+                    <button type="button" class="label rollable" data-action="rollAttribute"
+                            data-tooltip="{{plate.activeLabel}}" data-tooltip-direction="UP" aria-label="{{localize 'SR5.Redesign.RollAttribute' name=plate.activeLabel}}">{{plate.short}}</button>
+                {{else}}
+                    <span class="label" data-tooltip="{{plate.activeLabel}}" data-tooltip-direction="UP">{{plate.short}}</span>
+                {{/if}}
+                <div class="mod" {{#if (and plate.roll @root.isPlayMode)}}aria-hidden="true"{{/if}}>{{plate.value}}</div>
+                {{#if @root.isEditMode}}
+                    <div class="score">
+                        <label class="sr-only" for="{{@root.rootId}}-stat-{{plate.id}}">{{plate.label}}</label>
+                        {{formInput plate.field value=plate.base classes="uninput" id=(concat @root.rootId "-stat-" plate.id)}}
+                    </div>
+                {{else}}
+                    <div class="score" data-tooltip="SR5.Redesign.BaseRating" data-tooltip-direction="DOWN">{{plate.base}}</div>
+                {{/if}}
+            </li>
+            {{/each}}
+        </ul>
+    </div>
+    {{#if attributeLimits.length}}
+        <ul class="limit-row unlist">
+            {{#each attributeLimits as |limit|}}
+                <li class="limit limit-{{limit.id}}" data-limit-modifier-tooltip="{{limit.id}}" data-tooltip-direction="DOWN">
+                    <span class="label">{{limit.label}}</span><span class="value">{{limit.value}}</span>
+                </li>
+            {{/each}}
+        </ul>
+    {{/if}}
+</section>

@@ -1,0 +1,93 @@
+import { SR5 } from "@/module/config";
+import { ModifiableValueSchema } from "../template/Base";
+import { ImportFlagData } from "../template/ImportFlags";
+import { DescriptionData } from "../template/Description";
+import { ModifiableField } from "../fields/ModifiableField";
+import { Limits, AwakendLimits, MatrixLimits } from "../template/Limits";
+import { KnowledgeSkills, Skills } from "../template/Skills";
+const { SchemaField, NumberField, BooleanField, ObjectField, ArrayField, StringField, TypedObjectField, DocumentUUIDField } = foundry.data.fields;
+/**
+ * Derived Data structure build from an actors skill items.
+ */
+export const ActorSkills = () => ({
+    active: Skills(),
+    language: Skills(),
+    knowledge: new SchemaField(KnowledgeSkills())
+});
+
+export const MagicData = () => ({
+    attribute: new StringField({
+        required: true,
+        initial: "logic",
+        choices: SR5.attributes
+    }), // Drain attribute
+    projecting: new BooleanField(),
+    initiation: new NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 }),
+});
+
+export const PhysicalCombatValues = () => ({
+    recoil: new ModifiableField(ModifiableValueSchema()),
+    recoil_compensation: new ModifiableField(ModifiableValueSchema()),
+});
+
+/**
+ * Characters include extra configuration options not on all actor types
+ * @constructor
+ */
+export const CharacterValues = () => ({
+    ...PhysicalCombatValues(),
+    control_rig_rating: new ModifiableField(ModifiableValueSchema()),
+})
+
+export const CharacterLimits = () => ({
+    ...Limits(),
+    ...AwakendLimits(),
+    ...MatrixLimits(),
+});
+
+export const CreateModifiers = <T extends readonly string[]>(...keys: T) => {
+    const field = () => new NumberField({ required: true, nullable: false, integer: true, initial: 0 });
+    return Object.fromEntries(
+        keys.map(modifier => [modifier, field()])
+    ) as Record<T[number], ReturnType<typeof field>>;
+};
+
+const InventoryData = () => ({
+    name: new StringField({ required: true }),
+    type: new StringField({ required: true }),
+    itemIds: new ArrayField(new StringField({ required: true })),
+    showAll: new BooleanField({ initial: false }),
+    label: new StringField({ required: true }),
+});
+
+export const CommonData = () => ({
+    description: new SchemaField(DescriptionData()),
+    importFlags: new SchemaField(ImportFlagData(), { nullable: true }),
+
+    // skill set used to populate actor skill items.
+    skillset: new DocumentUUIDField({ required: true, blank: true }),
+    // derived skill data based on actor skill items.
+    skills: new SchemaField(ActorSkills()),
+
+    // favorites and hidden_items can be Local ID or UUID depending on if the item comes from a compendium or not
+    favorites: new ArrayField(new StringField({ required: true })),
+    // note that hidden_items includes ActiveEffects as well as Items
+    hidden_items: new ArrayField(new StringField({ required: true })),
+
+    situation_modifiers: new SchemaField({
+        environmental: new SchemaField({ active: new ObjectField({ initial: {} }) }),
+        noise: new SchemaField({ active: new ObjectField({ initial: {} }) }),
+        background_count: new SchemaField({ active: new ObjectField({ initial: {} }) }),
+    }),
+    inventories: new TypedObjectField(
+        new SchemaField(InventoryData()),
+        { initial: { "All": { name: "All", type: "all", itemIds: [], showAll: true, label: "SR5.Labels.Inventory.All" } } }
+    ),
+    category_visibility: new SchemaField(
+        { default: new BooleanField({ initial: true }) }
+    ),
+});
+
+export type InventoryType = foundry.data.fields.SchemaField.InitializedData<ReturnType<typeof InventoryData>>;
+
+export abstract class ActorBase<DS extends ReturnType<typeof CommonData>> extends foundry.abstract.TypeDataModel<DS, Actor.Implementation> {}

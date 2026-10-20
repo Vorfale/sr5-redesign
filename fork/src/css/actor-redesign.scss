@@ -1,0 +1,3397 @@
+// EXPERIMENTAL (lab/sheet-redesign): SR5 Redesign, an alternative character sheet in the SR5 visual identity.
+// Colours were measured from the SR5 rulebook PDFs (see notes/sr5-identity.md in the playground). No Catalyst art
+// assets are used; all shapes are CSS.
+// Fonts: the original release files, packed into WOFF2 unchanged, under the SIL Open Font License 1.1; licenses and
+// sources in public/fonts (README.md there). The CSS families name roles, not fonts:
+//   SR5 Head: Orbitron · SR5 Label: Barlow Condensed · SR5 Prose: Marcellus
+// The heading face falls back to the label face for what Orbitron lacks (« » · ^ ¥ ≥ ≤ ∞); anything else the faces
+// lack comes from Foundry's or the system's fonts.
+
+@use 'sass:list';
+@use 'sass:map';
+@use 'sass:string';
+
+@font-face { font-family: 'SR5 Head'; src: url('fonts/orbitron/Orbitron[wght].woff2') format('woff2'); font-weight: 400 900; }
+@font-face { font-family: 'SR5 Label'; src: url('fonts/barlow-condensed/BarlowCondensed-Regular.woff2') format('woff2'); font-weight: 400; }
+@font-face { font-family: 'SR5 Label'; src: url('fonts/barlow-condensed/BarlowCondensed-SemiBold.woff2') format('woff2'); font-weight: 600; }
+@font-face { font-family: 'SR5 Label'; src: url('fonts/barlow-condensed/BarlowCondensed-Bold.woff2') format('woff2'); font-weight: 700; }
+@font-face { font-family: 'SR5 Prose'; src: url('fonts/marcellus/Marcellus-Regular.woff2') format('woff2'); font-weight: 400; }
+// Cyrillic: Orbitron, Barlow Condensed and Marcellus have none (in their full releases too). Free (OFL) look-alikes
+// fill in under the same families for Cyrillic code points only, so Latin text and digits keep the original faces:
+// Days One (wide geometric, like Orbitron), Sofia Sans Condensed (narrow, like Barlow Condensed), Forum (Roman
+// proportions, like Marcellus). They come after the Latin faces: for a code point in both, the face defined last is
+// tried first.
+// Each look-alike repeats the weights of the Latin faces exactly: the browser first picks the faces of the closest
+// weight and only then splits them by unicode-range, so a look-alike with its own weight range formed a separate set
+// (Barlow's Cyrillic fell back to another font at 400/600/700, and Latin text at 500 lost Barlow).
+$sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+@font-face { font-family: 'SR5 Head'; src: url('fonts/days-one/DaysOne-Regular.woff2') format('woff2'); font-weight: 400 900; unicode-range: $sr-cyrillic; }
+@each $weight in (400, 600, 700) {
+    @font-face { font-family: 'SR5 Label'; src: url('fonts/sofia-sans-condensed/SofiaSansCondensed[wght].woff2') format('woff2'); font-weight: $weight; unicode-range: $sr-cyrillic; }
+}
+@font-face { font-family: 'SR5 Prose'; src: url('fonts/forum/Forum-Regular.woff2') format('woff2'); font-weight: 400; unicode-range: $sr-cyrillic; }
+// Readable text (a user setting, see the end of this file): the label face one step heavier from the same files, so a
+// rule asking for 400 or 500 gets SemiBold and 600 or 700 gets Bold. The Cyrillic look-alike repeats both weight ranges
+// exactly, as above: with its own range (600 900) it took the 600 / 700 requests from Barlow Bold, and Latin text fell
+// back to another font there, Cyrillic at 400 / 500. Being variable, it draws at the requested weight.
+@font-face { font-family: 'SR5 Label Readable'; src: url('fonts/barlow-condensed/BarlowCondensed-SemiBold.woff2') format('woff2'); font-weight: 100 500; }
+@font-face { font-family: 'SR5 Label Readable'; src: url('fonts/barlow-condensed/BarlowCondensed-Bold.woff2') format('woff2'); font-weight: 501 900; }
+@each $range in (100 500, 501 900) {
+    @font-face { font-family: 'SR5 Label Readable'; src: url('fonts/sofia-sans-condensed/SofiaSansCondensed[wght].woff2') format('woff2'); font-weight: $range; unicode-range: $sr-cyrillic; }
+}
+
+// ---------- Font Awesome Free stand-ins ----------
+// The module may use only Font Awesome Free icons. The wireless states the system draws with Pro icons come from the
+// free fa-wifi instead: running silent dimmed, wireless off struck through.
+.sr5-icon-dim { opacity: .45; }
+.sr5-icon-strike {
+    position: relative;
+    &::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: .14em;
+        height: 1.15em;
+        border-radius: .07em;
+        background: currentColor;
+        transform: translate(-50%, -50%) rotate(-45deg);
+    }
+}
+
+// ---------- shape helpers ----------
+// SR5 books and the official sheet cut corners at 45°, never round them.
+@function chamfer-polygon($c, $corners) {
+    $tl: '0 0';
+    $tr: '100% 0';
+    $br: '100% 100%';
+    $bl: '0 100%';
+    @if list.index($corners, tl) { $tl: '0 #{$c}, #{$c} 0'; }
+    @if list.index($corners, tr) { $tr: 'calc(100% - #{$c}) 0, 100% #{$c}'; }
+    @if list.index($corners, br) { $br: '100% calc(100% - #{$c}), calc(100% - #{$c}) 100%'; }
+    @if list.index($corners, bl) { $bl: '#{$c} 100%, 0 calc(100% - #{$c})'; }
+    @return string.unquote('polygon(#{$tl}, #{$tr}, #{$br}, #{$bl})');
+}
+@mixin chamfer($c: 8px, $corners: (tl, br)) {
+    clip-path: chamfer-polygon($c, $corners);
+}
+// A bordered chamfered box. clip-path also cuts the CSS border, so the bevels would have no line;
+// the ::after overlay paints the bevel lines on top of the content. The host must leave ::after free.
+@mixin chamfer-frame($c: 8px, $color: var(--sr-line), $w: 1px, $corners: (tl, br), $position: relative) {
+    @if $position { position: $position; }
+    border: $w solid $color;
+    // the system's button hover (.sr5v2 button:hover) recolours the border, but not the bevel lines below: keep the
+    // frame one colour on hover
+    --sr5v2-button-hover-border: #{$color};
+    @include chamfer($c, $corners);
+
+    &::after {
+        $directions: (tl: 'to bottom right', tr: 'to bottom left', br: 'to top left', bl: 'to top right');
+        $positions: (tl: 'top left', tr: 'top right', br: 'bottom right', bl: 'bottom left');
+        $layers: ();
+        @each $corner in $corners {
+            $layers: list.append($layers,
+                linear-gradient(string.unquote(map.get($directions, $corner)),
+                    transparent calc(50% - .5px), $color calc(50% - .5px), $color calc(50% + #{$w}), transparent calc(50% + #{$w}))
+                string.unquote(map.get($positions, $corner)) / #{$c} #{$c} no-repeat,
+                comma);
+        }
+        content: '';
+        position: absolute;
+        inset: -$w;
+        z-index: 2;
+        pointer-events: none;
+        background: $layers;
+    }
+}
+// Uppercase text in a fixed-height box: trim the line box to cap height and baseline, otherwise the font's
+// ascender space makes capitals sit visibly low (more room above than below).
+@mixin caps-centered {
+    text-box: trim-both cap alphabetic;
+}
+// An icon before an all-caps caption (the gold headings: initiative, actions, tracks, the detail groups): the text is
+// trimmed to its capitals, so the icon centres on the letters rather than on the line box, whose spare room sits
+// under the caps (the icon hung 0.3-0.8px off at 1x, twice that on a Retina screen); the plaques do the same
+@mixin icon-caption($gap: 5px) {
+    display: flex;
+    align-items: center;
+    gap: $gap;
+    > i { flex: none; line-height: 1; }
+    > span { @include caps-centered; }
+}
+// A search field cut like the tables and buttons: the wrapper carries the field's fill and the chamfered frame (an
+// input has no ::after for the bevel lines); the input inside is bare. Focus turns the frame white / black.
+@mixin search-field($height: 28px) {
+    height: $height;
+    background: var(--sr-input-bg);
+    @include chamfer-frame(5px, var(--sr-line-soft));
+    &:has(input:focus) { @include chamfer-frame(5px, var(--sr-focus)); } // text fields show focus on click too, like the browser's own ring
+    &:hover:not(:has(input:focus)) { @include chamfer-frame(5px, color-mix(in srgb, var(--sr-line-soft), var(--sr-text) 35%)); } // a step brighter under the pointer, neutral (b073)
+    > input {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        max-height: none; // Foundry caps short inputs at 24px
+        margin: 0;
+        padding: 0 8px;
+        border: none;
+        background: transparent;
+        outline: none;
+        font: 500 14px var(--sr-font-label);
+    }
+}
+@mixin label($size: 12px, $weight: 700) {
+    font-family: var(--sr-font-label);
+    font-weight: $weight;
+    font-size: $size;
+    text-transform: uppercase;
+    letter-spacing: calc(.04em + var(--sr-tracking, 0em));
+}
+@mixin heading($size: 13px, $weight: 700) {
+    font-family: var(--sr-font-head);
+    font-weight: $weight;
+    font-size: $size;
+    text-transform: uppercase;
+    letter-spacing: calc(.08em + var(--sr-tracking, 0em));
+}
+// SR5 section plaque: crimson tab (straight left edge with the icon, slanted right edge) standing on a crimson rule
+// that runs across the whole section. Markup: <h3 class="plaque"><span class="plaque-tab"><i></i><span>Text</span></span></h3>
+// Chamfered attribute plate: frame + face, both clipped by the same cut so the bevel keeps its line.
+// $bottom leaves room under the plate (the first tab's base-rating box overlaps it).
+// sortable column header (skills, matrix actions): no arrows; the sorted column is white with a gold underline,
+// which takes no extra width, so nothing moves when the sort changes
+@mixin sort-button {
+    @include label(12px);
+    display: inline-flex;
+    align-items: center;
+    color: var(--sr-table-head-fg);
+    text-decoration: underline 2px transparent;
+    text-underline-offset: 4px;
+    transition: color 120ms, text-decoration-color 120ms;
+    h3 { font: inherit; margin: 0; border: none; color: inherit; text-decoration: inherit; }
+    &:hover { color: var(--sr-gold-300); }
+    &.sorted { color: var(--sr-white); text-decoration-color: var(--sr-gold-500); }
+}
+
+// The window's outline (chamfered top-left / bottom-right), keeping the tab rail that hangs 47px outside the right
+// edge from its top (header + 1rem) down to the bottom bevel. Clips .window-content and draws the shadow layer.
+@mixin window-shape {
+    clip-path: polygon(
+        0 var(--sr-window-cut), var(--sr-window-cut) 0,
+        100% 0,
+        100% calc(var(--sr-header-height) + 1rem - 1px), calc(100% + 47px) calc(var(--sr-header-height) + 1rem - 1px),
+        calc(100% + 47px) calc(100% - var(--sr-window-cut) - 4px), 100% calc(100% - var(--sr-window-cut) - 4px),
+        100% calc(100% - var(--sr-window-cut)), calc(100% - var(--sr-window-cut)) 100%, 0 100%
+    );
+}
+
+// button over a picture (header art, portrait): secondary, like the header's fields (dark in both themes): dark
+// fill, thin light frame
+@mixin art-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    height: 28px;
+    min-height: 0;
+    margin: 0;
+    padding: 0 10px;
+    border: 1px solid rgba(255, 255, 255, .25);
+    border-radius: 0;
+    background: rgba(0, 0, 0, .45);
+    box-shadow: none;
+    @include label(12px);
+    color: #fff;
+    &:hover, &:focus-visible { border-color: rgba(255, 255, 255, .6); }
+    i { font-size: 11px; color: rgba(255, 255, 255, .7); }
+    &:hover i { color: #fff; }
+}
+
+@mixin attribute-plate($bottom: 0px) {
+    position: relative;
+    &::before, &::after {
+        content: '';
+        position: absolute;
+        clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
+    }
+    &::before { inset: 0 0 $bottom 0; background: var(--sr-graphite-600); }
+    &::after { inset: 1px 1px ($bottom + 1px) 1px; clip-path: polygon(7.5px 0, 100% 0, 100% 100%, 0 100%, 0 7.5px); background: var(--sr-plate-bg); }
+    > * { position: relative; z-index: 1; }
+}
+
+@mixin plaque($size: 12px) {
+    display: flex;
+    align-items: flex-end;
+    border-bottom: 2px solid var(--sr-crimson-700);
+
+    .plaque-tab {
+        @include heading($size, 700);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px; // icon <-> text (6px read as cramped)
+        color: #fff;
+        background: var(--sr-crimson-700);
+        padding: 5px 26px 5px 12px;
+        clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
+        > i { flex: 0 0 auto; width: 1.1em; text-align: center; } // icons of different widths take one box
+        > span { @include caps-centered; }
+    }
+}
+
+// A hexagon pip of the sidebar's tracks (Edge, actions): a 24 x 24 button (WCAG 2.5.8) around the 18 x 16 hexagon
+// (::before) and its hollow centre (::after); filled in $fill while the thing is still there.
+@mixin hex-pip($fill) {
+    --pip-hex: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+    --pip-line: var(--sr-graphite-400);
+    position: relative;
+    width: 24px;
+    height: 24px;
+    min-height: 0;
+    padding: 0;
+    margin: 0 -3px; // the hexagons keep their 4px spacing, the boxes touch
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: none;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+
+    &::before, &::after { content: ''; grid-area: 1 / 1; clip-path: var(--pip-hex); }
+    &::before { width: 18px; height: 16px; background: var(--pip-line); }
+    &::after { width: 14px; height: 12px; background: var(--sr-card-bg); } // spent: hollow hexagon
+    &.filled { --pip-line: #{$fill}; }
+    &.filled::after { background: $fill; }
+    &:hover { --pip-line: var(--sr-text); background: none; }
+    &:focus-visible { outline: none; --pip-line: var(--sr-focus); }
+}
+
+// The filter button, sort button and filter menu of a list search: the sheet's (list-controls.hbs) and the network
+// manager's (redesign-apps.scss).
+@mixin list-filter-controls {
+    // filter button of the list search and the skill filter: square, filled while filters are on; the sort button
+    // and the Actions tab's grouping button (filled while grouped) look the same
+    .list-filter-button, .list-sort-button, .list-group-button {
+        position: relative;
+        flex: 0 0 auto;
+        width: 28px;
+        height: 28px;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        border-radius: 0;
+        box-shadow: none;
+        background: transparent;
+        color: var(--sr-text-muted);
+        font-size: 12px;
+        @include chamfer-frame(5px, var(--sr-line-soft));
+        &:hover, &[aria-expanded="true"] { color: var(--sr-text); background: var(--sr-row-hover); }
+        // filters on: filled, the frame in the fill's colour; hover lightens it like the sheet's other red buttons
+        &.active {
+            color: var(--sr-white);
+            background: var(--sr-crimson-700);
+            @include chamfer-frame(5px, var(--sr-crimson-700));
+            &:hover, &[aria-expanded="true"] { color: var(--sr-white); background: var(--sr-red-600); @include chamfer-frame(5px, var(--sr-red-600)); }
+        }
+    }
+    // the menu is a popover (top layer), placed by SR5CharacterSheetRedesign#wireListFilterMenu; looks like the
+    // initiative menu. Options are checkboxes: a tick on the right, the menu stays open.
+    .list-filter-menu {
+        inset: auto;
+        min-width: 180px;
+        margin: 0;
+        border: 0;
+        padding: 4px 0 2px;
+        overflow: hidden; // scrolls (set from script) only when taller than the room left in the window: the frame's
+        scrollbar-width: thin; // bevel overlay reaches 1px past the edge and would always make it scrollable
+        color: var(--sr-text);
+        background: var(--sr-input-bg);
+        filter: drop-shadow(var(--sr-popover-shadow));
+        @include chamfer-frame(5px, var(--sr-line));
+        position: fixed; // after the mixin, which sets relative
+
+        // a group: its heading sits close over its options (4px), groups are set apart by a divider and 8px + 10px
+        // of air, so each heading reads as the title of the rows under it, not of the ones above
+        .list-filter-group {
+            margin-top: 8px;
+            padding: 10px 12px 4px;
+            @include label(12px);
+            line-height: 14px;
+            color: var(--sr-accent);
+            border-top: 1px solid var(--sr-row-border);
+            &:first-child { margin-top: 0; padding-top: 6px; border-top: none; }
+        }
+        .list-filter-option {
+            width: 100%;
+            height: 28px;
+            min-height: 0;
+            margin: 0;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; // Foundry centres button content
+            gap: 8px;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            background: transparent;
+            color: var(--sr-text);
+            text-align: left;
+            > span { @include label(14px, 600); text-transform: none; letter-spacing: var(--sr-tracking, 0em); }
+            // .5px down, as the property icons: measured, the glyphs sat .6px above the capitals' middle (one device
+            // pixel on a 2x screen); the check mark with them
+            > i { width: 14px; text-align: center; font-size: 12px; color: var(--sr-text-muted); transform: translateY(.5px); }
+            > i.check { margin-left: auto; color: var(--sr-accent); visibility: hidden; }
+            &[aria-checked="true"] > i.check { visibility: visible; }
+            &:hover:not(:disabled), &:focus-visible { background: var(--sr-row-hover); }
+            &:disabled { opacity: .45; cursor: default; }
+        }
+        // long groups (attributes, skill groups) in two columns, so the menu stays on screen
+        .list-filter-items.columns { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); column-gap: 4px; }
+        .list-filter-clear { margin-top: 8px; height: 32px; border-top: 1px solid var(--sr-row-border); }
+    }
+}
+
+// Colours, type and sizes of the redesigned sheet: palette, semantic tokens, table grid, spacing, light theme and the
+// alternative accents. A mixin, so other windows can share the values (the redesigned roll dialogs do).
+@mixin sr-tokens {
+    // ---------- SR5 palette, measured from the SR5 rulebook PDFs (notes/sr5-identity.md) ----------
+    // Fills, frames and large elements use these colours as they are.
+    --sr-black: #000000;
+    --sr-ink: #231f20;          // warm black (Street Grimoire)
+    --sr-crimson-900: #3f0001;
+    --sr-crimson-800: #680015;
+    --sr-crimson-700: #7e0f12;
+    --sr-red-600: #940609;
+    --sr-rust-500: #a43c21;
+    --sr-rust-400: #be3919;
+    --sr-gold-500: #ebb531;
+    --sr-gold-300: #efc257;
+    --sr-graphite-700: #434244;
+    --sr-graphite-600: #59595b;
+    --sr-graphite-400: #6d6e70;
+    --sr-gray-300: #929496;
+    --sr-gray-200: #a6a8aa;
+    --sr-gray-100: #b0b2b4;
+    --sr-zebra: #e6e7e8;        // light table zebra
+    --sr-white: #ffffff;
+    --sr-teal: #408386;
+    --sr-purple: #584875;
+    --sr-green: #6eac51;
+    // Small text cannot use the dark palette colours on dark backgrounds (red-600 is 1.8:1, rust-400 2.9:1, teal 3.7:1
+    // on ink); it uses the lightest-needed tint of the same palette colour (mixed with white) that reaches 4.5:1.
+    --sr-rust-400-tint: #ce6a52;   // rust-400 + 25% white, 4.5:1 on ink
+    --sr-teal-tint: #5d9698;       // teal + 15% white, 4.9:1 on ink
+    --sr-teal-shade: #306264;      // teal + 25% black: fills that carry white text (6.9:1)
+    --sr-teal-shade-2: #204243;    // teal + 50% black
+    --sr-green-shade: #213418;     // green + 70% black: positive quality fill
+    --sr-purple-tint: #a39ab3;     // purple + 45% white, 6.2:1 on the attribute plates
+
+    --sr-font-head: 'SR5 Head', 'SR5 Label', var(--font-sans);
+    --sr-font-label: 'SR5 Label', var(--font-sans);
+    --sr-font-prose: 'SR5 Prose', serif;
+
+    // ---------- tables: one grid for every list on the sheet (notes/style-lab/table-spec.md) ----------
+    // Rows 36px of content + a 1px divider (an even content height keeps 20px text on whole pixels), a 28px image
+    // with 4px above and below, a 32px title row, the same 12px side padding everywhere, value columns in three
+    // lane widths, a 64px icon column. Tables take these instead of their own numbers.
+    --tbl-row-h: 37px;
+    --tbl-icon: 28px;
+    --tbl-head-h: 32px;
+    --tbl-pad-x: 12px;
+    --tbl-gap: 8px;           // image <-> name
+    --tbl-lane-xs: 40px;      // skill tables: attribute, rating, pool
+    --tbl-lane-s: 56px;       // numbers: rating, quantity, marks, ammo, armor, essence, cost
+    --tbl-lane-m: 88px;       // short text: type, range, duration, drain, slots
+    --tbl-lane-l: 120px;      // longer values: effect duration ("9 Combat Turns")
+    --tbl-icons: 108px;       // row icons in play mode (up to three, then the ⋮ menu button), 24px boxes 4px apart
+    --tbl-icons-edit: 136px;  // row icons in edit mode (up to four: favorite, move, edit, delete; then ⋮); the title's Add too
+    --tbl-icon-gap: 4px;      // between row icons: the 14px glyphs fill their boxes (wifi, the tick), touching boxes ran them together
+
+    // ---------- spacing scale (proximity: inside an element < between items of a group < between groups) ----------
+    --sp-xs: 4px;   // label <-> its value or bar
+    --sp-s: 8px;    // items of one group; heading <-> its content
+    --sp-m: 16px;   // between groups / sections
+
+    // ---------- semantic tokens (dark = "rulebook frame") ----------
+    // Surfaces and frames are warm, slightly red-tinted darks chosen for the screen (pure black and the book's
+    // ink read as flat black in Foundry); accent hues below come from the rulebook palette.
+    --sr-header-height: 170px;
+    --sr-sidebar-width: 236px;
+    --sr-app-bg: #141012;
+    --sr-card-bg: #1d181b;
+    --sr-row-alt: rgba(255, 255, 255, .035);
+    --sr-row-hover: rgba(126, 15, 18, .22);      // crimson-700
+    --sr-row-border: rgba(176, 178, 180, .16);   // gray-100
+    --sr-line: #7a2a33;                          // card frames: crimson lifted so the outline is visible on dark
+    --sr-line-soft: var(--sr-graphite-600);
+    --sr-text: #ece7e2;
+    --sr-text-muted: #a9a6a8;
+    --sr-accent: var(--sr-gold-500);             // gold is a text accent only (table heads, captions), never a glow
+    --sr-accent-hover: var(--sr-gold-300);       // links and chevrons under the pointer
+    --sr-teal-text: var(--sr-teal-tint);         // teal text on the sheet background (running silent)
+    --sr-positive-text: var(--sr-green);         // gains (karma, nuyen, reputation): rulebook green, 6.4:1 on the cards
+    --sr-pool-reduced: var(--sr-label-phys);     // a pool wounds take dice from (gold pools around it)
+    // accents, "classic" set (the rulebook-palette alternative was dropped 2026-10-14; it is in git history)
+    --sr-label-phys: #e8685d;           // physical labels on the sheet background
+    --sr-plate-phys: #ec6d61;           // physical labels on the dark attribute plates (both themes)
+    --sr-plate-mental: #7cc4ef;         // mental labels on the dark attribute plates (both themes)
+    --sr-line-mental: #2d5874;
+    // matrix attribute plates (Data Processing yellow-green, Firewall orange), muted to sit with the rulebook palette
+    --sr-plate-olive: #c4cf6e;          // label, 10:1 on the plate face
+    --sr-olive-frame: #66702c;
+    --sr-plate-orange: #eda05a;         // label, 7.8:1 on the plate face
+    --sr-ochre: #93621c;                // rulebook rare accent (notes/sr5-identity.md)
+    --sr-text-chip: #d9d4cf;            // numbers in the small score boxes, tab rail icons
+    // Monitor fills after the system's own sheet, which tells the tracks apart by colour (a glow around the boxes:
+    // stun blue, physical red, matrix green; the rulebook sheets give monitors no colour). Flat, like the rest of the
+    // sheet's controls; stun and matrix at one contrast for the white box numbers (7:1), physical the sheet's red.
+    --sr-phys-fill: var(--sr-red-600);  // 9.2:1
+    --sr-stun-fill: #3656a1;            // blue, hue 222
+    --sr-matrix-fill: #3f622e;          // the rulebook green #6eac51, darkened
+
+    --sr-pill-pos-bg: #24401c;
+    --sr-pill-pos-line: #5d9645;
+    --sr-pill-neg-line: #b0503a;
+    --sr-pill-bg: #2a2226;
+    --sr-plate-bg: linear-gradient(180deg, #221c20, #0d0a0c);
+    --sr-table-head-bg: var(--sr-black);
+    --sr-table-head-fg: var(--sr-gold-500);
+    --sr-focus: var(--sr-white);
+    --sr-footer-bg: #0d0a0c;
+    --sr-input-bg: #0f0c0e;
+    // header art: rust-500 and crimson-800 glows over a crimson-900 to black page frame.
+    // (No comments inside the value: custom properties keep them verbatim and the whole value breaks.)
+    --sr-header-art:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px),
+        radial-gradient(ellipse 55% 140% at 82% -20%, rgba(164, 60, 33, .55), transparent 70%),
+        radial-gradient(ellipse 70% 120% at 10% 120%, rgba(104, 0, 21, .9), transparent 70%),
+        linear-gradient(160deg, #2a0508 0%, var(--sr-crimson-900) 40%, #0b0606 100%);
+    // the system theme draws a gold glow around every sr5v2 window; this sheet uses a plain soft shadow instead
+    --sr5v2-window-shadow: 0 14px 34px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .35);
+    // selected row (matrix target): crimson edge + tint, like the active tab, instead of the green radial gradient
+    --sr5v2-list-selected-bg: linear-gradient(90deg, var(--sr-red-600) 0 3px, rgba(126, 15, 18, .38) 3px);
+    --sr-checkbox-line: var(--sr-gray-300);      // frame of an empty checkbox, 6:1 on the field colour
+    --sr-popover-shadow: 0 8px 14px rgba(0, 0, 0, .5); // menus (initiative, filters)
+
+    // light = "official character sheet": white panel, black text, crimson accents, light zebra
+    &.theme-light, body.theme-light &:not(.theme-dark) {
+        --sr-app-bg: #e9e7e6;
+        --sr-card-bg: var(--sr-white);
+        --sr-row-alt: #f1f0f0;
+        --sr-row-hover: rgba(126, 15, 18, .1);
+        --sr-row-border: rgba(109, 110, 112, .3);
+        --sr-line: var(--sr-crimson-800);
+        --sr-line-soft: var(--sr-gray-200);
+        --sr-text: #2b2627;                      // warm near-black, 14.8:1 on white: #111 (18:1) made the condensed bold type inky
+        --sr-text-muted: #545456;
+        --sr-label-phys: var(--sr-crimson-800);
+        --sr-accent: var(--sr-crimson-700);      // gold reads poorly on white; the official sheet uses crimson
+        --sr-accent-hover: var(--sr-red-600);
+        --sr-teal-text: var(--sr-teal-shade);    // the tint is 3.4:1 on white
+        --sr-positive-text: #426731;             // green + 40% black, 6.5:1 on white (green itself is 2.7:1)
+        --sr-pool-reduced: var(--sr-rust-500);   // the pools are crimson here: rust stands apart (5.6:1 on white)
+        --sr-pill-bg: #f0eded;
+        --sr-focus: var(--sr-black);
+        --sr-footer-bg: #dcd9d8;
+        --sr-input-bg: var(--sr-white);
+        --sr5v2-window-shadow: 0 14px 34px rgba(40, 20, 20, .22), 0 2px 8px rgba(40, 20, 20, .15);
+        --sr5v2-list-selected-bg: linear-gradient(90deg, var(--sr-crimson-700) 0 3px, rgba(126, 15, 18, .14) 3px);
+        --sr-checkbox-line: var(--sr-graphite-400); // 5.1:1 on white
+        --sr-popover-shadow: 0 8px 14px rgba(40, 20, 20, .22);
+    }
+}
+
+.sr5v2.sr5-redesign {
+    @include sr-tokens;
+
+    // the property icons the templates carry (.prop-icon) are drawn by this sheet only; see the global rule below
+    .prop-icon { display: inline-block; }
+    // while a render's patches run (SR5CharacterSheetRedesign#_onRender): state set on fresh parts applies at once
+    &.sr-patching :is(*, *::before, *::after) { transition: none !important; }
+
+    // edit mode: one icon column width for title and rows (rows carry more buttons than the title's Add, and the
+    // value columns of the title slid 18px off the rows); skill tables and the matrix keep their own narrow layout
+    &.sr-edit-mode .tab:not([data-tab="skills"]) .card .list-item > .list-item-icons {
+        flex: 0 0 var(--tbl-icons-edit);
+        min-width: var(--tbl-icons-edit);
+        max-width: var(--tbl-icons-edit);
+        justify-content: flex-end;
+    }
+
+    min-width: 820px;
+    min-height: 640px;
+    overflow: visible;
+    font-family: var(--sr-font-label);
+    font-size: 14px;
+    color: var(--sr-text);
+    // The window itself is chamfered like every card and plaque (see "window frame" below): the visible surface is
+    // .window-content, cut by a clip-path; a shadow that follows that shape lies under it (.sr-window-shadow).
+    --sr-window-cut: 14px;
+    --sr-window-shadow: drop-shadow(0 12px 24px rgba(0, 0, 0, .55)) drop-shadow(0 2px 6px rgba(0, 0, 0, .35));
+    &.theme-light, body.theme-light &:not(.theme-dark) { --sr-window-shadow: drop-shadow(0 12px 24px rgba(40, 20, 20, .25)); }
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    // The shadow is a filter (a box-shadow would be cut by the clip-path). On the window element, every repaint inside
+    // it (the sidebar sliding, scrolling, hover) ran both blurs over the whole window again. Here it is an empty
+    // element of its own (_onFirstRender) on its own layer: drawn once, until the window is resized.
+    > .sr-window-shadow {
+        position: absolute;
+        inset: -4px 0 0 0; // the box of .window-content (pulled 36px up under the 32px header)
+        pointer-events: none;
+        filter: var(--sr-window-shadow);
+        will-change: transform;
+        &::before { content: ''; position: absolute; inset: 0; background: #000; @include window-shape; }
+    }
+    // (closing too: Foundry's close animates with .minimizing)
+    &:is(.minimized, .minimizing, .maximizing) {
+        background: var(--sr-crimson-900); // the title bar stays dark in both themes: its title and buttons are white
+        border: 1px solid var(--sr-crimson-800);
+        margin: -1px; // the border grows outward: the content stays put as the window minimizes or closes
+        // it keeps the window's top-left bevel. The clip cuts the border there: ::after draws that line, over the
+        // window content (it stays shown under the title bar and covers the window's own background). A 135deg line
+        // lies at cut / √2 from the corner, where the clip starts: the line is the 1px inside it
+        clip-path: polygon(var(--sr-window-cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--sr-window-cut));
+        &::after {
+            content: '';
+            position: absolute;
+            inset: -1px; // the border box, as the clip
+            z-index: 5;
+            pointer-events: none;
+            background: linear-gradient(135deg, var(--sr-crimson-800) calc(var(--sr-window-cut) * .7071 + 1px), transparent calc(var(--sr-window-cut) * .7071 + 1px));
+        }
+        > .sr-window-shadow { display: none; }
+        // the minimum size above would otherwise keep the window full-size and Foundry's minimize had no effect
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        // only the title bar is left: show the name there
+        > .window-header .window-title { visibility: visible; }
+    }
+    // the name clear of the bevel, once minimized only: on .minimizing (a close animates with it too) the header's
+    // padding moved its controls, the edit mode switch jumped as the sheet closed
+    &.minimized > .window-header .window-title { margin-left: calc(var(--sr-window-cut) - 4px); }
+
+    // ---------- accessibility utilities ----------
+    .sr-only {
+        position: absolute !important;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+    // Small controls get a 24 × 24 target (WCAG 2.5.8, b058) without moving anything: an invisible area around them,
+    // inside the gaps to their neighbours (a monitor's head row is 20px over cells 8px below it)
+    :is(.meter-clear, .meter-roll, .init-blitz, [data-action="weaponFullReload"], [data-action="removeSkillSet"]) {
+        position: relative;
+        &::after { content: ''; position: absolute; }
+    }
+    .meter-clear::after { inset: -2px; }
+    .meter-roll::after { inset: -6px 0; }
+    .init-blitz::after { inset: -1px 0; }
+    [data-action="weaponFullReload"]::after { inset: -2px -4px; }
+    [data-action="removeSkillSet"]::after { inset: -2px -3px; }
+
+    // Keyboard focus ring. Drawn inside the box, so clip-path on chamfered controls cannot hide it.
+    :is(button, a, input, select, [tabindex]):focus-visible {
+        outline: 2px solid var(--sr-focus);
+        outline-offset: -2px;
+        box-shadow: none;
+    }
+    // Foundry draws its own ring on :focus, which stays after a mouse click; only keyboard focus gets a ring here
+    :is(button, a, input[type="checkbox"], [tabindex], [role="button"]):focus:not(:focus-visible) {
+        outline: none;
+        box-shadow: none;
+    }
+    // Foundry's core hover glow on links and buttons
+    a, button, .label { text-shadow: none; }
+    a:hover, button:hover { text-shadow: none; }
+    @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; animation: none !important; }
+    }
+
+    // ---------- window frame ----------
+    .window-header {
+        position: relative;
+        z-index: 3;
+        background: transparent;
+        border: none;
+        color: #fff;
+
+        .window-title { visibility: hidden; }
+
+        .header-control {
+            width: 24px;
+            height: 24px;
+            border-radius: 0;
+            @include chamfer(5px, (tl, tr, br, bl));
+            background: none;
+            color: #fff;
+            font-size: 12px;
+            &:hover, &:focus-visible { background: var(--sr-crimson-700); }
+        }
+        // first control (edit mode toggle) sits next to the 14px corner bevel; give it room
+        > .header-control:first-child, > [data-action="toggleEditMode"] { margin-left: 10px; }
+        // the system's edit switch (fa-toggle-large, 28.8px wide) is wider than its 28px button (the system's
+        // `.window-header > button.header-control.icon.fa-stack`): the corner bevels cut its rounded ends, so it gets room
+        > button.header-control.icon.fa-stack[data-action="toggleEditMode"] {
+            flex-basis: 34px;
+            width: 34px;
+            // the system lifts the switch by -90% of a box shorter than the glyph, which leaves it low in this 24px
+            // button (4px above, 0.5px below; the hover fill showed it): a 1em line box centred puts the glyph in the middle
+            > .fa-toggle-large-on, > .fa-toggle-large-off { height: 1em; line-height: 1; transform: translate(-50%, -50%); }
+        }
+        // its wrench keeps the dark theme's look in both themes: this header is dark in both, and the system's light theme
+        // turns the wrench white (for its own light header), white on the white switch
+        > button.header-control.icon.fa-stack > .edit-wrench-icon.fa-wrench.fa-stack-1x {
+            color: #191813;
+            text-shadow: 1px 1px 1px #fff, 1px -1px 1px #fff, -1px -1px 1px #fff, -1px 1px 1px #fff;
+        }
+    }
+
+    > .window-content {
+        // chamfered frame (top-left / bottom-right, like the cards); bevel lines drawn by the mixin's ::after
+        @include chamfer-frame(var(--sr-window-cut), var(--sr-crimson-800), 1px, (tl, br));
+        // ...but the clip-path must also keep the tab rail outside the right edge
+        @include window-shape;
+        // Foundry blurs what is behind a window in the dark theme; this surface is opaque, the blur only cost time
+        backdrop-filter: none;
+        position: relative;
+        min-height: 0; // flex item: without this the grid grows to its content and nothing scrolls
+        overflow: visible;
+        padding: 0;
+        margin-top: -36px;
+        background: var(--sr-app-bg);
+        display: grid;
+        grid-template-columns: var(--sr-sidebar-width) minmax(0, 1fr);
+        grid-template-rows: var(--sr-header-height) minmax(0, 1fr) auto;
+        gap: 0;
+
+        > section.tab {
+            grid-column: 2;
+            grid-row: 2;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 14px 16px 16px 18px;
+            scrollbar-gutter: stable;
+            scrollbar-color: var(--sr-graphite-600) transparent;
+
+            &:not(.active) { display: none; }
+            &.hide-overflow { overflow-y: auto; }
+
+            .fill-container { height: auto; display: block; }
+            .scrollable { overflow: visible; max-height: none; height: auto; }
+        }
+    }
+
+    // One field style for the whole sheet, including fields from the regular SR5 templates
+    // (in the light theme their own style puts dark text on a dark box).
+    > .window-content :is(input[type="text"], input[type="number"], input[type="search"], input:not([type]), select, textarea) {
+        background: var(--sr-input-bg);
+        color: var(--sr-text);
+        border: 1px solid var(--sr-line-soft);
+        border-radius: 0;
+        box-shadow: none;
+        &::placeholder { color: var(--sr-text-muted); opacity: 1; }
+        &:disabled { opacity: .6; }
+    }
+    > .window-content option { background: var(--sr-card-bg); color: var(--sr-text); }
+    // ...except in the header, which stays dark in both themes: its fields (name, race, archetype, source) too
+    > .window-content .sr-header :is(input[type="text"], input:not([type]), select) {
+        background: rgba(0, 0, 0, .45);
+        color: #fff;
+        border-color: rgba(255, 255, 255, .25);
+        &::placeholder { color: rgba(255, 255, 255, .6); }
+        &.document-name { background: rgba(0, 0, 0, .35); }
+    }
+    > .window-content select {
+        height: 30px;
+        min-height: 30px;
+        padding: 0 8px;
+        line-height: 28px;
+        font: 600 14px var(--sr-font-label);
+    }
+
+    input.uninput, select.uninput {
+        border-style: dashed;
+        text-align: center;
+        font-family: var(--sr-font-label);
+    }
+    // edit fields under the pointer, not while typing (b073): a framed one's frame brighter, a frameless one (the name
+    // on the art, a plate's base) a faint fill in its text colour
+    :is(input.uninput, select.uninput, input.archetype-input, .list-item input[type="number"], .window-content select):not(:focus, :disabled):hover { border-color: color-mix(in srgb, currentColor 55%, transparent); }
+    .window-content input[type="checkbox"]:not(:disabled):hover { filter: brightness(1.3); }
+    :is(input.document-name, .ability-score input.uninput):not(:focus, :disabled):hover { background-color: color-mix(in srgb, currentColor 12%, transparent); }
+
+    button.unbutton {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        box-shadow: none;
+        color: inherit;
+        font: inherit;
+        line-height: inherit;
+        text-align: inherit;
+        width: auto;
+        height: auto;
+        min-height: 0;
+        cursor: pointer;
+        &:disabled { cursor: default; }
+    }
+
+    ul.unlist { list-style: none; margin: 0; padding: 0; }
+
+    // ---------- header ("rulebook page frame") ----------
+    .sr-header {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 16px;
+        padding: 44px 24px 0 24px;
+        background: var(--sr-header-art);
+        border-bottom: 2px solid var(--sr-crimson-700); // the same 2px rule as the plaques and tab titles
+
+        .sr-header-left { min-width: 0; }
+
+        .document-name {
+            @include heading(30px, 800);
+            margin: 0;
+            border: none;
+            letter-spacing: calc(.05em + var(--sr-tracking, 0em));
+            line-height: 1.05;
+            color: #fff;
+            text-shadow: 0 1px 6px rgba(0, 0, 0, .8);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        input.document-name {
+            width: 100%;
+            height: auto;
+            background: rgba(0, 0, 0, .35);
+            padding: 0 4px;
+            text-align: left;
+        }
+
+        .sr-subtitle {
+            @include heading(12px, 600);
+            letter-spacing: calc(.14em + var(--sr-tracking, 0em));
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+            max-width: 100%; // stays visible when the sidebar collapses (the attribute plates sit below it)
+            overflow: hidden;
+            white-space: nowrap;
+            color: #fff;
+
+            .chevron, .separator { color: var(--sr-gold-500); }
+            // separators go between parts: none right after the opening chevron (a critter shows no metatype, so
+            // its line can start with Awakened), and a line with no parts at all is left out
+            > .chevron + .separator { display: none; }
+            &:not(:has(> :not(.chevron, .separator, .art-controls))) { display: none; }
+            // » and « come from the label face (Orbitron has none), Bold and a tenth larger to keep the weight and size
+            // they had before (Roboto Condensed Bold, 4.7px tall); line-height 1 so the larger glyph does not make the
+            // line taller. Their middle sits 0.5px under the capitals' middle (measured: 3.82 vs 4.32px above the
+            // text's baseline; the bullet is level at 4.30): lifted to it
+            .chevron { font-weight: 700; font-size: 1.1em; line-height: 1; transform: translateY(-.038em); }
+            // left-aligned like every field of the sheet (Foundry centres select text)
+            select { width: auto; height: 28px; min-height: 28px; background: rgba(0, 0, 0, .45); color: #fff; text-align: left; text-align-last: left; }
+            // archetype: as wide as its text, like the race select next to it
+            input.archetype-input {
+                field-sizing: content;
+                width: auto;
+                flex: 0 0 auto;
+                min-width: 96px;
+                max-width: 220px;
+                height: 28px;
+                padding: 0 8px;
+                background: rgba(0, 0, 0, .45);
+                color: #fff;
+                font: inherit;
+                letter-spacing: inherit;
+            }
+        }
+
+    }
+
+    // ---------- tab rail ----------
+    > .window-content > nav.tabs.sr-rail {
+        position: absolute;
+        left: 100%;
+        top: calc(var(--sr-header-height) + 1rem);
+        z-index: -1;
+        width: 45px; // 5 + 32 + 7 + 1px frame: a little more air on the outer (right) side than next to the sheet
+        margin: 0;
+        padding: 6px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        background: #000;
+        @include chamfer-frame(8px, var(--sr-line), 1px, (tr, br));
+        position: absolute; // after the mixin, which sets relative
+        border-left: none;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, .45);
+
+        button.item {
+            flex: 0 0 32px;
+            width: 32px;
+            height: 32px;
+            min-height: 0;
+            margin: 0 7px 0 5px;
+            padding: 0;
+            display: grid;
+            place-items: center;
+            line-height: 1;
+            border: none;
+            border-radius: 0;
+            @include chamfer(5px, (tl, tr, br, bl));
+            background: none;
+            box-shadow: none;
+            color: var(--sr-text-chip);
+            font-size: 15px;
+
+            &:hover { background: var(--sr-crimson-800); color: #fff; }
+            &.active { background: var(--sr-crimson-700); color: #fff; }
+        }
+    }
+
+    // ---------- sidebar ----------
+    .sr-sidebar {
+        grid-column: 1;
+        grid-row: 2;
+        margin-top: -42px;
+        padding: 0 0 12px 12px;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        // the scrollbar's room is kept whether it shows or not (as the tabs do): where scrollbars take room (Windows,
+        // macOS set to always show them) a sidebar that started to scroll (wounds, a favorite added) narrowed its
+        // content and everything in it moved; overlay scrollbars take none, so nothing changes there
+        scrollbar-gutter: stable;
+        // the scroll bar beside the card, in the collapser's strip (14px, on the caret's level) rather than over the
+        // card's edge, and shown only while the sidebar scrolls, as macOS does, on every system (below,
+        // `sidebar-scrolling`): the scroll box reaches over the strip (its width + 14px, the grid track stays 236), the
+        // card keeps its 224px; where bars take room (Windows) the padding gives their width back (--sr-sidebar-bar,
+        // #measureSidebarBar). The strip, above it, passes the wheel and drags on the bar's thumb on to it, and the caret
+        // steps aside while it scrolls (#wireSidebarScrollLane).
+        margin-right: -14px;
+        padding-right: calc(14px - var(--sr-sidebar-bar, 0px));
+        position: relative;
+        z-index: 1;
+        scrollbar-width: thin;
+        scrollbar-color: var(--sr-graphite-600) transparent;
+
+        .card.sr-card {
+            padding-bottom: 10px;
+            @include chamfer-frame(12px);
+        }
+
+        .portrait {
+            position: relative;
+            height: 220px;
+            border-bottom: 2px solid var(--sr-crimson-700);
+            background: #000;
+
+            img {
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+            img { object-fit: cover; object-position: top center; border: none; }
+
+            // edit mode: a picture for the sheet only, instead of the actor's portrait (#setSheetPortrait), and back;
+            // shown over the bottom of the portrait while the pointer or the keyboard is on it
+            .portrait-controls {
+                position: absolute;
+                inset: auto 0 0 0;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 6px;
+                padding: 24px 8px 8px;
+                background: linear-gradient(to top, rgba(0, 0, 0, .7), transparent);
+                opacity: 0;
+                transition: opacity 120ms ease;
+                .art-button { @include art-button; }
+            }
+            &:hover, &:focus-within { .portrait-controls { opacity: 1; } }
+            @media (hover: none) { .portrait-controls { opacity: 1; } }
+            // the token shown whole: fitted into the frame with room around it, centred (a token is square, round art)
+            &.token img { object-fit: contain; object-position: center; padding: 14px; }
+            // Portrait | Token: the two art buttons joined, the one shown filled
+            .portrait-mode {
+                display: inline-flex;
+                .art-button + .art-button { border-left: none; }
+                .art-button[aria-checked="true"] { background: var(--sr-crimson-700); border-color: var(--sr-crimson-700); }
+            }
+        }
+
+        .stats .top {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: var(--sp-m); // a group of its own under the portrait (8px read as cramped against the border)
+            gap: 6px;
+        }
+        // no Edge (rating 0, e.g. a fresh character): no empty block, the initiative keeps its 16px under the portrait
+        .stats .top:not(:has(*)) { display: none; }
+
+        // Edge: hexagon pips like the official sheet; filled = spent
+        .edge-track {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+
+            .track-caption { @include label(12px); color: var(--sr-accent); margin-right: 2px; }
+
+            .pip { @include hex-pip(var(--sr-gold-500)); }
+        }
+
+        // actions of the Action Phase (sidebar.hbs, #actionTracker): a group of its own after the initiative, its caption
+        // row (pass, reset), then lozenges like armor / walk / run with what is left: graphite while there is some,
+        // a faint shape once spent, faded where the other choice locks it or the pass has none
+        .action-tracker {
+            padding: var(--sp-m) 10px 0;
+            .actions-head {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                height: 20px;
+                margin-bottom: var(--sp-xs);
+            }
+            .actions-caption { @include label(12px); @include icon-caption; color: var(--sr-accent); } // icon + name as the track captions
+            .actions-pass { @include label(12px, 500); text-transform: none; letter-spacing: var(--sr-tracking, 0em); color: var(--sr-text-muted); }
+            .actions-reset {
+                width: 20px;
+                height: 20px;
+                min-height: 0;
+                margin: 0 0 0 auto;
+                padding: 0;
+                display: grid;
+                place-items: center;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                background: none;
+                color: var(--sr-text-muted);
+                font-size: 11px;
+                &:hover:not(:disabled) { color: var(--sr-text); }
+                &:disabled { opacity: .45; cursor: default; }
+            }
+            .lozenges.action-lozenges { padding: 0; } // the group's own padding holds them
+            .lozenge.spent .value { background: rgba(109, 110, 112, .28); color: var(--sr-text-muted); } // graphite-400, faint
+            .lozenge.locked, &.no-phase .lozenge:not(:first-child) { opacity: .45; }
+            .lozenge button.value[aria-disabled="true"] { cursor: default; &:hover { background: inherit; } }
+            .lozenge.small button.value:not([aria-disabled="true"]):hover { background: var(--sr-graphite-600); }
+            .lozenge.spent button.value:not([aria-disabled="true"]):hover { background: rgba(109, 110, 112, .45); }
+            // edit mode: how many Free Actions, − n + inside the lozenge
+            .lozenge .value.free-count { display: flex; align-items: center; justify-content: space-between; padding: 0 10px; } // beats the lozenge's grid
+            .slot-step {
+                width: 18px;
+                height: 18px;
+                min-height: 0;
+                margin: 0;
+                padding: 0;
+                display: grid;
+                place-items: center;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                background: none;
+                color: #fff;
+                font-size: 9px;
+                &:hover:not(:disabled) { background: rgba(255, 255, 255, .15); }
+                &:disabled { opacity: .35; cursor: default; }
+            }
+        }
+
+        .lozenges {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); // armor, walk, run (initiative has its own group above)
+            gap: 5px;
+            padding: var(--sp-m) 10px 0; // a group of its own
+
+            .lozenge {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                min-width: 0;
+
+                .value {
+                    width: 100%;
+                    height: 30px;
+                    min-height: 0;
+                    padding: 0 6px 1px; // Orbitron digits sit ~0.5px low in their line box: 1px less below centres them
+                    margin: 0;
+                    display: grid;
+                    place-items: center;
+                    border: none;
+                    border-radius: 0;
+                    box-shadow: none;
+                    clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+                    background: var(--sr-crimson-700);
+                    color: #fff;
+                    @include heading(14px, 800); // the numbers of the tables on the right (pool, rating) use 14 / 800
+                    letter-spacing: calc(.02em + var(--sr-tracking, 0em));
+                    white-space: nowrap;
+                }
+                &.small .value { background: var(--sr-graphite-700); }
+
+                button.value { cursor: pointer; &:disabled { cursor: default; } &:hover:not(:disabled) { background: var(--sr-red-600); } }
+                .label { @include label(12px); color: var(--sr-text-muted); margin-top: 3px; }
+            }
+        }
+
+        // initiative: one row (mode icon = roll button | mode + formula = menu trigger) and a menu listing every mode
+        // with its formula, then the Blitz switch
+        // Proximity: 16px (--sp-m) between groups (monitors | initiative | armor & movement | persona),
+        // 4px (--sp-xs) inside a group (caption -> field -> Blitz)
+        .initiative-bar, .control-bar {
+            position: relative;
+            padding: var(--sp-m) 10px 0; // new group after the monitors
+
+            .init-caption { @include label(12px); @include icon-caption; color: var(--sr-accent); height: 20px; margin-bottom: var(--sp-xs); } // icon + name as the track captions
+
+            .bar {
+                display: flex;
+                height: 32px;
+                background: var(--sr-input-bg);
+                @include chamfer-frame(5px, var(--sr-line-soft));
+                // icon and text read as one field (no divider), so the whole field lights up on hover;
+                // the icon adds its own roll highlight on top when it can roll (in combat)
+                &:hover { background: linear-gradient(var(--sr-row-hover), var(--sr-row-hover)), var(--sr-input-bg); }
+            }
+            button { margin: 0; border: none; border-radius: 0; box-shadow: none; min-height: 0; }
+            .init-roll {
+                flex: 0 0 32px;
+                height: 100%;
+                padding: 0;
+                display: grid;
+                place-items: center;
+                background: transparent;
+                // muted like every icon in a field or tile (search, persona tiles, device plaque, carets); white only
+                // when it lights up to roll (hover, in combat) or in a checked menu row
+                color: var(--sr-text-muted);
+                font-size: 14px;
+                &:hover:not(:disabled) { background: var(--sr-crimson-700); color: #fff; }
+                &:disabled { cursor: default; opacity: 1; } // still shows the mode out of combat
+            }
+            .init-trigger {
+                flex: 1;
+                min-width: 0;
+                height: 100%;
+                padding: 0 8px 0 2px; // no divider after the icon: the mode name sits close to it (9px)
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                background: transparent;
+                color: var(--sr-text);
+                text-align: left;
+                .mode { @include label(14px, 600); text-transform: none; letter-spacing: var(--sr-tracking, 0em); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .formula { @include heading(14px, 800); margin-left: auto; white-space: nowrap; }
+                .fa-caret-down { color: var(--sr-text-muted); } // size and turn: .dropdown-caret
+            }
+            &.blitz .init-trigger .formula { color: var(--sr-accent); } // gold on dark, crimson on the light theme
+
+            // a popover in the top layer, placed by #wireInitiativeMenu; reset the UA popover box
+            .init-menu {
+                inset: auto;
+                margin: 0;
+                border: 0;
+                padding: 4px 0;
+                overflow: visible;
+                color: var(--sr-text);
+                background: var(--sr-input-bg);
+                filter: drop-shadow(var(--sr-popover-shadow));
+                @include chamfer-frame(5px, var(--sr-line));
+                position: fixed; // after the mixin, which sets relative
+            }
+            .init-option {
+                width: 100%;
+                height: 30px;
+                padding: 0 10px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: transparent;
+                color: var(--sr-text);
+                text-align: left;
+                &:hover, &:focus-visible { background: var(--sr-row-hover); }
+                .mode { @include label(14px, 600); text-transform: none; letter-spacing: var(--sr-tracking, 0em); }
+                i { width: 14px; text-align: center; font-size: 12px; color: var(--sr-text-muted); }
+                .formula { @include heading(12px, 700); margin-left: auto; color: var(--sr-text-muted); }
+                &[aria-checked="true"] { background: var(--sr-crimson-800); &, i, .formula { color: #fff; } } // white in both themes
+            }
+            // Blitz: a switch line under the field
+            .init-blitz {
+                width: 100%;
+                height: 22px;
+                margin-top: var(--sp-xs);
+                padding: 0;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                background: transparent;
+                color: var(--sr-text-muted);
+                // the switch's name in the text colour, its cost and the switch muted
+                .mode { @include label(12px); color: var(--sr-text); }
+                .hint { @include label(12px, 500); text-transform: none; letter-spacing: var(--sr-tracking, 0em); }
+                i { margin-left: auto; font-size: 16px; }
+                &:hover:not(:disabled) { color: var(--sr-text); }
+                &[aria-pressed="true"] { color: var(--sr-text); i { color: var(--sr-accent); } }
+                // no Edge left: the switch fades, the text stays readable (the whole line at 55% fell to 2.5:1 on white)
+                &:disabled { cursor: default; .mode { color: var(--sr-text-muted); } i { opacity: .45; } }
+            }
+        }
+
+        // condition monitors: the official sheet's damage boxes, drawn as a segmented bar
+        .monitors { padding-top: 6px; } // + the meter group's 10px: 16px after the initiative group above
+        // also the matrix monitor of the Matrix tab (matrix.hbs), built the same way
+        @at-root .sr5v2.sr5-redesign :is(.sr-sidebar, .sr-matrix) .meter-group {
+            padding: 10px 10px 0; // stun <-> physical: wider than label <-> bar (4px)
+
+            .meter-label {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: var(--sp-xs);
+
+                .meter-roll { @include label(12px); @include icon-caption; color: var(--sr-accent); &:hover { color: var(--sr-text); } }
+                .meter-caption:hover { color: var(--sr-accent); } // the matrix monitor's name: not a button
+                .meter-value { @include label(13px); margin-left: auto; color: var(--sr-text); }
+                .meter-clear { width: 20px; height: 20px; display: grid; place-items: center; font-size: 11px; color: var(--sr-text-muted); &:hover { color: var(--sr-text); } }
+            }
+
+            .meter {
+                display: grid;
+                grid-template-columns: repeat(var(--cols, 10), minmax(0, 1fr)); // --cols from _monitorColumns
+                gap: 2px;
+                padding: 3px;
+                // warm black from the palette: the gaps between the boxes, and the end of a last row that is not
+                // full (14 boxes in two rows of 10), which read as a hole in pure black
+                background: var(--sr-ink);
+                // 5px bevels: the corner boxes below cut 3px, parallel to them across the 1px frame + 3px padding
+                @include chamfer-frame(5px, var(--sr-graphite-600));
+
+                .cell {
+                    min-width: 0;
+                    height: 24px; // at least 24 x 24 (WCAG 2.5.8): six boxes a row are ~29px wide
+                    min-height: 0;
+                    margin: 0;
+                    padding: 0;
+                    border: none;
+                    border-radius: 0;
+                    box-shadow: none;
+                    background: var(--sr-graphite-600);
+                    font: 700 11px var(--sr-font-label);
+                    color: #fff;
+                    display: grid;
+                    place-items: center;
+                    cursor: pointer;
+
+                    &:hover { background: var(--sr-graphite-400); }
+                    &.filled { background: var(--sr-phys-fill); }
+                }
+                // the box in a bevelled corner of the frame takes the bevel too (SR5CharacterSheetRedesign
+                // #markMeterCorners finds it: the first box, and the last one when it ends a full row)
+                .cell.corner-tl { clip-path: polygon(3px 0, 100% 0, 100% 100%, 0 100%, 0 3px); }
+                .cell.corner-br { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%); }
+                .cell.corner-tl.corner-br { clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px); }
+                &.stun .cell.filled { background: var(--sr-stun-fill); }
+                &.matrix .cell.filled { background: var(--sr-matrix-fill); } // the matrix tab's monitor
+            }
+        }
+
+        .wound-line {
+            @include label(13px);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: var(--sp-s) 10px 0;
+            color: var(--sr-label-phys);
+            i { flex: 0 0 16px; text-align: center; font-size: 12px; }
+            .value { margin-left: auto; }
+        }
+
+        .quick-rolls {
+            margin-top: var(--sp-m);
+
+            .quick-roll-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+            }
+
+            .quick-roll {
+                width: 100%;
+                height: 30px;
+                min-height: 0;
+                margin: 0;
+                padding: 0 8px 0 10px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 4px;
+                border-radius: 0;
+                box-shadow: none;
+                background: var(--sr-card-bg);
+                color: var(--sr-text);
+                cursor: pointer;
+                @include chamfer-frame(6px, var(--sr-line-soft));
+
+                .name { @include label(12px); @include caps-centered; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .pool { @include heading(14px, 800); @include caps-centered; letter-spacing: var(--sr-tracking, 0em); color: var(--sr-accent); } // trimmed like the name: Orbitron digits hung ~1px low
+                // wounds take dice away (the tooltip adds it up): another colour and a dotted underline, not colour alone
+                .pool.reduced { color: var(--sr-pool-reduced); text-decoration: underline dotted 2px; text-underline-offset: 3px; }
+                &:hover:not(:disabled) { background: var(--sr-row-hover); }
+                &:disabled { cursor: default; opacity: 1; }
+            }
+        }
+
+        .favorites {
+            margin-top: var(--sp-m);
+
+            // no favorites: the drop zone shows in edit mode and while something is dragged over the sheet
+            &.is-empty { display: none; }
+            @at-root .sr5v2.sr5-redesign:is(.sr-edit-mode, .sr-dragging) .favorites.is-empty { display: block; }
+
+            // Foundry gives list items a 4px bottom margin: it put more room over each image than under it, so the
+            // dividers looked shifted up; rows now touch and the row padding alone sets the room above and below
+            li.favorite { margin: 0; }
+
+            .favorite-row {
+                width: 100%;
+                display: grid;
+                grid-template-columns: 32px minmax(0, 1fr) auto;
+                gap: 8px;
+                align-items: center;
+                padding: 6px 2px; // 6px between the dividers and the avatar
+                border-bottom: 1px solid var(--sr-row-border);
+
+                // edit mode: the whole row removes the favorite
+                &:is(button):hover { background: var(--sr-row-hover); }
+                .remove { color: var(--sr-label-phys); }
+                // play mode: the avatar rolls and shows the dice on its own hover, like the image buttons of the
+                // inventory rows (the icon filter inverts the whole box, so the black icon background goes); the name
+                // opens the sheet
+                .favorite-roll { width: 32px; height: 32px; display: block; padding: 0; }
+                .favorite-roll:hover .item-icon.can-roll { content: url('assets/dice-solid.svg'); filter: var(--sr5v2-icon-filter); padding: 5px; background: transparent; }
+                .favorite-name { grid-column: 2 / -1; min-width: 0; display: flex; justify-content: flex-start; padding: 0; text-align: left; } // Foundry buttons centre their content
+                .favorite-name:hover .title { color: var(--sr-accent-hover); }
+            }
+
+            li.empty { @include label(12px); color: var(--sr-text-muted); padding: 10px 8px; text-align: center; border: 1px dashed var(--sr-line-soft); }
+
+            // a drop: a line where the entry lands (before a favorite, after the last one), the empty zone lights up
+            li.favorite { position: relative; }
+            li.favorite-drop-before::before,
+            &.favorite-drop-end li.favorite:last-of-type::after {
+                content: '';
+                position: absolute;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: var(--sr-accent);
+                pointer-events: none;
+            }
+            li.favorite-drop-before::before { top: -1px; }
+            &.favorite-drop-end li.favorite:last-of-type::after { bottom: -1px; }
+            &.favorite-drop-target li.empty { border-color: var(--sr-accent); color: var(--sr-text); background: var(--sr-row-hover); }
+            li.favorite[draggable='true'] { cursor: grab; }
+            li.favorite.favorite-dragged { opacity: .45; }
+        }
+    }
+
+    .item-icon {
+        width: 32px;
+        height: 32px;
+        object-fit: cover;
+        border: 1px solid var(--sr-line-soft);
+        border-radius: 0;
+        background: #000;
+    }
+
+    .name-stacked {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        line-height: 1.15;
+
+        .title { font: 700 14px var(--sr-font-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .subtitle { @include label(12px, 600); color: var(--sr-text-muted); } // 12px: the smallest text size of the sheet
+    }
+
+    // ---------- attribute row (details tab only) ----------
+    > .window-content > .sr-abilities {
+        position: absolute;
+        top: calc(var(--sr-header-height) - 42px); // plates level with the top of the portrait card (.sr-sidebar margin-top)
+        left: calc(var(--sr-sidebar-width) + 18px);
+        right: 16px;
+        z-index: 2;
+        // one centred column as wide as the plates, so the limit row spreads exactly under them
+        display: grid;
+        justify-content: center;
+        row-gap: 8px;
+        pointer-events: none;
+        container-type: inline-size; // the plates narrow with this column (below)
+
+        // sized with the 36px table rows (notes/style-lab/table-spec.md): 48 x 72 plates, larger type; the gaps
+        // between groups shrank a little so the row stays inside the column at the 880px window (the default before 940)
+        .ability-groups { display: flex; gap: 8px; } // wider than the 4px inside a group: physical / mental / special
+        .ability-row { display: flex; gap: 4px; }
+        .ability-row.special { margin-left: 2px; padding-left: 10px; border-left: 1px solid var(--sr-line); }
+
+        // limits: one row under the plates, spread evenly over their width
+        .limit-row {
+            display: flex;
+            justify-content: space-evenly;
+            pointer-events: auto;
+
+            .limit { display: flex; flex-direction: row; align-items: baseline; gap: 6px; white-space: nowrap; }
+            .label { @include label(13px); color: var(--sr-text-muted); }
+            .value { @include heading(17px, 800); letter-spacing: var(--sr-tracking, 0em); color: var(--sr-text); }
+        }
+
+        .ability-score {
+            position: relative;
+            // 48px; only in a narrow window (under ~835px, down to the 820px minimum) the 11 plates narrow instead of
+            // spilling under the sidebar: 64px of gaps and the special group's divider, minus 32px the row may reach into
+            // the gutters on both sides, the rest split, never under 40px
+            width: clamp(40px, calc((100cqi - 32px) / 11), 48px);
+            height: 72px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: auto;
+
+            @include attribute-plate(9px);
+
+            .label {
+                @include label(14px);
+                margin: 7px 0 0;
+                padding: 0 2px;
+                width: auto;
+                height: auto;
+                min-height: 0;
+                line-height: 1.1;
+                background: none;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                color: #fff;
+            }
+            // The label carries the roll action and the modifier tooltip; its ::after stretches it over the whole
+            // plate (not the base-rating box), so hovering / clicking anywhere on the plate hits it.
+            .label { position: static; }
+            .label::after {
+                content: '';
+                position: absolute;
+                inset: 0 0 9px 0; // the plate face; the base-rating box below keeps its own tooltip
+                z-index: 1;
+            }
+            button.label { cursor: pointer; }
+            .mod { pointer-events: none; }
+            &:has(button.label:hover) { .label { color: var(--sr-gold-500); } &::before { background: var(--sr-gold-500); } }
+            // keyboard focus: ring around the whole plate instead of the small label
+            button.label:focus-visible { outline: none; }
+            &:has(button.label:focus-visible)::before { background: var(--sr-focus); }
+
+            &.physical .label { color: var(--sr-plate-phys); }
+            &.physical::before { background: var(--sr-line); }
+            &.mental .label { color: var(--sr-plate-mental); }
+            &.mental::before { background: var(--sr-line-mental); }
+
+            .mod { @include heading(20px, 800); letter-spacing: var(--sr-tracking, 0em); line-height: 1.2; color: #fff; }
+            // a fractional Essence (0.97, 5.85): smaller, so the four characters stay inside the 48px plate
+            &[data-attribute-id="essence"] .mod.fraction { font-size: 16px; line-height: 24px; }
+
+            .score {
+                position: absolute;
+                z-index: 2; // above the stretched label, so its own "Base rating" tooltip covers the whole box
+                bottom: 0;
+                width: 34px;
+                height: 20px;
+                display: grid;
+                place-items: center;
+                background: #000;
+                color: var(--sr-text-chip);
+                font: 700 13px var(--sr-font-label);
+                @include chamfer-frame(4px, var(--sr-graphite-400));
+                position: absolute; // after the mixin, which sets relative
+
+                input { width: 100%; height: 100%; padding: 0; border: none; background: transparent; color: inherit; font: inherit; }
+            }
+        }
+        // special attributes (Edge, Magic / Resonance, Essence): purple from the rulebook palette
+        .ability-row.special .ability-score {
+            .label { color: var(--sr-purple-tint); }
+            &::before { background: var(--sr-purple); }
+        }
+    }
+
+    // skills tab only: `sr-skills-tab` from the sheet (#markActiveTab), not a :has() on the window, which restyled all of it
+    &:not(.sr-skills-tab) > .window-content > .sr-abilities { display: none; }
+    // the scroll area starts below the plates and the limit row (they reach ~58px into this row),
+    // so rows never scroll underneath them
+    > .window-content > section.tab.sr-details { margin-top: 72px; padding-top: 10px; } // room for the attribute plates and limits
+
+    // skill tables: no icons column in play mode, so the pool is the last column at the row's edge
+    &:not(.sr-edit-mode) .skill-table .list-item > .list-item-icons { display: none; } // the system shows them as flex
+    // edit mode: one icon column width for the title and the rows (two 24px icons; each row is a grid of its own)
+    &.sr-edit-mode .tab[data-tab="skills"] :is(.list-item, #active-skills-scroll > .list-item-header) > .list-item-icons { min-width: 54px; justify-content: flex-end; }
+
+    // ---------- footer: karma, nuyen, reputation ----------
+    .sr-footer {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        min-height: 36px;
+        padding: 4px 16px 4px 12px;
+        background: var(--sr-footer-bg);
+        border-top: 1px solid var(--sr-line);
+
+        &:empty { display: none; }
+
+        .ledger {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+
+            + .ledger { padding-left: 18px; border-left: 1px solid var(--sr-row-border); }
+            &.reputation { margin-left: auto; }
+            // the source closes the strip on the right (after the reputation, or alone for NPCs and critters)
+            &.source { margin-left: auto; min-width: 0; .value { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } input { width: 9rem; } }
+            &.reputation + &.source { margin-left: 0; }
+
+            label { display: flex; align-items: center; gap: 4px; }
+            .ledger-pair { display: flex; align-items: center; gap: 6px; cursor: help; } // caption + value with one tooltip
+            .caption { @include label(12px, 600); @include caps-centered; color: var(--sr-text-muted); }
+            // trimmed to the cap height like the captions, so Orbitron digits centre on them (untrimmed they hung ~1px low)
+            .value { @include heading(13px, 700); @include caps-centered; letter-spacing: calc(.02em + var(--sr-tracking, 0em)); color: var(--sr-text); margin-right: 4px; }
+            .muted { color: var(--sr-text-muted); }
+            input { width: 4.5rem; height: 22px; }
+            input.short { width: 3rem; }
+        }
+
+        .ledger-button {
+            width: 26px;
+            height: 24px;
+            min-height: 0;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            border-radius: 0;
+            box-shadow: none;
+            background: transparent;
+            color: var(--sr-text);
+            font-size: 12px;
+            @include chamfer-frame(5px, var(--sr-line-soft));
+
+            &:hover:not(:disabled) { background: var(--sr-crimson-700); color: #fff; }
+            &:disabled { opacity: .55; cursor: default; }
+            // the NPC / critter strip's icon: the buttons' frame, nothing to press
+            &.ledger-icon { color: var(--sr-text-muted); }
+        }
+        .ledger.role { cursor: help; }
+    }
+
+    // ---------- condition monitors from the regular SR5 templates (device/persona matrix track, overflow) ----------
+    .horizontal-cell-input {
+        gap: 6px;
+        // the icons of an expanded row's monitor in the muted colour of the property icons beside them (the roll icon
+        // was gold, alone on the line)
+        .icon-container a, .icon-container i { color: var(--sr-text-muted); }
+        .icon-container a:hover, .icon-container a:hover i { color: var(--sr-text); }
+        .clear-container a, .clear-container i { color: var(--sr-text-muted); }
+        // icon | cells | clear: the clear button closes the track on the right, as on stun / physical / overflow
+        .icon-container { order: 1; margin: 0; }
+        .cell-container, .numeric-condition-monitor { order: 2; }
+        .clear-container { order: 3; margin: 0; font-size: 11px; }
+        .clear-container a:hover, .clear-container a:hover i { color: var(--sr-text); }
+        .cell-container { gap: 2px; }
+        // .cell-container in the selector: bundle.scss writes its own cell rules after every @use'd file, so equal
+        // weight would lose to them
+        .cell-container .cell {
+            margin: 0;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            background: var(--sr-graphite-600);
+            color: #fff;
+            font: 700 11px var(--sr-font-label);
+            min-height: 24px; // a 24 x 24 target at least (WCAG 2.5.8), like the sidebar's boxes
+            &:hover { background: var(--sr-graphite-400); }
+            &.filled { background: var(--sr-phys-fill); }
+        }
+        &.matrix .cell-container .cell.filled { background: var(--sr-matrix-fill); }
+        // monitors of devices and items in the tabs (matrix condition; not the sidebar's overflow bar): 28px boxes
+        // like the sidebar's, as many a row as fit, the rest wraps; at least 24 x 24 targets (WCAG 2.5.8)
+        // (a wrapping flex row, not an auto-fill grid: the property row of an expanded item sizes to its content)
+        &:where(.tab *) .cell-container {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            .cell { flex: 0 0 28px; width: 28px; min-width: 0; height: 24px; }
+        }
+    }
+
+    // ---------- shared cards / sections ----------
+    .card {
+        background: var(--sr-card-bg);
+        @include chamfer-frame(10px);
+    }
+
+    .tab {
+        // prose fields read like the rulebooks
+        .editor-content, .description-body, prose-mirror { font-family: var(--sr-font-prose); font-size: 14px; line-height: 1.45; }
+        // property chips of an expanded row (Combat | Indirect | Physical ...): label font, light text, quiet dividers
+        // an expanded row's properties (#arrangeProperties): one line (what it is, its numbers, how it is used, the
+        // source on the right), a device's matrix monitor under it. Each property an icon and its text, split by dividers
+        .list-item-desc .list-item-properties {
+            font-family: var(--sr-font-label);
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap; // the system wraps it, which in a column lays the lines out as one centred group
+            align-items: stretch;
+            gap: 6px;
+        }
+        // nothing left to show (an action of varying type, all its values in the row's columns): no empty band
+        .list-item-desc .list-item-properties:empty { display: none; }
+        // the lines themselves carry no divider: the system's list-item.scss gives every child of the properties
+        // but the last a right groove, which put one after the source link of a main line with a monitor line under it
+        .list-item-desc .list-item-properties > * { border-right: none; }
+        .list-item-desc .prop-line {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            row-gap: 4px;
+            > :not(.prop-chips), > .prop-chips > * {
+                // Barlow sits low in its line box (tall ascent): a 16px line at the top of the 18px box lifts the
+                // letters 1px, so the capitals sit in the middle of the band; the dividers keep the full 18px
+                font: 600 13px/16px var(--sr-font-label);
+                color: var(--sr-text);
+                letter-spacing: calc(.02em + var(--sr-tracking, 0em));
+                padding: 0 10px 2px; // 10px to the dividers, 4px from the icon to its text: the icon reads as its text's
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                &:first-child { padding-left: 0; }
+                &:not(:last-child) { border-right: 1px solid var(--sr-row-border); } // like the row dividers (the system's gold groove is loud)
+                // icons in one muted colour and one width, so the texts after them start evenly
+                // .5px down: measured, the glyphs sat .3-.5px above the capitals' middle (one device pixel on a 2x screen)
+                > i, > a > i { flex: none; width: 14px; text-align: center; font-size: 12px; color: var(--sr-text-muted); transform: translateY(.5px); }
+                > img { display: block; flex: none; width: 14px; height: 14px; border: none; } // weapon mods' small images
+            }
+            // the book page (#addSourceLinks) ends the first line on the right, the same spot for every item type
+            > .source-link {
+                margin-left: auto;
+                padding-right: 0;
+                border-right: none;
+                cursor: pointer;
+                &:hover, &:focus-visible { color: var(--sr-gold-300); i { color: inherit; } }
+            }
+            > :has(+ .source-link) { border-right: none; }
+        }
+        // the main line: the properties wrap in a box of their own, the source link stays top right on the first
+        // line whatever crowds it. Dividers sit on each property's left; the box starts one divider and its gap
+        // further left and clips that strip, so no line starts with a divider (nor ends with one)
+        .list-item-desc .prop-line-main {
+            flex-wrap: nowrap;
+            align-items: flex-start;
+            > .prop-chips {
+                flex: 1 1 0;
+                min-width: 0;
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                row-gap: 4px;
+                margin-left: -11px;
+                clip-path: inset(-4px -4px -4px 11px);
+                // :nth-child(n) outweighs the line's first-child / not-last-child rules above
+                > :nth-child(n) { padding-left: 10px; border-left: 1px solid var(--sr-row-border); border-right: none; }
+            }
+            > .source-link { flex: none; white-space: nowrap; padding-left: 10px; }
+        }
+        // the state line: a device's matrix monitor as compact as its boxes, the clear button right after them
+        // no dividers on this line (a divider on an item's right stays at the line's end when the next one wraps):
+        // its few parts (a monitor, the source link) stand apart by the gap
+        .list-item-desc .prop-line.prop-line-state {
+            column-gap: 10px;
+            // the shape of the dividers' own rule (.prop-line > :not(.prop-chips):not(:last-child)), one class more
+            > :not(.prop-chips):not(:last-child) { border-right: none; padding-right: 0; }
+            > .condition-monitor-container { padding: 0; border-right: none; }
+            .horizontal-cell-input { display: inline-flex; width: auto; justify-content: flex-start; }
+            .cell-container { flex: 0 1 auto; }
+        }
+        // biography text: reads like the rulebooks; the editor gets room to write in edit mode
+        &.sr-description .description-body {
+            padding: 10px 16px 14px;
+            font-family: var(--sr-font-prose);
+            font-size: 15px;
+            line-height: 1.5;
+            prose-mirror { min-height: 420px; }
+        }
+
+        // SR5 table look: black header row with gold labels, zebra rows
+        .list-item.list-item-header {
+            @include label(12px);
+            background: var(--sr-table-head-bg);
+            color: var(--sr-table-head-fg);
+            border: none;
+            border-radius: 0;
+            min-height: var(--tbl-head-h);
+            height: var(--tbl-head-h);
+            line-height: 20px; // (32 - 20) / 2 = 6: header text on whole pixels
+            padding: 0 var(--tbl-pad-x); // same side padding as the rows below
+
+            label, a, .item-text, h3, button:not(.sr5-icon) { color: var(--sr-table-head-fg); }
+            h3 { font: inherit; margin: 0; border: none; }
+            // card tables sort from their headers too (#addTableSortButtons): same look as the skill headers
+            .sort-button { @include sort-button; }
+            // the band is black in both themes, so its controls keep the dark theme's colours (in the light theme the
+            // system's light buttons turned into grey boxes over the black, and the icons in them went dark)
+            --sr-text: #ece7e2;
+            --sr-text-muted: #a9a6a8;
+            --sr-focus: var(--sr-white);
+            --sr-input-bg: #0f0c0e;
+            --sr-line-soft: var(--sr-graphite-600);
+            --sr-row-hover: rgba(126, 15, 18, .22);
+            --sr-checkbox-line: var(--sr-gray-300);
+            --sr5v2-button-bg: rgba(255, 255, 255, .1);
+            --sr5v2-button-border: rgba(240, 237, 228, .5);
+            --sr5v2-button-text: #f0ede4;
+            --sr5v2-button-hover-bg: #55101e;
+            --sr5v2-button-hover-border: #f0ede4;
+            --sr5v2-button-hover-text: #fff;
+            --sr5v2-control-border-hover: #f0ede4;
+            --sr5v2-icon-filter: invert(1);
+        }
+        // Row icons are white SVGs (Foundry's and the system's). The system darkens them in the light theme only inside
+        // its own image boxes (bundle-v2.scss), so effect icons stayed white on the white rows: every row darkens them
+        // the same way here; the black table heads keep them white.
+        @at-root .sr5v2.sr5-redesign.theme-light .tab, body.theme-light .sr5v2.sr5-redesign:not(.theme-dark) .tab {
+            .list-item:not(.list-item-header) img[src$='.svg'] {
+                filter: brightness(0) saturate(100%) invert(13%) sepia(13%) saturate(756%) hue-rotate(176deg) brightness(93%) contrast(88%);
+            }
+            .list-item.list-item-header img[src$='.svg'] { filter: none; }
+            // skill pictures are bitmaps: a pale grey fill in a heavy black outline, washed out on white. The fill is
+            // darkened to a mid grey so they read as dark shapes like the other icons and keep their inner lines
+            // (inverting turned the heavy outlines white and thin pictures nearly vanished).
+            .list-item:not(.list-item-header) img[src*='/icons/skills/'] { filter: brightness(.45); }
+            // under the pointer the picture turns into the action (dice, wrench, files...) on the crimson hover
+            // fill: white like in the dark theme (the dice is black, the others are white SVGs the rule above darkens)
+            .list-item .list-item-image-container:hover img { filter: none; }
+            .list-item .list-item-image-container:hover img.list-item-image-roll { filter: invert(1); }
+        }
+
+        .list-item:not(.list-item-header) {
+            min-height: var(--tbl-row-h);
+            line-height: 20px; // whole-pixel text boxes in every table cell
+            padding-inline: var(--tbl-pad-x); // room from the card edge
+            border-bottom: 1px solid var(--sr-row-border);
+            background: transparent;
+            font-family: var(--sr-font-label);
+            font-size: 14px;
+
+        }
+        // Zebra counts visible rows only, so filtering (untrained skills, search) and re-sorting keep a strict
+        // light/dark alternation. Hover comes after with the same specificity, so it looks the same on both tones.
+        .list-item-container:nth-child(even of .list-item-container:not(.hidden)) > .list-item:not(.list-item-header) { background: var(--sr-row-alt); }
+        .list-item-container:nth-child(n of .list-item-container:not(.hidden)) > .list-item:not(.list-item-header):hover { background: var(--sr-row-hover); }
+
+        .list-item-container { background: transparent; }
+        // nested rows (the matrix icons' devices under their persona): the indent and the bar live on the row
+        // itself, so zebra and hover fill the whole row like any other (upstream puts both on the container)
+        .list-item-container.list-item-subcategory {
+            padding-left: 0;
+            border-left: none;
+            > .list-item:not(.list-item-header) {
+                padding-left: calc(var(--tbl-pad-x) + 8px);
+                box-shadow: inset 1px 0 0 var(--sr5v2-border);
+            }
+        }
+        .list-item-image-container img, .list-item img.list-item-image-roll, .list-item img.list-item-image-info {
+            border: 1px solid var(--sr-line-soft);
+            border-radius: 0;
+        }
+        // every row image fills its frame (--tbl-icon), cropped from the top (token portraits in the matrix icon lists
+        // were shown at full height); the same gap between image and name in every table
+        .list-item .list-item-image-container {
+            overflow: hidden;
+            flex: 0 0 auto;
+            width: var(--tbl-icon); min-width: var(--tbl-icon); max-width: var(--tbl-icon);
+            height: var(--tbl-icon); min-height: var(--tbl-icon); max-height: var(--tbl-icon);
+        }
+        .list-item .list-item-image-container img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+        .list-item > .list-item-start { column-gap: var(--tbl-gap); }
+        // row names at the skill rows' 15px on every tab (items were 14px): a table row reads the same anywhere
+        .list-item:not(.list-item-header) > .list-item-start { :is(.item-name-link, .item-name), > a, > label { font-size: 15px; } }
+        // numbers: Orbitron for what is rolled or goes into a roll (pools, skill ratings, attributes, limits), Barlow
+        // for counts and reference data in the tables (ammo, quantity, marks, item ratings, cost, essence)
+        // value columns in the shared lanes (upstream: 3rem / 4rem / 5rem / 6rem, a different width per column type)
+        .list-item > .list-item-col:is(.rtg-col, .armor-col, .ammo-col, .cost-col, .essence-col, .midd-col, .mod-category-col,
+            .qty-input-col, .mark-input-col, .skinny-col) { flex: 0 0 var(--tbl-lane-s); }
+        .list-item > .list-item-col:is(.thicc-col, .slots-col) { flex: 0 0 var(--tbl-lane-m); }
+        // ammo: the count centred like the other number lanes, the partial reload (upstream: a 16px fa-stack right after
+        // the count, cramped in a number lane) in a 24px box of its own on its right, a 14px glyph like the row icons;
+        // counts line up whether a weapon has one or not
+        .list-item > .list-item-col.ammo-col {
+            flex: 0 0 var(--tbl-lane-m);
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            column-gap: 4px;
+            > :first-child { grid-column: 2; }
+            > [data-action="weaponPartialReload"] {
+                grid-column: 3;
+                justify-self: start;
+                display: grid;
+                place-items: center;
+                width: 24px;
+                height: 24px;
+                color: var(--sr-text); // like the row icons
+                .fa-stack { font-size: 7px !important; } // the template's inline .5rem
+                .fa-p { font-size: 1.15em; }
+            }
+        }
+        .list-item > .list-item-col.effect-duration-col { flex: 0 0 var(--tbl-lane-l); }
+        // lifestyle cost with its period ('¥ 5,000/mo'): the short-text lane, header and rows alike
+        .items-section[data-type="lifestyle"] .list-item > .list-item-col.cost-col { flex: 0 0 var(--tbl-lane-m); }
+        .per-month { margin-left: 1px; font-weight: 500; color: var(--sr-text-muted); }
+        // the icons lane is reserved, not grown: as wide in every row and header of a table whatever its icons (a
+        // row with a wifi more pushed its value columns left of the others'); a kind of table that carries fewer
+        // icons sets a smaller --tbl-icons / --tbl-icons-edit for all its rows at once (social, the matrix cards)
+        .list-item > .list-item-icons { flex: 0 0 var(--tbl-icons); min-width: var(--tbl-icons); max-width: var(--tbl-icons); justify-content: flex-end; }
+        // the name gives way, the lanes never do: on the narrowest sheet a long name wraps inside its column (a
+        // 4-lane table at 820px left 83px; "Enhanced" alone pushed the row 5px past its header)
+        .list-item > .list-item-start { min-width: 0; overflow-wrap: anywhere; }
+        // targets of at least 24 x 24 CSS px (WCAG 2.5.8), the icons keep their size: each row icon in a 24px box,
+        // the quantity buttons too (their lane makes room); 4px between the boxes so the glyphs read apart
+        .list-item > .list-item-icons { gap: var(--tbl-icon-gap); }
+        .list-item > .list-item-icons > :is(a, button, [role="button"]) {
+            min-width: 24px;
+            min-height: 24px;
+            margin: 0;
+            padding: 0;
+            display: inline-grid;
+            place-items: center;
+            // a header's "Add +": its word and its icon side by side (in a grid they stacked, the + under "Add")
+            grid-auto-flow: column;
+            column-gap: 4px;
+        }
+        // the upstream source button of a row (open-source-icon.hbs): the expanded row has the link with its page
+        // (#addSourceLinks), the icon column keeps the row's actions; rich cards link the source too. After the box
+        // rule above, which has the same weight
+        .list-item > .list-item-icons > [data-action="openSource"] { display: none; }
+        .list-item > .list-item-col.qty-input-col { flex: 0 0 72px; }
+        // a device's A S D F: four equal boxes, each letter over its value, 8px clear of the rating column
+        .list-item > .list-item-col.asdf-col {
+            flex: 0 0 104px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            justify-items: center;
+            gap: 0;
+            padding-right: 8px;
+            > label { letter-spacing: var(--sr-tracking, 0em); }
+        }
+        .list-item .hover-show-button { min-width: 24px; min-height: 24px; display: inline-grid; place-items: center; }
+
+        .items-section.card { margin-bottom: var(--sp-m); }
+
+        // numeric columns in the regular SR5 tables, marked at render. Same rule as the skill tables: every value
+        // (rating, qty, ammo, armor, drain, nuyen, essence...) sits centred under a centred header. Cards stack with
+        // their value columns in the same lanes (Weapon above Bioware, SIN above Lifestyles), so one alignment keeps
+        // those lanes reading as one column; the qty -/+ buttons (invisible until hover) frame the number evenly.
+        .list-item-col.sr-num {
+            justify-content: center;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            > * { text-align: center; }
+        }
+
+        // sub-tabs inside regular SR5 tabs (matrix icons, spells...): their grey gradient fails contrast with white text
+        nav.sheet-tabs a[data-tab] {
+            height: 28px; // the height of the square buttons in the card titles
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--sr-graphite-700);
+            color: #fff;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            @include chamfer(5px);
+            &:hover { background: var(--sr-graphite-600); }
+            &.active { background: var(--sr-crimson-700); color: #fff; }
+        }
+    }
+
+    h3.plaque {
+        border: none; // Foundry's h3 rule; the plaque mixin then sets its own bottom rule
+        @include plaque(12px);
+        margin: 0 0 var(--sp-s);
+    }
+    // section plaque at the top of a tab (redesign/tab-title.hbs): says which part of the sheet this is. It names a whole
+    // category, so it is larger than the sidebar's group plaques (Quick Rolls, Favorites stay at 12px).
+    h2.plaque.tab-title {
+        border: none; // Foundry's h2 rule
+        @include plaque(16px);
+        margin: 0 0 var(--sp-m);
+        font-size: inherit;
+        grid-column: 1 / -1; // spans the two-column tabs (social, configuration)
+        .plaque-tab { padding: 5px 28px 5px 12px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 100%, 0 100%); }
+    }
+    // a plaque with controls on its right (the inventory picker): one row above the plaque's line
+    .tab-title-row {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: var(--sp-m);
+        margin: 0 0 var(--sp-m);
+        border-bottom: 2px solid var(--sr-crimson-700);
+        grid-column: 1 / -1;
+        > h2.plaque.tab-title { margin: 0; border-bottom: none; flex: 0 0 auto; }
+        // the plaque alone sets the row's height, as on a tab without controls (28px with the line): the controls
+        // take none and stand on the line, rising above it when they are taller (the picker, the 24px edit buttons
+        // and their 4px gap), so a title with buttons sits exactly like one without
+        > .tab-title-controls { min-width: 0; padding-bottom: 0; height: 0; display: flex; align-items: flex-end; align-self: flex-end; }
+        // edit buttons right on the title row (the Actions tab's new group): as the inventory's create / rename /
+        // remove, a 24px box with a 12px muted icon standing 4px over the line
+        > .tab-title-controls > button.unbutton {
+            width: 24px;
+            height: 24px;
+            margin: 0 0 4px;
+            display: grid;
+            place-items: center;
+            font-size: 12px;
+            color: var(--sr-text-muted);
+            &:hover { color: var(--sr-text); }
+        }
+        > .tab-title-controls > .inventory-controls { margin: 0; align-items: flex-end; } // beats the inventory tab's own margin
+        // edit buttons stand on the line to the left; the picker closes the row at the right edge. Its label is for
+        // screen readers only: the plaque reads as the inventory picker by itself.
+        // edit mode: create, rename and remove follow the picker on its right, off its plaque
+        > .tab-title-controls > .inventory-controls {
+            > button.unbutton { margin-bottom: 4px; }
+            > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+            > .plaque-select { order: 10; }
+            > [data-action="createInventory"] { order: 11; }
+            > [data-action="renameInventory"] { order: 12; }
+            > [data-action="removeInventory"] { order: 13; }
+        }
+    }
+    // ---------- list search and filter menu (redesign/list-controls.hbs, SR5CharacterSheetRedesign#applyListFilter) ----------
+    // one row under the tab title: the search field, then the filter button. Hidden on a tab without rows.
+    .list-controls {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin: 0 0 var(--sp-m);
+
+        .list-search {
+            @include search-field;
+            // the whole width of the tab, the filter button after it (like the skill filter in its table)
+            flex: 1 1 auto;
+            min-width: 160px;
+            > i { position: absolute; left: 10px; top: 50%; translate: 0 -50%; font-size: 12px; color: var(--sr-text-muted); pointer-events: none; }
+            > input.list-search-input { padding-left: 28px; }
+        }
+    }
+    @include list-filter-controls;
+    section.tab:not(:has(.list-item-container)) > .list-controls { display: none; }
+    // rows and cards the search filtered out; collapsed cards keep their rows hidden unless a search is on
+    .filter-hidden { display: none !important; }
+    section.tab:not(.filtering) :is(.items-section, .matrix-action-group).collapsed > .list-item-container { display: none; }
+    .list-no-match { grid-column: 1 / -1; margin: 0; padding: 8px var(--tbl-pad-x); @include label(14px, 500); line-height: 20px; text-transform: none; letter-spacing: var(--sr-tracking, 0em); color: var(--sr-text-muted); }
+
+    // pickers used with the mouse (see SR5CharacterSheetRedesign#_onFirstRender): no ring; after Tab the ring is back
+    &.pointer-nav .plaque-select select:is(.sr5-select, #select-inventory):focus-visible { outline: none; } // :is() for the id rule's weight
+    // the inventory picker as a plaque mirroring the title's: same height, slanted edge facing in (left), standing on
+    // the same line, as wide as the chosen name (field-sizing). The native select is transparent inside it; the caret
+    // is an icon. Two looks: .primary is filled like the title plaque, .secondary is the sheet's usual field (dark
+    // fill, thin frame).
+    .plaque-select {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        height: 26px; // = the title plaque
+        background: var(--sr-crimson-700);
+        clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%);
+        &.secondary {
+            background: var(--sr-line-soft); // the frame: the face below leaves 1px of it
+            &::before {
+                content: '';
+                position: absolute;
+                inset: 1px 1px 0 1px; // no bottom frame: the plaque stands on the title's line, which closes it
+                background: var(--sr-input-bg);
+                clip-path: polygon(13.5px 0, 100% 0, 100% 100%, 0 100%);
+            }
+            select:is(.sr5-select, #select-inventory) { @include label(15px, 700); color: var(--sr-text); position: relative; z-index: 1; }
+            > i { z-index: 1; color: var(--sr-text-muted); }
+            &:hover { background: var(--sr-gray-300); > i { color: var(--sr-text); } }
+        }
+        // the id outweighs upstream's `select#select-inventory { height / max-height: 1rem }` (actor.scss), which cut
+        // the text on the inventory tab; :is() takes the id's weight for the augmentations select too
+        select:is(.sr5-select, #select-inventory) {
+            @include heading(16px, 700);
+            appearance: none;
+            height: 26px;
+            min-height: 0;
+            max-height: none; // Foundry caps selects at its input height (16px here), which cut the text
+            width: auto;
+            field-sizing: content; // as wide as the chosen inventory's name, not the longest one
+            min-width: 0;
+            margin: 0;
+            padding: 0 32px 0 26px; // slant + room for the caret
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            background: none;
+            color: #fff;
+            line-height: 26px;
+            cursor: pointer;
+            &:focus-visible { outline: 2px solid var(--sr-focus); outline-offset: -4px; }
+            option { @include label(14px, 600); background: var(--sr-card-bg); color: var(--sr-text); }
+        }
+        > i { position: absolute; right: 12px; pointer-events: none; color: #fff; } // size and turn: .dropdown-caret
+        &.primary:hover { background: var(--sr-red-600); }
+    }
+
+    // configuration tab: settings card | skill set + modifiers (edit mode), modifiers alone in play mode
+    .sr-misc {
+        &.editing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-m); align-items: start; align-content: start; }
+        .list-item > .value-col { flex: 0 0 var(--tbl-lane-s); justify-content: center; text-align: center; }
+        .settings-card .list-item:not(.list-item-header) > .list-item-col { flex: 0 1 auto; min-width: 0; justify-content: flex-end; }
+        // rows sit straight in the card (no .list-item-container): zebra and hover for them here
+        .items-section > .list-item:not(.list-item-header) {
+            &:nth-child(even of .list-item:not(.list-item-header)) { background: var(--sr-row-alt); }
+            &:hover { background: var(--sr-row-hover); }
+        }
+        .clickable { cursor: pointer; }
+        [data-type="skillset"] .list-item > .list-item-col { flex: 1 1 auto; justify-content: flex-end; }
+        // every field in the settings card is 28px tall (selects were 30, number inputs 24)
+        .settings-card :is(select, input:not([type="checkbox"])) { height: 28px; min-height: 28px; max-height: 28px; line-height: 26px; }
+        // one width for the single selects of the card (their widths followed their longest option: 89 vs 97px);
+        // 100px holds the longest of them ("Willpower", "Data Proc.") with the arrow
+        .settings-card .list-item:not(.list-item-header) > .list-item-col > select { flex: none; width: 100px; }
+        // a single number of the card (the sprinting bonus): as the initiative formula's numbers, 34px and centred
+        .settings-card .list-item:not(.list-item-header) > .list-item-col > input[type="number"] { flex: none; width: 34px; padding: 0; text-align: center; }
+        // per-mode initiative formula (attribute + attribute + constant + dice), label above (upstream layout):
+        // the attribute selects may shrink below the upstream 5rem minimum so the whole line fits the card
+        .list-item.spirit-initiative-formula-item { padding-block: 4px; }
+        .list-item.spirit-initiative-formula-item .spirit-initiative-formula-line {
+            gap: 4px;
+            select.spirit-initiative-attribute { min-width: 0; } // beats the upstream .list-item... .spirit-initiative-attribute
+            input { flex: 0 0 34px; width: 34px; }
+            span { flex: none; }
+        }
+    }
+
+    // ---------- details tab ----------
+    .sr-details {
+        .col-2 {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+            gap: var(--sp-m);
+            align-items: start;
+            // nothing for the right column: the skills take the width (details.hbs)
+            &.single { grid-template-columns: minmax(0, 1fr); > .right { display: none; } }
+        }
+        .right { display: flex; flex-direction: column; gap: var(--sp-m); }
+
+        .skills.card { padding: 0; }
+        .knowledge.card {
+            padding: 0;
+            // narrow column: the linked attribute is almost always INT/LOG, so it moves into the pool tooltip
+            .attr-col { display: none; }
+            .skill-table-header, .list-item[data-skill-id] { grid-template-columns: minmax(0, 1fr) var(--tbl-lane-xs) var(--tbl-lane-xs) auto; }
+        }
+
+        // name | attribute | rating | pool | icons; shared by active, language and knowledge skills
+        .skill-table {
+            font-size: 14px;
+
+            // name | attribute | rating | pool | icons (edit mode / source link only).
+            .skill-table-header, .list-item[data-skill-id] {
+                display: grid;
+                // three equal, centred number lanes: even gaps between attr, rating and pool
+                grid-template-columns: minmax(0, 1fr) var(--tbl-lane-xs) var(--tbl-lane-xs) var(--tbl-lane-xs) auto;
+                align-items: center;
+                gap: 0; // a gap would also be added before the (often hidden) icons track and shift rows vs header
+            }
+            .skill-table-header {
+                > .list-item-col { @include label(12px); color: var(--sr-table-head-fg); }
+                // sortable column headers: no arrows; the sorted column is highlighted (white, gold underline),
+                // which uses no extra width, so nothing moves when the sort changes
+                .sort-button { @include sort-button; }
+                .list-item-col .sort-button { width: 100%; }
+                .attr-col .sort-button, .pool-col .sort-button { justify-content: center; }
+                .rtg-col .sort-button { justify-content: center; }
+            }
+            // header and rows need identical side padding, or the headers drift off their numbers
+            // centred number lanes already leave air on the right, so the right padding is small (reads like the left)
+            .list-item.skill-table-header, .list-item.skill-table-header.header-for-scrollable,
+            .list-item.list-item[data-skill-id] { padding: 0 var(--tbl-pad-x); }
+            // skill groups (upstream partials at the end of the active list): their single rating column sits in
+            // the skills' Rtg lane, so the two ratings stack in one column
+            #active-skills-scroll > .list-item-header, #active-skills-scroll > .list-item-container:not(.active-skill-row) > .list-item {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) var(--tbl-lane-xs) var(--tbl-lane-xs) var(--tbl-lane-xs) auto;
+                align-items: center;
+                gap: 0;
+                padding: 0 var(--tbl-pad-x);
+                > .list-item-col { grid-column: 3; flex: none; width: auto; justify-content: center; text-align: center; font-variant-numeric: tabular-nums; }
+                > .list-item-icons { grid-column: 5; min-width: 0; width: auto; }
+            }
+            .attr-col { text-align: center; justify-content: center; }
+            .rtg-col { text-align: center; justify-content: center; font-variant-numeric: tabular-nums; }
+            // Orbitron has proportional digits only ("1" is half as wide as "8"), so right-aligned pools look ragged;
+            // centred they read evenly
+            .pool-col { text-align: center; justify-content: center; }
+            // icons (edit / delete / add) only matter in edit mode; in play mode the pool closes the row
+            .list-item-icons { min-width: 0; width: auto; padding-left: 6px; }
+            .list-item[data-skill-id] {
+                // the table row height (--tbl-row-h: 36px of content + 1px border; an even content height keeps
+                // 20px-tall text on whole pixels when centred, an odd one blurs every glyph on 1x screens)
+                min-height: var(--tbl-row-h);
+
+                .list-item-start { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+                .skill-name .label { hyphens: auto; }
+                .list-item-image-container { flex: 0 0 auto; }
+                .attr-col { @include label(13px, 600); line-height: 20px; color: var(--sr-text-muted); }
+                // numbers stay at 14px with a whole-pixel line box: Orbitron's geometric strokes render unevenly
+                // at odd sizes / half-pixel offsets on 1x screens
+                // the rating in the pool's typeface: Barlow Condensed digits are half as wide as Orbitron's, so at the same
+                // height the rating read smaller than the pool beside it; the pool stays the stronger one (gold, 800)
+                .rtg-col { font: 600 14px/20px var(--sr-font-head); letter-spacing: var(--sr-tracking, 0em); input { width: 100%; height: 22px; } }
+                .pool { @include heading(14px, 800); line-height: 20px; letter-spacing: var(--sr-tracking, 0em); color: var(--sr-accent); }
+                .pool.defaulting { color: var(--sr-text-muted); font-weight: 600; }
+                .pool.none { color: var(--sr-text-muted); }
+                // wounds take dice away (the tooltip adds it up): another colour and a dotted underline, not colour alone
+                .pool.reduced { color: var(--sr-pool-reduced); text-decoration: underline dotted 2px; text-underline-offset: 3px; }
+                .list-item-icons { gap: var(--tbl-icon-gap); font-size: 12px; color: var(--sr-text-muted); } // flex from the system; hidden in play mode; 24px boxes, the rows' gap
+            }
+            // name (opens the description) with the specializations below it, each one a roll link of its own
+            .skill-name-stack {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                min-width: 0;
+                padding: 3px 0;
+            }
+            .skill-name {
+                position: relative; // for the hit area below
+                display: block;
+                max-width: 100%;
+                text-align: left; // Foundry centres button text
+                min-width: 0;
+                line-height: 18px; // whole-pixel line boxes (1.1 x 15px = 16.5px lands text on half pixels)
+                // a block with its own line box: inline, the 15px label grew the 18px line to 18.5px (half-pixel rows)
+                .label { display: block; overflow-wrap: break-word; font-size: 15px; line-height: 18px; }
+                // a 24px tall target (WCAG 2.5.8) without a taller row: the hit area reaches 6px up into the row's
+                // padding (the specializations below stay theirs)
+                &::after { content: ''; position: absolute; inset: -6px 0 0 0; }
+            }
+            .specs {
+                display: flex;
+                max-width: 100%;
+                min-width: 0;
+                overflow: hidden;
+                font: 500 13px/18px var(--sr-font-label);
+                .skill-specialization {
+                    min-width: 0;
+                    overflow: hidden;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                    color: var(--sr-text-muted);
+                    cursor: pointer;
+                    text-decoration: underline 1px transparent;
+                    text-underline-offset: 3px;
+                    &:hover, &:focus-visible { color: var(--sr-accent); text-decoration-color: currentColor; }
+                    // separator between several specializations; inline-block keeps the link underline off it
+                    & + .skill-specialization::before { content: '·'; display: inline-block; margin: 0 6px; color: var(--sr-text-muted); }
+                }
+            }
+            // filter row: search and the filter button, spaced like the list search of the other tabs
+            .skill-filter {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 12px;
+                border: none;
+            }
+            .skill-search { @include search-field; flex: 1 1 auto; min-width: 0; }
+            #active-skills-scroll { max-height: none; overflow: visible; }
+        }
+
+        .pills-group {
+            margin: 0;
+
+            &.empty { display: none; }
+
+            h3.icon {
+                @include heading(12px, 700);
+                @include icon-caption(6px);
+                min-height: 17px; // the height it had with the untrimmed line box
+                margin: 0 0 var(--sp-s);
+                color: var(--sr-accent);
+                border: none;
+                border-bottom: 1px solid var(--sr-line);
+                padding-bottom: var(--sp-xs);
+            }
+
+            ul.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+            ul.pills > li { margin: 0; }
+
+            // quality pills: the height of the sidebar tiles (quick rolls, persona), sized with the 36px table rows
+            .pill {
+                @include label(13px);
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                height: 30px;
+                padding: 0 12px;
+                line-height: 1;
+                white-space: nowrap;
+                background: var(--sr-pill-bg);
+                color: var(--sr-text);
+                @include chamfer-frame(5px, var(--sr-line-soft));
+
+                .label, .caption { @include caps-centered; }
+                max-width: 100%; // long names (Code of Honor (...)) stop at the column edge
+                .label {
+                    display: block; // Foundry buttons are flex; text-box and text-overflow need a block box
+                    min-width: 0;
+                    overflow: hidden;
+                    // text-box trims the box to cap height, so overflow:hidden would also cut accents, brackets and
+                    // commas; give the clip box room above and below without changing the layout
+                    padding-block: 4px;
+                    margin-block: -4px;
+                    text-overflow: ellipsis;
+                    text-transform: uppercase;
+                }
+                .caption { margin-right: 4px; }
+                input { width: 2.5rem; height: 20px; }
+
+                &.positive { background: var(--sr-pill-pos-bg); color: var(--sr-white); @include chamfer-frame(5px, var(--sr-pill-pos-line)); }
+                &.negative { background: var(--sr-crimson-800); color: var(--sr-white); @include chamfer-frame(5px, var(--sr-pill-neg-line)); }
+                // the name opens the quality: its frame lights up gold on hover, as the attribute plates' (b073)
+                &:has(> button.label:hover) { @include chamfer-frame(5px, var(--sr-gold-500)); }
+            }
+        }
+
+    }
+
+    // ---------- inventory tab ----------
+    // social: two columns of cards (SIN + lifestyles | contacts). Bio stacks its cards at full width (qualities,
+    // then metamagics / echoes): quality names are long and read badly in a half-width column.
+    // bio: the positive / negative quality cards already say the type, so the upstream type column (+ / − icon) goes
+    .sr-bio [data-type="quality"] .list-item > .list-item-col.skinny-col { display: none; }
+
+    // social: SIN + lifestyles | contacts. Two columns while each card keeps 316px: the tables' 120px name minimum
+    // (as on the magic tab) beside the 80px value lane, 80px of icons and the card's padding. The widest sheet
+    // Foundry's smallest window (1024px) holds, 1024 - 2 x 12 margin - 47 rail = 953px, gives 327px cards, the
+    // default 940px sheet 320px; narrower (down to the 820px minimum) the cards stack. A wrapping flex row, so the
+    // columns share wide sheets (a grid's auto-fit kept an empty third track under the full-width title)
+    .sr-social {
+        --tbl-icons: 80px; // play mode: up to three row icons here (SIN: wireless, equipped, the menu)
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        align-content: flex-start; // the tab is full height: without this the free space stretched the title row
+        gap: var(--sp-m);
+        > :not(.column) { flex: 1 0 100%; } // the title, the empty note: full width
+        > h2.plaque.tab-title { margin-bottom: 0; } // the row gap already separates it from the cards
+        > .column {
+            flex: 1 1 316px;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-m);
+            > .card { margin: 0; } // the column's gap only: stacked, the cards kept 16px under them plus the row gap
+        }
+    }
+    // edit mode: 136px of row icons instead of 80, so the same 120px name needs 372px cards (stacked at 940px)
+    &.sr-edit-mode .sr-social > .column { flex-basis: 372px; }
+
+    // matrix: two columns. Left: the device card (header with device, rating, reboot; the four matrix attributes;
+    // the condition monitor with a caption like the sidebar tracks) above the network card. Right: matrix actions.
+    .sr-matrix {
+        .matrix-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-m); align-items: start; }
+        .matrix-left > .card + .card { margin-top: 0; }
+        .matrix-device {
+            // one line at any width: the device plaque takes the room (its name gives way, ellipsis), the rating and
+            // the reboot keep theirs; all three 26px high
+            > .device-header {
+                flex-wrap: nowrap;
+                gap: 6px;
+                // no black band: the fields sit on the card, 12px from its top and sides like the attribute plates and
+                // the condition monitor below (the body's own 14px follow under them)
+                height: auto;
+                min-height: 0;
+                padding: 12px 12px 0;
+                background: none;
+                // the table heads force the dark theme's colours for their black band; on the card the fields take the
+                // card's theme again
+                --sr-text: inherit;
+                --sr-text-muted: inherit;
+                --sr-focus: inherit;
+                --sr-input-bg: inherit;
+                --sr-line-soft: inherit;
+                --sr-row-hover: inherit;
+            }
+            // the device as the sheet's secondary field (dark fill, thin frame, the 5px bevels of the rating and reboot
+            // boxes beside it), like the inventory picker's secondary look; the native select lies over it, invisible,
+            // so the closed field shows the name only and the list (name, type, DR) is the browser's own, keyboard too
+            .device-plaque {
+                flex: 1 1 auto;
+                min-width: 0;
+                height: 26px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 0 26px 0 10px;
+                background: var(--sr-input-bg);
+                color: var(--sr-text);
+                @include chamfer-frame(5px, var(--sr-line-soft));
+                > i:not(.dropdown-caret) { flex: 0 0 auto; width: 16px; text-align: center; font-size: 13px; color: var(--sr-text-muted); }
+                // centred on its capitals like the gold captions (the icon sat 1.1px high); the name clips for the
+                // ellipsis, so the trimmed box gets even room back above and below for the glyphs past the caps
+                .device-name { @include label(15px, 700); @include caps-centered; padding-block: 3px; color: var(--sr-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+                .caret { position: absolute; right: 10px; pointer-events: none; color: var(--sr-text-muted); } // size and turn: .dropdown-caret
+                .matrix-device-select {
+                    position: absolute;
+                    inset: 0;
+                    width: 100%;
+                    height: 100%;
+                    min-height: 0;
+                    max-height: none;
+                    margin: 0;
+                    padding: 0;
+                    border: none;
+                    opacity: 0;
+                    cursor: pointer;
+                    option { @include label(14px, 600); text-transform: none; background: var(--sr-card-bg); color: var(--sr-text); }
+                }
+                &:hover { background: var(--sr-row-hover); > i, .caret { color: var(--sr-text); } }
+                // the keyboard's ring on the field (the select itself is invisible); none after a pointer press, as on
+                // the inventory pickers (.pointer-nav)
+                &:has(select:focus-visible) { outline: 2px solid var(--sr-focus); outline-offset: -2px; }
+                @at-root .sr5v2.sr5-redesign.pointer-nav .sr-matrix .matrix-device .device-plaque:has(select:focus-visible) { outline: none; }
+                // no device to choose: the field only says so
+                &.empty { padding-right: 10px; .device-name { color: var(--sr-text-muted); } }
+            }
+            // device rating (click: roll) and reboot: the sheet's dark field boxes, 26px high like the device field;
+            // .device-header and button in the selector to outweigh the table heads' gold for buttons
+            .device-header button:is(.device-rating, .device-reboot) {
+                flex: 0 0 auto;
+                height: 26px;
+                min-height: 0;
+                margin: 0;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                background: var(--sr-input-bg);
+                color: var(--sr-text);
+                @include chamfer-frame(5px, var(--sr-line-soft));
+                &:hover, &:focus-visible { background: var(--sr-row-hover); }
+            }
+            .device-rating {
+                gap: 6px;
+                padding: 0 10px;
+                .label { @include label(12px); color: var(--sr-text-muted); }
+                .value { @include heading(14px, 800); letter-spacing: var(--sr-tracking, 0em); color: var(--sr-text); }
+            }
+            .device-reboot { width: 26px; padding: 0; font-size: 13px; }
+            // three groups 16px apart (device fields, attribute plates, condition monitor) inside the card's 12px; the
+            // fields are the first group (header, 12px from the top), so the body starts with the 16px between groups
+            .device-body { display: flex; flex-direction: column; gap: var(--sp-m); padding: var(--sp-m) 12px 12px; }
+            // matrix attributes: fixed-size plates like the first tab's attribute row (they only shrink when the card
+            // gets too narrow). Colours follow the community SR5 Matrix cheat sheet (adragon202, DeviantArt), which
+            // marks each action's limit by attribute: Attack red, Sleaze blue, Data Processing yellow-green, Firewall
+            // orange. Here they are muted to the sheet palette; labels 5.5-10:1 on the plate face.
+            // the card's width, edge to edge like the device fields and the monitor (fixed 78px plates sat centred in a
+            // wide card, off the fields' and the monitor's edges)
+            .matrix-attributes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+            .matrix-attribute { position: relative; min-width: 0; }
+            .plate {
+                @include attribute-plate(9px); // the bottom 9px stay free for the swap chip, as under the first tab's plates
+                width: 100%;
+                height: 72px; // label 16 + value 24 + room so the chip (19px, 10px over the face) clears the value
+                min-height: 0;
+                margin: 0;
+                padding: 7px 4px 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start; // Foundry buttons centre their content vertically
+                gap: 1px;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                background: none;
+                .label { @include label(12px); line-height: 16px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+                .value { @include heading(19px, 800); letter-spacing: var(--sr-tracking, 0em); line-height: 24px; color: #fff; }
+            }
+            // swap chip: the small box under the plate (same look as the first tab's base-rating box); a transparent
+            // select covers it, so a click opens the native list and the keyboard works as with any select
+            .swap-chip {
+                position: absolute;
+                z-index: 2;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 32px;
+                height: 19px;
+                display: grid;
+                place-items: center;
+                background: #000;
+                color: var(--sr-text-chip);
+                font-size: 10px;
+                cursor: pointer;
+                @include chamfer-frame(4px, var(--sr-graphite-400));
+                position: absolute; // after the mixin, which sets relative
+                select.matrix-att-selector {
+                    position: absolute;
+                    inset: -4px 0; // the chip is 19px tall: a 27px target (WCAG 2.5.8) around it
+                    width: 100%;
+                    height: auto;
+                    min-width: 0;
+                    min-height: 0; // Foundry gives selects a 30px minimum: the hit area follows the chip
+                    max-height: none;
+                    margin: 0;
+                    padding: 0;
+                    opacity: 0;
+                    appearance: none;
+                    cursor: pointer;
+                    font-size: 14px; // used by the opened list
+                }
+                &:hover { color: var(--sr-gold-500); }
+                &:has(select:focus-visible) { color: var(--sr-gold-500); outline: 2px solid var(--sr-focus); outline-offset: 1px; }
+            }
+            // no swap chip (not a cyberdeck: the ratings cannot be rearranged): no room kept under the value, unless the
+            // character owns a deck (has-deck): switching between it and a commlink then keeps the card's height
+            &:not(.has-deck) .matrix-attribute:not(:has(.swap-chip)) .plate {
+                height: 56px;
+                &::before { inset: 0; }
+                &::after { inset: 1px; }
+            }
+            button.plate { cursor: pointer; }
+            button.plate:hover { &::before { background: var(--sr-gold-500); } .label { color: var(--sr-gold-500); } }
+            button.plate:focus-visible { outline: none; &::before { background: var(--sr-focus); } }
+            .attack { .label { color: var(--sr-plate-phys); } .plate::before { background: var(--sr-line); } } // framed like the physical attribute plates
+            .sleaze { .label { color: var(--sr-plate-mental); } .plate::before { background: var(--sr-line-mental); } }
+            .data_processing { .label { color: var(--sr-plate-olive); } .plate::before { background: var(--sr-olive-frame); } }
+            .firewall { .label { color: var(--sr-plate-orange); } .plate::before { background: var(--sr-ochre); } }
+            // the matrix monitor: the sidebar's meter (shared rule), in the device card's own padding; its boxes
+            // 28px wide or more, as many a row as fit (the persona's track has 8 to 12)
+            .meter-group.condition-monitor-container {
+                padding: 0;
+                .meter { grid-template-columns: repeat(auto-fill, minmax(28px, 1fr)); }
+            }
+            .monitor-caption {
+                display: flex;
+                align-items: center;
+                margin-bottom: var(--sp-xs);
+                .caption { @include label(12px); color: var(--sr-accent); }
+                .value { @include label(13px); margin-left: auto; color: var(--sr-text); }
+            }
+            .horizontal-cell-input { width: 100%; }
+            .cell-container { flex: 1; }
+        }
+        .matrix-network > .list-item-header .card-title { margin-right: 8px; }
+        // sub-tabs sit inside the card, under its header
+        // icon lists (network / marked / owned): the name gets the room (two lines at most), type and network take
+        // compact lanes (a long network name ends in an ellipsis), and the row icons start at the same spot, so a
+        // device's wifi sits under its persona's wifi and the chevron keeps its own slot
+        section:is([data-tab="networkIcons"], [data-tab="markedIcons"], [data-tab="ownedIcons"]) {
+            .list-item > .matrix-icon-col { flex: 0 0 var(--tbl-lane-s); }
+            .list-item > .matrix-network-col { flex: 0 0 64px; min-width: 0; label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+            .list-item > .list-item-start a { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; }
+            .list-item:not(.list-item-header) > .list-item-icons { justify-content: flex-start; }
+        }
+        // an empty sub-tab list: the note that says why, under the list's header
+        .matrix-empty { border-bottom: 1px solid var(--sr-row-border); }
+        // sub-tabs in a card: 6px apart (the quick rolls' step), not the upstream 16px
+        // the tab row between two title rows: 8px above and below, the table's side padding (tabs start under the
+        // card title), 6px between tabs; the title's square button sits on the same 12px edge (no upstream 2px margin)
+        .matrix-network, .matrix-actions {
+            > nav.sheet-tabs { padding: 8px var(--tbl-pad-x); margin: 0; gap: 6px; align-items: center; }
+            > .list-item-header > .list-item-icons { margin: 0; }
+        }
+        // matrix actions: short values (marks "1" / "Owner", type "Complex") in compact centred lanes
+        // the card is half the tab wide (289px on an 880px sheet): marks in 48px ("Owner"), the type in 72px
+        // ("Complex" ~20px clear of the ⋮ button), so the names keep room
+        section[data-tab="matrixActions"] .list-item > .list-item-col { flex: 0 0 48px; justify-content: center; text-align: center; }
+        section[data-tab="matrixActions"] .list-item > .list-item-col + .list-item-col { flex-basis: 72px; }
+        // one table per limit, stacked in the card; titles are gold like every table title (tinting them like their
+        // attribute plates was tried: olive, orange and gold read as one yellow at 12px)
+        // the tables stack flush, open or collapsed: the next table's dark title row is the separator, so the last
+        // row drops its divider line (a gap and the line read as a stray strip); the last table ends like every card
+        .matrix-action-group:not(:last-child) > .list-item-container:last-child > .list-item { border-bottom: none; }
+        .matrix-action-header {
+            .sort-button { @include sort-button; }
+            .list-item-col .sort-button { width: 100%; justify-content: center; }
+        }
+        // complex forms: duration ("Immediate", "Sustained") takes the M lane (shared thicc-col rule)
+        // icon columns sized to their icons (the upstream 64px / 24px boxes overflowed the narrow cards or let two
+        // icons spill over the name), never under the widest row so the headers keep the same width as the rows: the
+        // ⋮ menu button in play mode (24px; the source button moved into the expanded row), two and ⋮ in edit mode (80px with the gaps)
+        // the half-width matrix cards reserve what their rows carry: the icon lists a wifi and a chevron, the action
+        // tables the ⋮ menu; in edit mode three boxes
+        .matrix-network { --tbl-icons: 52px; --tbl-icons-edit: 80px; }
+        .matrix-actions { --tbl-icons: 24px; --tbl-icons-edit: 80px; }
+        .matrix-network, .matrix-actions {
+            .list-item > .list-item-icons { width: auto; gap: var(--tbl-icon-gap); }
+            .list-item > .list-item-start { flex: 1 1 0; min-width: 0; }
+        }
+    }
+
+    // magic cards: one grid for every card, with four 88px value lanes like the inventory lanes (in a narrow window
+    // they give way down to 56px first, so the name keeps at least 120px). A card's
+    // columns fill the lanes from the left, so the first value of every card (power type, spell type, spirit type)
+    // shares the spell Type lane and the cards line up with each other. The icons column is a track of its own,
+    // which also keeps spell rows (no icons in play mode) under their headers.
+    .sr-magic .list-item {
+        display: grid;
+        grid-template-columns: minmax(120px, 1fr) repeat(4, minmax(var(--tbl-lane-s), var(--tbl-lane-m))) calc(var(--tbl-icons) + 2px);
+        align-items: center;
+        > .list-item-start { grid-column: 1; min-width: 0; }
+        > .list-item-col { flex: none; width: auto; min-width: 0; justify-content: center; text-align: center; }
+        > .list-item-icons { grid-column: 6; min-width: 0; margin: 0 2px 0 0; justify-content: flex-end; }
+    }
+    // the spells in one table (the one-list view, play mode): their category a fifth column, before type
+    .sr-magic .items-section[data-type="spell_all"] .list-item {
+        grid-template-columns: minmax(120px, 1fr) repeat(5, minmax(var(--tbl-lane-s), var(--tbl-lane-m))) calc(var(--tbl-icons) + 2px);
+        > .list-item-icons { grid-column: 7; }
+    }
+    // edit mode: the icon track takes the edit-mode icon column (four buttons)
+    &.sr-edit-mode .sr-magic .list-item { grid-template-columns: minmax(120px, 1fr) repeat(4, minmax(var(--tbl-lane-s), var(--tbl-lane-m))) calc(var(--tbl-icons-edit) + 2px); }
+    // tables that collapse from their header (inventory, magic, social, bio, augmentations, matrix actions): the
+    // whole header is the target outside its buttons, so it shows the pointer and lights up its chevron on hover
+    // header buttons (collapse chevron, Add): the row icons' 14px glyphs, not the header labels' 12px
+    .list-item-header > .list-item-icons > :is(a, button):not(.row-menu) > i { font-size: 14px; }
+    .list-item-header.collapsible-header {
+        cursor: pointer;
+        &:hover [data-action="toggleExpanded"] { color: var(--sr-gold-300); }
+    }
+
+    // social cards: one value lane in all three (rating, cost per month, loyalty / connection), so their titles and
+    // values line up from card to card; 80px holds the longest cost ('¥ 100,000/mo', 77px)
+    // ([data-type]: over the lifestyle cost's 88px lane of the shared tables)
+    .sr-social .items-section[data-type] .list-item > .list-item-col:is(.rtg-col, .cost-col, .skinny-col) { flex: 0 0 80px; }
+    // the name takes the rest; contact rows lack the header's icons width in play mode
+    .sr-social .list-item {
+        > .list-item-start { flex: 1 1 0; min-width: 0; }
+        &:not(.list-item-header):not(:has(> .list-item-icons))::after {
+            content: '';
+            flex: 0 0 var(--tbl-icons); // .list-item-icons: min-width --tbl-icons, margin-right 2px
+            margin-right: 2px;
+        }
+    }
+
+    // Foundry checkboxes (a Font Awesome square, a duotone square-check when checked): checked is a crimson box with a
+    // white tick in both themes (the text colour made a black box on the white sheet, its transparent tick unseen);
+    // empty is a field-coloured box with a visible frame instead of a pale filled square. Foundry sets these variables
+    // on the input itself, so they are overridden there.
+    input[type="checkbox"] {
+        --checkbox-checked-color: var(--sr-crimson-700);
+        --checkbox-checkmark-color: var(--sr-white);
+        &:not(:checked, :indeterminate)::before {
+            content: '';
+            display: block;
+            background: var(--sr-input-bg);
+            box-shadow: inset 0 0 0 1px var(--sr-checkbox-line);
+            border-radius: 2px;
+        }
+        &:not(:checked, :indeterminate, :disabled):hover::before { box-shadow: inset 0 0 0 1px var(--sr-text); }
+        &:disabled:not(:checked)::before { opacity: .5; }
+    }
+
+    // row icons (source, equip, wireless...) in the text colour, the same as the names next to them
+    // (set on the links / buttons only: icons that carry a state colour of their own keep it)
+    .list-item > .list-item-icons :is(a, button) { color: var(--sr-text); }
+    // the one under the pointer stands out of its row's hover: its glyph lit like the names, no fill (b073)
+    .list-item > .list-item-icons > :is(a, button, [role="button"]):not(:disabled, [aria-disabled="true"]):hover {
+        color: var(--sr-accent-hover);
+        > i { color: inherit; }
+    }
+    // the light theme's accent is crimson: there an icon keeps its colour, on a faint neutral fill (no red on icons)
+    &.theme-light, body.theme-light &:not(.theme-dark) {
+        :is(.list-item > .list-item-icons > :is(a, button, [role="button"]), .list-item [data-action="removeSkillSet"]):not(:disabled, [aria-disabled="true"]):hover {
+            color: var(--sr-text);
+            background: color-mix(in srgb, var(--sr-text) 10%, transparent);
+        }
+    }
+    // an item's name opens its description: lit like a favorite's name
+    .list-item:not(.list-item-header) > .list-item-start a.item-name-link:hover { color: var(--sr-accent-hover); }
+    // links that open a document (a skill set, a matrix icon's name, a network): lit like the names
+    // (.window-content: past the system's `.list-item:not(.list-item-header) a { color: inherit }` of the rows)
+    .window-content a[data-action="openUuid"]:not(.list-item-image-container):hover { color: var(--sr-accent-hover); }
+    // the ammo column's reload links (the count, the partial reload icon)
+    .list-item:not(.list-item-header) .list-item-col :is([data-action="weaponFullReload"], [data-action="weaponPartialReload"]):hover { color: var(--sr-accent-hover); }
+    // the configuration tab's skill set: its remove icon, lit like the row icons
+    .window-content .list-item [data-action="removeSkillSet"]:hover { color: var(--sr-accent-hover); }
+    // the row's menu (RedesignRowMenu): the same menu as a right click, last in the icon column, in the colour of the
+    // row's own icons; a 24 x 28 target
+    .list-item > .list-item-icons > button.row-menu {
+        flex: 0 0 auto;
+        width: 24px;
+        height: 28px;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        color: var(--sr-text);
+    }
+    // empty states. A table's: one row under its header, the rows' text and padding (36px for a line, like a row);
+    // hidden with the rows of a collapsed card. A tab's (empty-tab.hbs): a card like the Description's
+    // (as tall as a table row, like an empty action group: .action-group-empty)
+    .empty-row { display: flex; align-items: center; min-height: var(--tbl-row-h); margin: 0; padding: 0 var(--tbl-pad-x); @include label(14px, 500); line-height: 20px; text-transform: none; letter-spacing: var(--sr-tracking, 0em); color: var(--sr-text-muted); }
+    section.tab:not(.filtering) .items-section.collapsed > .empty-row { display: none; }
+    section.tab.filtering .empty-row { display: none; } // a search shows what matches, not the empty tables
+    .pills-group .empty-row { min-height: 0; padding: 0; list-style: none; }
+    .empty-state > .empty-hint { padding: 10px 16px 14px; }
+    :is(.sr-description, .empty-state) .empty-hint { margin: 0; @include label(14px, 500); line-height: 20px; text-transform: none; letter-spacing: var(--sr-tracking, 0em); color: var(--sr-text-muted); }
+
+    // empty tab note (e.g. Augmentations of a character without implants)
+    // empty states: the table rows' text (14px on a 20px line) and side padding, so a note reads like a row of the
+    // card it replaces; 8px above and below make it one table row tall for a single line (36px)
+    .empty-note { margin: 0; padding: 8px var(--tbl-pad-x); @include label(14px, 500); line-height: 20px; text-transform: none; letter-spacing: var(--sr-tracking, 0em); color: var(--sr-text-muted); }
+
+    .sr-inventory {
+        .top { margin-bottom: var(--sp-m); }
+
+        .containers {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 70px);
+            gap: 8px;
+        }
+
+        .container-tile {
+            width: 70px;
+            height: 70px;
+            min-height: 0;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            place-items: center;
+            border-radius: 0;
+            box-shadow: none;
+            background: #000;
+            color: var(--sr-text);
+            @include chamfer-frame(10px, var(--sr-line), 2px);
+
+            img { width: 100%; height: 100%; object-fit: cover; border: none; }
+            .count { position: absolute; right: 4px; bottom: 3px; z-index: 3; padding: 0 5px; background: #000; color: #fff; font: 700 12px var(--sr-font-label); }
+            &:hover { background: var(--sr-crimson-800); }
+        }
+
+    }
+    // the inventory picker in the title row, the same on the inventory and the augmentations tab
+    // ---------- vehicles & drones tab (redesign/vehicles.hbs) ----------
+    // the shared table contract: name, value lanes (the book's seven stats in the number lane, --tbl-lane-s, as
+    // every number column: the heads get the other tables' air; the control mode and the device rating are in the
+    // expanded row), the icons lane; the name over its kind (Chummer's category, a drone's size) like a skill over
+    // its specialization
+    .sr-vehicles {
+        // the icons lane by what the rows hold (24px boxes 4px apart): play mode a lock (no permission) and the ⋮
+        // menu, edit mode edit, unlink, delete and the menu
+        --tbl-icons: 52px;
+        --tbl-icons-edit: 108px;
+        .list-item > .list-item-col.vehicle-stat-col { flex: 0 0 var(--tbl-lane-s); justify-content: center; text-align: center; font-variant-numeric: tabular-nums; }
+        .vehicle-row { cursor: grab; }
+        .vehicle-name { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 3px 0; line-height: 18px; }
+        // a name alone keeps the item rows' 20px line (with its kind under it, the skill rows' 18px stack)
+        .vehicle-name:not(:has(.vehicle-kind)) { padding: 0; > .item-name-link { line-height: 20px; } }
+        // the expanded row's monitors (the vehicle's damage, its matrix track) one per line, as an item's
+        .list-item-desc .prop-line-state { flex-direction: column; align-items: flex-start; row-gap: 6px;
+            > .condition-monitor-container { padding: 0; border: none; } }
+        .vehicle-kind { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 500 13px/18px var(--sr-font-label); color: var(--sr-text-muted); }
+    }
+
+    :is(.sr-inventory, .sr-augmentations) .inventory-controls {
+        @include label(12px);
+        display: flex;
+        align-items: center;
+        gap: var(--sp-s);
+        color: var(--sr-accent);
+
+        button.unbutton { width: 24px; height: 24px; display: grid; place-items: center; color: var(--sr-text-muted); &:hover { color: var(--sr-text); } }
+    }
+}
+
+// ---------- header art (EXPERIMENT): header background image treated like the art on SR5 rulebook pages ----------
+// Header only. Dark red monochrome: the gray layer (blend `saturation`) strips the picture's colour, the crimson layer
+// (blend `multiply`) stains it deep red; gradients darken it further toward the bottom where the attribute plates overlap.
+// Same in both themes (the header is dark in both).
+.sr5v2.sr5-redesign.has-sheet-art .sr-header {
+    background-color: var(--sr-crimson-900);
+    background-image:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px),
+        linear-gradient(to bottom, rgba(63, 0, 1, .05), rgba(20, 16, 18, .5)),
+        linear-gradient(rgba(20, 16, 18, .15), rgba(20, 16, 18, .4)),
+        linear-gradient(160deg, var(--sr-crimson-700), var(--sr-crimson-800)),
+        linear-gradient(#808080, #808080),
+        var(--sr-sheet-art);
+    background-blend-mode: normal, normal, normal, multiply, saturation, normal;
+    // cover, or cover times the zoom set while repositioning (SR5CharacterSheetRedesign#artSize)
+    background-size: auto, auto, auto, auto, auto, var(--sr-sheet-art-size, cover);
+    background-position: var(--sr-sheet-art-x, 50%) var(--sr-sheet-art-y, 25%); // set by dragging the art (edit mode)
+    background-repeat: no-repeat;
+
+    // name and subtitle sit directly on the art: a tight dark halo keeps them readable on bright patches
+    .document-name { text-shadow: 0 0 3px rgba(0, 0, 0, .9), 0 2px 10px rgba(0, 0, 0, .9); }
+    .sr-subtitle { text-shadow: 0 0 3px #000, 0 0 8px rgba(0, 0, 0, .9); }
+}
+
+// reposition the art (edit mode), like a Notion cover: a button on the art, then drag it and save or cancel
+.sr5v2.sr5-redesign .sr-header {
+    // the lower part of the header sits under the portrait and the attribute plates: the controls end the subtitle line
+    .art-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+        letter-spacing: normal;
+        text-shadow: none;
+    }
+    .art-button { @include art-button; }
+    .art-hint {
+        padding: 0 8px;
+        height: 28px;
+        line-height: 28px;
+        @include label(12px);
+        color: #fff;
+        text-shadow: 0 0 3px #000, 0 0 8px rgba(0, 0, 0, .9);
+    }
+    // the one primary action while repositioning
+    .art-save { background: var(--sr-crimson-700); border-color: var(--sr-crimson-700); color: #fff; &:hover, &:focus-visible { background: var(--sr-red-600); border-color: var(--sr-red-600); } }
+    .art-hint, .art-save, .art-cancel { display: none; }
+
+    &.art-repositioning {
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        // the header's own fields wait until the picture is placed
+        .name-row, .sr-subtitle > :not(.art-controls) { pointer-events: none; opacity: .35; }
+        .art-reposition { display: none; }
+        .art-hint, .art-save, .art-cancel { display: inline-flex; }
+        .art-hint { display: inline-block; }
+        outline: 1px dashed rgba(255, 255, 255, .45);
+        outline-offset: -4px;
+    }
+    &.art-dragging { cursor: grabbing; }
+}
+
+// ---------- collapsible sidebar, persona controls, header extras ----------
+.sr5v2.sr5-redesign {
+    // strip on the sidebar's right edge (sidebar-collapser)
+    > .window-content > .sidebar-collapser {
+        position: absolute;
+        z-index: 2;
+        top: calc(var(--sr-header-height) - 42px); // same span as the sidebar card, so the caret sits at its middle
+        // 1px point the label tooltip is placed against: moved to the pointer's height (#wireCollapserTooltip)
+        .collapser-tooltip-anchor { position: absolute; left: 0; width: 100%; height: 1px; pointer-events: none; }
+        bottom: 40px; // above the footer
+        left: var(--sr-sidebar-width);
+        width: 14px;
+        height: auto; // Foundry gives buttons a fixed height
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        background: transparent;
+        color: var(--sr-text-muted);
+        font-size: 13px;
+        // Foundry buttons have transition: all .5s, which would animate `left` a second time on top of the
+        // sidebar's slide and make the strip lag behind the sidebar edge
+        transition: background-color 120ms ease, color 120ms ease;
+
+        &:hover, &:focus-visible { background: var(--sr-row-hover); color: var(--sr-text); }
+        // the caret steps aside while the sidebar scrolls: the scroll bar is drawn in this strip then
+        // (#wireSidebarScrollLane sets `sidebar-scrolling` for the scroll and a moment after it)
+        > i { transition: opacity 150ms ease; }
+        // no lingering "active" look after a mouse click (Foundry styles button:focus)
+        &:focus:not(:focus-visible) { background: transparent; box-shadow: none; outline: none; }
+    }
+
+    // Collapsing: the four elements that move get their collapsed values from `sidebar-collapsed`, nothing else is
+    // restyled (it used to set --sr-sidebar-width to 0, an inherited custom property: changing it recomputed the
+    // style of every node, 5000 and more on a full character). While `sidebar-animating` is on
+    // (#toggleSidebar, 300ms) the grid column, the sidebar's margin, the collapser strip and the attribute row
+    // transition as plain properties: one layout pass a frame, of the active tab only (the others are display: none),
+    // and everything moves in the same pass, so nothing lags or jumps. Not while minimizing / closing: Foundry
+    // animates max-height on .application.minimizing and waits for a transitionend (up to 1s).
+    > .window-content > .sr-sidebar {
+        width: calc(var(--sr-sidebar-width) + 14px); // + the scroll lane in the collapser's strip
+        margin-left: 0;
+    }
+    &.sidebar-scrolling:not(.sidebar-collapsed) > .window-content > .sidebar-collapser > i { opacity: 0; }
+    // the sidebar's bar shows only while it scrolls, the same on every system (a Windows bar is there all the time, a
+    // macOS one fades by itself): transparent at rest, the sheet's grey while `sidebar-scrolling` is on. Above the
+    // sheet-wide scrollbar colour at the end of this file (more specific)
+    > .window-content > .sr-sidebar { scrollbar-color: transparent transparent; }
+    &.sidebar-scrolling > .window-content > .sr-sidebar { scrollbar-color: var(--sr-graphite-600) transparent; }
+    &.sidebar-collapsed > .window-content {
+        grid-template-columns: 0px minmax(0, 1fr);
+        // hidden for keyboard / screen readers once it has slid out
+        > .sr-sidebar { margin-left: -250px; visibility: hidden; } // its 236px and the scroll lane
+        > .sidebar-collapser { left: 0px; }
+        > .sr-abilities { left: 18px; }
+    }
+    &.sidebar-animating:not(.minimizing, .maximizing) {
+        > .window-content { transition: grid-template-columns 300ms ease; }
+        > .window-content > .sr-sidebar { transition: margin-left 300ms ease, visibility 0s; }
+        &.sidebar-collapsed > .window-content > .sr-sidebar { transition: margin-left 300ms ease, visibility 0s linear 300ms; }
+        > .window-content > :is(.sidebar-collapser, .sr-abilities) { transition: left 300ms ease; }
+    }
+    // reduced motion: no slide; the states still switch
+    @media (prefers-reduced-motion: reduce) {
+        &.sidebar-animating > .window-content { &, > :is(.sr-sidebar, .sidebar-collapser, .sr-abilities) { transition: none !important; } }
+    }
+
+    // persona: running silent toggle and network manager (the regular sheet's roll bar)
+    // persona: a section of its own at the bottom of the sidebar (plaque like Quick Rolls / Favorites), two tiles in
+    // the quick rolls' style, one per row: the mode (running silent in teal, with the -2 it costs on Matrix tests) and
+    // the network (its name, or the network manager while on none)
+    .persona-section {
+        margin-top: var(--sp-m);
+        .persona-tiles { display: grid; gap: 6px; }
+        .persona-tile {
+            width: 100%;
+            height: 30px;
+            min-height: 0;
+            margin: 0;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; // Foundry buttons centre their content
+            gap: 8px;
+            border-radius: 0;
+            box-shadow: none;
+            background: var(--sr-card-bg);
+            color: var(--sr-text);
+            text-align: left;
+            @include chamfer-frame(6px, var(--sr-line-soft));
+            i { flex: 0 0 16px; text-align: center; font-size: 12px; color: var(--sr-text-muted); }
+            .name { @include label(12px); @include caps-centered; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .value { @include heading(14px, 800); @include caps-centered; letter-spacing: var(--sr-tracking, 0em); margin-left: auto; }
+            &:hover { background: var(--sr-row-hover); }
+            &.silent { color: var(--sr-teal-text); i { color: var(--sr-teal-text); } }
+        }
+    }
+
+    // header: fresh-import marker, source link, source field
+    .sr-header {
+        .name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .fresh-import {
+            flex: 0 0 26px;
+            width: 26px;
+            height: 26px;
+            min-height: 0;
+            padding: 3px;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            border-radius: 0;
+            box-shadow: none;
+            background: var(--sr-crimson-700);
+            @include chamfer(4px);
+            img { width: 100%; height: 100%; border: none; }
+        }
+        button.fresh-import:hover { background: var(--sr-red-600); }
+    }
+}
+
+// ---------- tooltips raised from this sheet (class added in SR5CharacterSheetRedesign#enhanceAccessibility) ----------
+:is(#tooltip, .locked-tooltip).sr5-redesign-tooltip {
+    --sr-font-label: 'SR5 Label', var(--font-sans); // readable text swaps it
+    // Colours follow the theme of the sheet the tooltip came from (sr-tooltip-light, set by
+    // RichTooltip#applyTheme): dark card, or the light theme's white card with crimson accents. The
+    // black head band of the rich cards stays black in both, like the table heads.
+    --tt-bg: #141012;
+    --tt-text: #ece7e2;
+    --tt-muted: #8f8a8d;
+    --tt-accent: #ebb531;          // gold-500
+    --tt-frame: #7a2a33;           // the cards' frame
+    --tt-line: rgba(176, 178, 180, .16); // gray-100
+    --tt-chip-bg: #0f0c0e;
+    --tt-chip-line: #59595b;
+    --tt-shadow: 0 6px 18px rgba(0, 0, 0, .5);
+    &.sr-tooltip-light {
+        --tt-bg: #fff;
+        --tt-text: #111;
+        --tt-muted: #545456;
+        --tt-accent: #7e0f12;      // crimson-700: gold reads poorly on white
+        --tt-frame: #680015;       // crimson-800
+        --tt-line: rgba(109, 110, 112, .3);
+        --tt-chip-bg: #f0eded;
+        --tt-chip-line: #a6a8aa;
+        --tt-shadow: 0 6px 18px rgba(40, 20, 20, .22);
+    }
+    // Foundry's tooltip is a [popover]; its UA overflow:auto adds a scrollbar strip under slightly wide content
+    overflow: hidden;
+    width: max-content;
+    padding: 6px 10px;
+    max-width: 320px;
+    background: var(--tt-bg);
+    color: var(--tt-text);
+    border-radius: 0;
+    box-shadow: var(--tt-shadow);
+    text-shadow: none;
+    font: 500 14px/1.3 var(--sr-font-label);
+    letter-spacing: calc(.01em + var(--sr-tracking, 0em));
+    // chamfered like the cards and plaques; the mixin draws the bevel lines so the border is not cut off
+    @include chamfer-frame(8px, var(--tt-frame), 1px, (tl, br), null);   // same frame colour as the cards; Foundry positions the tooltip itself
+    // modifier breakdown (base value, augmentations...) rendered by the system's modifiers-tooltip template
+    .value-modifiers-container, .value-modifiers { background: none; border: none; box-shadow: none; padding: 0; }
+    .list-item { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; background: none; border: none; border-bottom: 1px solid var(--tt-line); min-height: 0; }
+    .list-item:last-child { border-bottom: none; }
+    label { font: inherit; color: inherit; }
+    .value-modifiers-base label, .value-modifiers-modifier label { font-weight: 700; color: var(--tt-accent); }
+}
+
+// ---------- rich hover cards of items and skills (SR5RichTooltip, redesign/tooltip.hbs) ----------
+// Lives in Foundry's #tooltip, outside the sheet: fonts and colours are given here, not taken from the sheet tokens.
+// the pointer can enter a card (it locks there, SR5RichTooltip#lockOnHover); Foundry's tooltip takes no pointer
+#tooltip.sr-rich-tooltip.active { pointer-events: auto; }
+:is(#tooltip, .locked-tooltip).sr-rich-tooltip {
+    --sr-font-head: 'SR5 Head', 'SR5 Label', var(--font-sans);
+    --sr-font-label: 'SR5 Label', var(--font-sans);
+    --sr-font-prose: 'SR5 Prose', serif;
+    // as wide as the stats in one line (320px at least); text, tags and the name wrap inside that width instead of
+    // widening the card (contain: inline-size). Only a very long stat line wraps, past the max width.
+    width: max-content;
+    min-width: 320px;
+    max-width: min(560px, calc(100vw - 16px));
+    padding: 0;
+    overflow: hidden;
+    text-align: left;
+    // Foundry fades tooltips over 0.5s; the card comes and goes faster. Keep a transition: Foundry hides the popover on
+    // transitionend.
+    transition: opacity 120ms ease-out;
+    @media (prefers-reduced-motion: reduce) { transition-duration: 1ms; }
+    .sr-rich-titles, .sr-rich-desc, .sr-rich-tags, .sr-rich-foot { contain: inline-size; }
+
+    .sr-rich { display: flex; flex-direction: column; }
+    .sr-rich.loading { align-items: center; padding: 16px; color: var(--tt-muted); }
+
+    // head: picture, name and kind on the black band, like a table head of the sheet
+    .sr-rich-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: #000;
+        border-bottom: 1px solid #7a2a33;
+        // the picture is chamfered like the sheet's plates
+        .sr-rich-img { flex: 0 0 auto; display: block; @include chamfer-frame(8px, #59595b); background: #0f0c0e; }
+        img { display: block; width: 48px; height: 48px; object-fit: cover; border: none; }
+        // attributes, limits, armor, movement: an icon in the same frame
+        .sr-rich-icon { display: grid; place-items: center; width: 50px; height: 50px; color: #fff; font-size: 22px; }
+        .sr-rich-titles { flex: 1 1 auto; min-width: 0; }
+        h3 { margin: 0; border: none; @include heading(14px, 800); line-height: 1.25; color: #fff; overflow-wrap: anywhere; }
+        p { margin: 2px 0 0; @include label(12px, 600); color: #b0b2b4; }
+        .sr-rich-kind {
+            flex: 0 0 auto;
+            align-self: flex-start;
+            padding: 2px 6px;
+            border: 1px solid #59595b;
+            @include label(11px, 700);
+            color: #ebb531;
+        }
+    }
+
+    // stats: label over value, in equal cells with thin dividers (the sidebar's armor / walk / run look)
+    // one line of equal-growing cells; dividers are drawn right and below each cell and the edges clip the outer
+    // ones, so the lines stay right when a very long stat line wraps
+    .sr-rich-stats {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0;
+        overflow: hidden;
+        border-bottom: 1px solid var(--tt-line);
+        > div {
+            flex: 1 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            // never squeezed: at least 14px of air on each side of the value; the card widens instead (to its max
+            // width, then the line wraps)
+            min-width: 56px;
+            padding: 6px 14px;
+            box-shadow: 1px 0 0 var(--tt-line), 0 1px 0 var(--tt-line);
+        }
+        // the outer cells sit against the card's frame: a little more air there, so they do not look tighter
+        > div:first-child { padding-left: 18px; }
+        > div:last-child { padding-right: 18px; }
+        dt { @include label(11px, 700); color: var(--tt-muted); }
+        dd { margin: 0; @include heading(13px, 800); letter-spacing: var(--sr-tracking, 0em); color: var(--tt-text); text-align: center; white-space: nowrap; }
+    }
+
+    .sr-rich-desc {
+        max-height: 40vh;
+        overflow-y: auto;
+        padding: 10px 12px;
+        font: 400 14px/1.45 var(--sr-font-prose);
+        color: var(--tt-text);
+        p { margin: 0 0 6px; &:last-child { margin-bottom: 0; } }
+        // rules lines (network cards): mechanics in the label face under the prose, a divider when both are there
+        .sr-rich-rules {
+            margin: 0;
+            padding: 0 0 0 14px;
+            font: 500 14px/1.35 var(--sr-font-label);
+            li { margin: 0 0 4px; &:last-child { margin-bottom: 0; } &::marker { color: var(--tt-muted); } }
+        }
+        * + .sr-rich-rules { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--tt-line); }
+        // who sees what (network cards): under the rules, muted, the crossed eye of hidden things
+        .sr-rich-note {
+            display: flex;
+            gap: 8px;
+            margin: 8px 0 0;
+            font: 500 13px/1.35 var(--sr-font-label);
+            color: var(--tt-muted);
+            i { flex: 0 0 auto; margin-top: 3px; font-size: 11px; }
+        }
+    }
+
+    .sr-rich-tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 12px;
+        .sr-rich-tags-label { @include label(11px, 700); color: var(--tt-muted); margin-right: 2px; }
+        .sr-rich-tag { padding: 1px 6px; border: 1px solid var(--tt-chip-line); background: var(--tt-chip-bg); @include label(12px, 600); color: var(--tt-text); }
+    }
+
+    .sr-rich-desc + .sr-rich-tags { padding-top: 0; } // the text above already leaves the gap
+    // modifier breakdown of an attribute, limit, armor or movement (the system's rows, styled by .sr5-redesign-tooltip)
+    .sr-rich-breakdown {
+        padding: 0 12px 10px;
+        contain: inline-size;
+        .value-modifiers-container { margin: 0; }
+        .list-item { @include label(13px, 600); text-transform: none; letter-spacing: calc(.01em + var(--sr-tracking, 0em)); }
+    }
+    // an effect's changes come right after its stats, without a description in between
+    .sr-rich-stats + .sr-rich-breakdown { padding-top: 8px; }
+    .sr-rich-foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 12px;
+        border-top: 1px solid var(--tt-line);
+        @include label(11px, 600);
+        color: var(--tt-muted);
+        i { margin-right: 2px; }
+        // the source opens from a hover-locked card, like the rows' source links
+        .sr-rich-source { color: inherit; cursor: pointer; &:hover { color: var(--sr-gold-300, #e2c062); } }
+    }
+}
+
+// ---------- against global UI skins ----------
+// Modules such as Carolingian UI restyle every heading, tooltip, window header and context menu from an unlayered
+// stylesheet, which beats the whole system layer whatever the selector. Only !important wins from inside a layer, so
+// the declarations they overwrite are repeated here with it, scoped to this sheet, the apps it opens and its tooltips.
+.sr5v2.sr5-redesign {
+    font-weight: 400 !important; // names and values inherit it (a skin's 500 made every row look bold)
+    .document-name {
+        font-family: var(--sr-font-head) !important;
+        font-weight: 800 !important;
+        line-height: 1.05 !important;
+        border: none !important;
+        text-shadow: 0 1px 6px rgba(0, 0, 0, .8) !important;
+    }
+    :is(h1, h2, h3, h4).plaque { border-bottom: 2px solid var(--sr-crimson-700) !important; line-height: 1 !important; font-weight: 700 !important; }
+    .tab-title-row > h2.plaque.tab-title { border-bottom: none !important; }
+    // the other headings get a skin's title font, weight and line height: column titles take their header's type,
+    // group titles (qualities, movement) their own
+    .list-item-header h3 { font: inherit !important; }
+    .pills-group h3.icon { font-family: var(--sr-font-head) !important; font-weight: 700 !important; line-height: 1 !important; }
+    > .window-content > section.tab { padding: 14px 16px 16px 18px !important; overflow: hidden auto !important; scrollbar-gutter: stable !important; }
+}
+.application.sr5v2.sr5-redesign-app > .window-header {
+    &, > * { text-shadow: none !important; }
+    .window-title { font-family: var(--sr-font-head) !important; }
+}
+:is(#tooltip, .locked-tooltip).sr5-redesign-tooltip {
+    width: max-content !important;
+    min-width: 0 !important;
+    max-width: 320px !important;
+    padding: 6px 10px !important;
+    background: var(--tt-bg) !important;
+    color: var(--tt-text) !important;
+    box-shadow: var(--tt-shadow) !important;
+    border-radius: 0 !important;
+    font-family: var(--sr-font-label) !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1.3 !important;
+}
+:is(#tooltip, .locked-tooltip).sr-rich-tooltip {
+    min-width: 320px !important;
+    max-width: min(560px, calc(100vw - 16px)) !important;
+    padding: 0 !important;
+    > section { padding: 0 !important; }
+    .sr-rich-head h3 { font-family: var(--sr-font-head) !important; font-weight: 800 !important; line-height: 1.25 !important; }
+}
+
+// ---------- context menus opened from the sheet (rows, header controls) ----------
+// Foundry appends #context-menu to the body: no sheet tokens there, the values are the sheet's own (dark and light,
+// by the theme class Foundry gives the menu). RedesignRowMenu marks the menus of this sheet with sr5-redesign-menu.
+// Drawn like the filter menu: the field background, the chamfered frame, 28px rows with the icon in a fixed box. The
+// !important declarations hold against UI skins and Foundry's own menu rules, which sit in other layers.
+nav#context-menu.sr5-redesign-menu {
+    --menu-bg: #0f0c0e;                     // --sr-input-bg
+    --menu-text: #ece7e2;                   // --sr-text
+    --menu-muted: #a9a6a8;                  // --sr-text-muted
+    --menu-line: #59595b;                   // --sr-graphite-600
+    --menu-hover: rgba(126, 15, 18, .22);   // --sr-row-hover
+    --menu-shadow: 0 8px 14px rgba(0, 0, 0, .5);
+    &.theme-light {
+        --menu-bg: #fff;
+        --menu-text: #2b2627;
+        --menu-muted: #545456;
+        --menu-line: #a6a8aa;
+        --menu-hover: rgba(126, 15, 18, .1);
+        --menu-shadow: 0 8px 14px rgba(40, 20, 20, .22);
+    }
+    min-width: 180px;
+    max-width: none !important;
+    padding: 4px 0 !important;
+    // cut like the filter menu and the cards; Foundry positions the menu itself, so the mixin leaves `position` alone
+    @include chamfer-frame(5px, var(--menu-line), 1px, (tl, br), null);
+    border: 1px solid var(--menu-line) !important; // the mixin's frame, held against UI skins
+    border-radius: 0 !important;
+    background: var(--menu-bg) !important;
+    color: var(--menu-text) !important;
+    box-shadow: var(--menu-shadow) !important;
+    font: 500 14px/1.3 'SR5 Label', var(--font-sans) !important;
+    letter-spacing: calc(.01em + var(--sr-tracking, 0em));
+    text-shadow: none;
+
+    // Foundry's menu scrolls itself (overflow-y: auto), and the frame above reaches 1px past its edges, so a menu
+    // that fits got both scrollbars: the list scrolls instead, inside a menu that clips (a long menu on a short
+    // window still scrolls; Foundry sets the max-height)
+    flex-direction: column;
+    overflow: hidden !important;
+    > .context-items { flex: 0 1 auto; min-height: 0; overflow: hidden auto; }
+
+    .context-items, .context-group > ol { margin: 0; padding: 0; list-style: none; }
+    .context-group { border-top: 1px solid var(--menu-line); margin-top: 4px; padding-top: 4px; }
+    .context-group:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+    li.context-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 28px;
+        margin: 0;
+        padding: 0 12px !important;
+        border: none !important;
+        line-height: 1.3;
+        color: var(--menu-text);
+        background: transparent;
+        cursor: pointer;
+        // Foundry eases every property of its rows (0.1s): the rows would shrink from its size to these while the
+        // menu unfolds to the measured height (RedesignRowMenu, fitExpandAnimation); hover is instant like the tables
+        transition: none !important;
+        > i { flex: 0 0 16px; width: 16px; text-align: center; font-size: 13px; color: var(--menu-muted); }
+        &:hover, &:focus-visible { background: var(--menu-hover); color: var(--menu-text); }
+        &:hover > i, &:focus-visible > i { color: var(--menu-text); }
+        &:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+    }
+}
+
+// ---------- scrollbars: the sidebar's grey everywhere ----------
+// Foundry gives every element (*) its crimson scrollbar colour: the inner lists had it (matrix icons, menus, the
+// apps' tables, long tooltips), while the sheet's own scrollers were grey already. Every element here gets the grey.
+:is(.sr5v2.sr5-redesign, .application.sr5v2.sr5-redesign-app) { &, * { scrollbar-color: var(--sr-graphite-600) transparent; } }
+nav#context-menu.sr5-redesign-menu { &, * { scrollbar-color: var(--menu-line) transparent; } }
+:is(#tooltip, .locked-tooltip).sr5-redesign-tooltip { &, * { scrollbar-color: #59595b transparent; } } // --sr-graphite-600
+
+// property icons in the item templates are the redesigned sheet's (shown inside .sr5-redesign above), and so are
+// properties the shared list templates carry for it alone (a skill group's rating beside its source link)
+.prop-icon, .sr-redesign-only { display: none; }
+.list-item-properties:has(> .sr-redesign-only):not(:has(> :not(.sr-redesign-only))) { display: none; } // nothing else: no band
+
+// ---------- readable text (Configure Settings > Shadowrun 5th Edition Redesign > Accessibility) ----------
+// A user setting for players who find the condensed labels thin and tight (RedesignSettings: body class). The same
+// faces and layout: labels one weight step heavier (the Readable face above), every letter-spacing 0.03em wider
+// (--sr-tracking, added to each value), the prose face (one weight only) a hair thicker. On the sheet, the apps it
+// opens and its tooltips.
+body.sr5-redesign-readable :is(.sr5v2.sr5-redesign, .application.sr5v2.sr5-redesign-app, #tooltip.sr5-redesign-tooltip, .locked-tooltip.sr5-redesign-tooltip) {
+    --sr-font-label: 'SR5 Label Readable', var(--font-sans);
+    --sr-tracking: .03em;
+    letter-spacing: var(--sr-tracking); // text that sets none of its own
+    :is(.editor-content, .description-body, prose-mirror, .sr-rich-desc) { -webkit-text-stroke: .25px currentColor; }
+    // the matrix plates are as wide as "Firewall" in bold caps already: their captions stay as they are
+    .matrix-attributes .plate .label { --sr-tracking: 0em; font-family: 'SR5 Label', var(--font-sans); }
+}
+
+// ---------- the Actions tab's groups (redesign/actions.hbs) ----------
+// an empty group in edit mode: one quiet row that says where Add puts a new action, as tall as an action row
+.sr5v2.sr5-redesign .action-group-empty {
+    display: flex;
+    align-items: center;
+    min-height: var(--tbl-row-h);
+    padding: 0 var(--tbl-pad-x);
+    @include label(14px, 500);
+    text-transform: none;
+    letter-spacing: var(--sr-tracking, 0em);
+    color: var(--sr-text-muted);
+}
+
+// ---------- the vehicle sheet (SR5VehicleSheetRedesign): stat plates, the control group, slots ----------
+.sr5v2.sr5-redesign {
+    // stat plates: eight in one row (no groups), so each keeps the 48px of the character's eleven in a narrower window
+    > .window-content > .sr-abilities.vehicle {
+        .ability-score { width: clamp(40px, calc((100cqi - 32px) / 8), 48px); }
+        // the plates are one colour (no physical / mental split): the frame colour of the physical ones
+        .ability-score::before { background: var(--sr-line); }
+        .ability-score .label { color: var(--sr-plate-phys); }
+        // acceleration and armor roll nothing, but their plate shows a rich card like the others: the same gold frame
+        // on hover in play mode, so the row answers the pointer the same everywhere (the cursor stays an arrow)
+    }
+    &:not(.sr-edit-mode) > .window-content > .sr-abilities.vehicle .ability-score.static:has(.label:hover) {
+        .label { color: var(--sr-gold-500); }
+        &::before { background: var(--sr-gold-500); }
+    }
+
+    .sr-sidebar {
+        // the control mode and the driver: groups like the initiative (caption, one 32px field)
+        .control-bar {
+            // the field's icon muted, as the initiative's and every icon in a field or tile
+            .control-icon { display: grid; place-items: center; cursor: default; color: var(--sr-text-muted); }
+            // a name in the field, left-aligned and as far from the icon as the initiative's mode (Foundry centres button content)
+            .init-trigger { padding-left: 2px; justify-content: flex-start; }
+            // the caret on the field's right edge, as in the initiative field (there the formula pushes it over)
+            .init-trigger > .fa-caret-down { margin-left: auto; }
+            .init-trigger:disabled { cursor: default; }
+            .init-option { justify-content: flex-start; }
+        }
+        // the conditions (its own section at the bottom, under the matrix icon): two pairs of tiles in the persona
+        // tiles' look (30px, the same chamfered frame and caption type), the option in use filled with the sheet's red as
+        // the menus' checked row, a hairline between the two
+        .conditions-section {
+            margin-top: var(--sp-m);
+            .condition-switches { display: grid; gap: 6px; }
+            .segmented {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                height: 30px;
+                background: var(--sr-card-bg);
+                @include chamfer-frame(6px, var(--sr-line-soft));
+            }
+            .segment {
+                height: 100%;
+                min-width: 0;
+                margin: 0;
+                padding: 0 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 7px;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                background: transparent;
+                color: var(--sr-text-muted);
+                + .segment { box-shadow: inset 1px 0 0 var(--sr-line-soft); }
+                i { flex: none; width: 14px; text-align: center; font-size: 12px; }
+                .mode { @include label(12px); @include caps-centered; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                &:hover:not(:disabled, [aria-checked="true"]) { background: var(--sr-row-hover); color: var(--sr-text); }
+                &[aria-checked="true"] { background: var(--sr-crimson-800); color: #fff; box-shadow: none; }
+                &[aria-checked="true"] + .segment { box-shadow: none; }
+                &:disabled { cursor: default; }
+            }
+        }
+        // the driver's field: portrait in the icon slot, the name and how they control the vehicle, the ×
+        .driver-bar {
+            .driver-portrait {
+                padding: 0;
+                // a fixed square the size of the other fields' icons, centred in the same 32px column, so the name
+                // starts where their text does (a portrait taller than wide stretched the field: the cell sizes to it)
+                img { width: 20px; height: 20px; object-fit: cover; object-position: top; border: none; @include chamfer(3px); }
+                &.placeholder { color: var(--sr-text-muted); font-size: 12px; }
+            }
+            .driver-name {
+                padding-left: 2px;
+                .mode { font-size: 14px; }
+                .formula { @include label(12px, 600); color: var(--sr-text-muted); letter-spacing: var(--sr-tracking, 0em); }
+                &:hover:not(:disabled) .mode { color: var(--sr-accent); }
+            }
+            // no driver: a dropdown like the control mode's (icon, value, caret), the text where the other fields' is
+            .driver-pick { padding-left: 2px; }
+            // the list: a search on top, the rows (portrait, name, why it is offered) scroll under it
+            .driver-menu {
+                padding: 6px 0 4px;
+                .driver-search { @include search-field(28px); display: block; margin: 0 6px 4px; }
+                .driver-list { max-height: min(340px, var(--driver-list-max, 340px)); overflow-y: auto; }
+                .driver-option {
+                    height: 34px;
+                    // the portraits as large as the driver field's (20px), centred in the menus' 24px icon column like the
+                    // crosshair and the other menus' icons
+                    img { flex: none; width: 20px; height: 20px; margin: 0 2px; object-fit: cover; object-position: top; border: none; @include chamfer(3px); }
+                    .mode { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+                    .formula { @include label(11px, 600); color: var(--sr-text-muted); white-space: nowrap; }
+                }
+                .driver-token {
+                    > i { flex: none; width: 24px; text-align: center; font-size: 14px; color: var(--sr-text-muted); }
+                    &:disabled { cursor: default; opacity: .55; background: none; }
+                }
+                .driver-drop-hint {
+                    display: flex; align-items: center; gap: 6px;
+                    margin-top: 4px; padding: 6px 10px 2px;
+                    border-top: 1px solid var(--sr-line-soft, var(--sr-graphite-400));
+                    @include label(11px, 600); text-transform: none; color: var(--sr-text-muted);
+                }
+                .driver-empty { padding: 8px 10px; @include label(12px, 500); text-transform: none; color: var(--sr-text-muted); }
+            }
+            .driver-remove {
+                flex: 0 0 28px;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                display: grid;
+                place-items: center;
+                background: transparent;
+                color: var(--sr-text-muted);
+                font-size: 12px;
+                &:hover { background: var(--sr-crimson-700); color: #fff; }
+            }
+        }
+    }
+
+    // the Vehicle tab's right column: slot rows (icon, category, used / max) and the autosofts card
+    .sr-vehicle-details {
+        .mod-slots {
+            .slot-row .list-item-start { gap: 8px; }
+            .slot-row .prop-icon { width: 14px; text-align: center; font-size: 12px; color: var(--sr-text-muted); }
+            // aligned on the slash, whatever the digits (Orbitron's digits are not all one width): used right-aligned,
+            // the slash in a column of its own, the maximum left-aligned
+            .slots {
+                display: grid;
+                grid-template-columns: 1fr auto 1fr;
+                column-gap: 4px;
+                width: 100%;
+                @include heading(14px, 800);
+                letter-spacing: var(--sr-tracking, 0em);
+                white-space: nowrap;
+                cursor: help;
+                .used { text-align: right; }
+                .max { text-align: left; }
+                // tabular figures by hand: every digit in a cell as wide as Orbitron's widest (0 and 8, 0.84em)
+                .d { display: inline-block; width: .84em; text-align: center; }
+                .of { color: var(--sr-text-muted); font-weight: 600; }
+            }
+            .slot-row { cursor: help; }
+            // more in than the vehicle has room for: the row says so in red
+            .slot-row.over .slots { color: var(--sr-red-600); }
+        }
+        .list-item > .value-col { flex: 0 0 var(--tbl-lane-m); justify-content: center; text-align: center; }
+        // the right column's cards are narrow: one value lane each (slots, rating) and a short icons lane shared by
+        // both, so their lanes line up (the table contract); edit mode: the row menu, edit and delete
+        .right { --tbl-icons: 30px; --tbl-icons-edit: 84px; }
+        // the skills tab's edit rule above gives every icons lane of the tab 54px (two skill icons); these cards keep
+        // the table token (three icons: the row menu, edit, delete)
+        @at-root .sr5v2.sr5-redesign.sr-edit-mode .sr-vehicle-details .right .list-item > .list-item-icons {
+            flex: 0 0 var(--tbl-icons-edit);
+            min-width: var(--tbl-icons-edit);
+            max-width: var(--tbl-icons-edit);
+        }
+    }
+}
+
+// ---------- matrix tab loader (SR5CharacterSheetRedesign#drawMatrixGently) ----------
+// A quiet field of 0s and 1s where the matrix tab will be, while its first draw is prepared: columns of digits in two
+// layers cross-fading at their own pace. Only opacity animates, which the compositor runs while scripts work. It fades
+// in after 200 ms, so a quick load never shows it; the drawn tab fades in over it.
+.sr5v2.sr5-redesign {
+    section.tab.sr-matrix-loading { position: relative; overflow: hidden; }
+    // the red reads stronger on the light card: softer there, as soft as on the dark one
+    &.theme-light, body.theme-light &:not(.theme-dark) { --sr-matrix-digit-max: .32; }
+    .sr-matrix-loader {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 18px;
+        overflow: hidden;
+        pointer-events: none;
+        // the sheet's red (the plaques, the checked menu rows), not the gold of the captions
+        color: var(--sr-red-600);
+        // the sheet's condensed type with a plain 0 (Orbitron slashes it into a Ø), digits of one width
+        font: 600 15px/18px var(--sr-font-label);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0;
+        // edges fade out, so the field has no hard border
+        mask-image: radial-gradient(ellipse at center, #000 45%, transparent 85%);
+        opacity: 0;
+        animation: sr-matrix-loader-in 600ms ease 200ms forwards;
+        .col { position: relative; width: 1ch; flex: none; }
+        .col > span {
+            position: absolute;
+            inset: 0 auto auto 0;
+            white-space: pre;
+            will-change: opacity;
+            animation: sr-matrix-digits var(--dur, 5s) ease-in-out var(--delay, 0s) infinite alternate;
+        }
+        .col > .b { animation-direction: alternate-reverse; }
+    }
+    section.tab.sr-fade-in { animation: sr-matrix-fade-in 300ms ease; }
+    @media (prefers-reduced-motion: reduce) {
+        .sr-matrix-loader { animation: none; opacity: 1; .col > span { animation: none; opacity: .3; } .col > .b { opacity: 0; } }
+        section.tab.sr-fade-in { animation: none; }
+    }
+}
+@keyframes sr-matrix-loader-in { to { opacity: 1; } }
+// a dark red needs more of itself than the gold did to read on the dark card (and stays soft on the light one)
+@keyframes sr-matrix-digits { from { opacity: .06; } to { opacity: var(--sr-matrix-digit-max, .62); } }
+@keyframes sr-matrix-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+// ---------- dropdown carets ----------
+// One caret for every dropdown of the sheet (`.dropdown-caret`): the popover menus (initiative, control mode) and the
+// native pickers (inventory, implants, matrix device). One size, and it points up while the list is open, down when it
+// is closed, turning between the two. Where it sits and its colour are the field's. :has() is scoped to the small
+// group around each field, never to the window.
+.sr5v2.sr5-redesign {
+    .dropdown-caret { font-size: 12px; line-height: 1; transition: transform .15s ease; }
+    :is(.initiative-bar, .control-bar):has(> .init-menu:popover-open) .dropdown-caret,
+    :is(.plaque-select, .device-plaque):has(> select:open) > .dropdown-caret { transform: rotate(180deg); }
+}

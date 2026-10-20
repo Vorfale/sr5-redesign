@@ -1,0 +1,77 @@
+{{!-- Sheet header: name, subtitle line, attribute plates and limits.
+      Limits live under the attribute row; karma, nuyen and the book source in the footer. The subtitle's separators go
+      between its parts only (CSS hides one with nothing before it, e.g. a critter's hidden metatype). --}}
+<header class="sr-header">
+    <div class="sr-header-left">
+        <div class="name-row">
+        {{#unless isLimited}}
+            {{#if (hasAnyFreshImports actor)}}
+                {{#if @root.isEditMode}}
+                    <button type="button" class="fresh-import" data-action="clearFreshImports"
+                            data-tooltip="SR5.MarkImportsTooltip" aria-label="{{localize 'SR5.MarkImportsTooltip'}}">
+                        <img src="systems/shadowrun5e/dist/icons/checklist-white.svg" alt="">
+                    </button>
+                {{else}}
+                    <span class="fresh-import" data-tooltip="SR5.MarkImportsTooltip" role="img" aria-label="{{localize 'SR5.MarkImportsTooltip'}}">
+                        <img src="systems/shadowrun5e/dist/icons/checklist-white.svg" alt="">
+                    </span>
+                {{/if}}
+            {{/if}}
+        {{/unless}}
+        {{#if @root.isEditMode}}
+            <label class="sr-only" for="{{rootId}}-name">{{localize "SR5.Name"}}</label>
+            {{formInput fields.name value=actor.name classes="document-name uninput" placeholder=(localize "SR5.Name") id=(concat rootId "-name")}}
+        {{else}}
+            <h1 class="document-name">{{actor.name}}</h1>
+        {{/if}}
+        </div>
+        <div class="sr-subtitle">
+            <span class="chevron" aria-hidden="true">&raquo;</span>
+            {{#if isVehicle}}
+                {{!-- a vehicle: drone or vehicle, its size (drones) or Chummer category, its type; edit mode sets the size
+                      and the type here, like a character's metatype (drone or not: the Configuration tab) --}}
+                {{#if @root.isEditMode}}
+                    {{#if system.isDrone}}
+                        <label class="sr-only" for="{{rootId}}-category">{{localize "SR5.Vehicle.Category"}}</label>
+                        {{formInput systemFields.category value=source.system.category localize=true classes="uninput" id=(concat rootId "-category")}}
+                    {{/if}}
+                    <label class="sr-only" for="{{rootId}}-vehicle-type">{{localize "SR5.Vehicle.Type"}}</label>
+                    {{formInput systemFields.vehicleType value=source.system.vehicleType localize=true classes="uninput" id=(concat rootId "-vehicle-type")}}
+                {{else}}
+                    <span>{{vehicleKind.kind}}</span>
+                    {{#if vehicleKind.detail}}<span class="separator" aria-hidden="true">&bull;</span><span>{{vehicleKind.detail}}</span>{{/if}}
+                    <span class="separator" aria-hidden="true">&bull;</span><span>{{vehicleKind.type}}</span>
+                {{/if}}
+            {{else}}
+            {{#if @root.isEditMode}}
+                <label class="sr-only" for="{{rootId}}-metatype">{{localize "SR5.Metatype"}}</label>
+                {{formInput systemFields.metatype value=source.system.metatype localize=true classes="uninput" id=(concat rootId "-metatype")}}
+            {{else if (not system.is_critter)}}
+                <span>{{localizeOb system.metatype config.character.types}}</span>
+            {{/if}}
+            {{/if}}
+            {{!-- race, archetype, awakened / emerged (a character's line) --}}
+            {{#if isVehicle}}
+            {{else if @root.isEditMode}}
+                <label class="sr-only" for="{{rootId}}-archetype">{{localize "SR5.Redesign.Archetype"}}</label>
+                <input type="text" class="archetype-input" id="{{rootId}}-archetype" name="{{archetypeName}}" value="{{archetype}}"
+                       placeholder="{{localize "SR5.Redesign.Archetype"}}">
+            {{else if archetype}}
+                <span class="separator" aria-hidden="true">&bull;</span><span>{{archetype}}</span>
+            {{/if}}
+            {{#if awakened}}<span class="separator" aria-hidden="true">&bull;</span><span>{{localize "SR5.Awakened"}}</span>{{/if}}
+            {{#if emerged}}<span class="separator" aria-hidden="true">&bull;</span><span>{{localize "SR5.Emerged"}}</span>{{/if}}
+            <span class="chevron" aria-hidden="true">&laquo;</span>
+            {{!-- edit mode: move the header art, like a Notion cover; at the end of this line, the free part of the art (SR5CharacterSheetRedesign#repositionSheetArt) --}}
+            {{#if (and @root.isEditMode hasSheetArt)}}
+            <div class="art-controls">
+                <span class="art-hint" aria-live="polite">{{localize "SR5.Redesign.SheetArt.DragHint"}}</span>
+                <button type="button" class="art-button art-reposition" data-action="repositionSheetArt">
+                    <i class="fas fa-arrows-up-down-left-right" aria-hidden="true"></i>{{localize "SR5.Redesign.SheetArt.Reposition"}}</button>
+                <button type="button" class="art-button art-save" data-action="saveSheetArtPosition">{{localize "SR5.Redesign.SheetArt.SavePosition"}}</button>
+                <button type="button" class="art-button art-cancel" data-action="cancelSheetArtPosition">{{localize "Cancel"}}</button>
+            </div>
+            {{/if}}
+        </div>
+    </div>
+</header>

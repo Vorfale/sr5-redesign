@@ -1,0 +1,84 @@
+<div class="list-item-container {{cssClass}} {{#if (hasKey @root.expandedSkills id)}} expanded {{/if}}">
+    <div class="list-item draggable"
+         data-source="{{skill.system.description.source}}"
+         data-item-id="{{skill.id}}"
+         data-skill-id="{{skill.id}}"
+         data-skill-name="{{skill.name}}"
+         data-category="{{category}}"
+         data-subcategory="{{subcategory}}"
+         data-context-menu="skill">
+        <div class="list-item-start">
+            <button class="list-item-image-container icon sr5-icon"
+               data-tooltip="{{localize 'SR5.Labels.ActorSheet.TestKBoardModifiers'
+                                        skip=@root.bindings.skip descr=@root.bindings.card}}"
+                {{#if @root.isPlayMode}} data-action="rollSkill" {{else}} data-action="editSkill" {{/if}}
+               >
+                <img src="{{skill.img}}"                    
+                    {{#if @root.isEditMode}}
+                     class="list-item-image-edit"
+                    {{else}}
+                     class="list-item-image-roll"
+                    {{/if}}
+                />
+            </button>
+            <a class="{{skillClass skill}}" data-action="openSkillDescription">{{skill.label}}</a>
+        </div>
+        {{#if @root.isPlayMode}}
+        <div class="list-item-col">
+            {{skillSpecializations skill}}
+        </div>
+        {{/if}}
+        <div class="list-item-col {{#if @root.isPlayMode}} skinny-col {{/if}}">
+            {{#if @root.isEditMode}}
+                {{#if (or @root.isSpirit @root.isSprite)}}
+                    <input type="checkbox"
+                           data-system-action="changeSkillRating"
+                           class="checkbox"
+                           data-skill="{{skill.id}}"
+                           {{checked (gt skill.base 0)}}
+                           {{#if skill.group}}disabled{{/if}}>
+                {{else}}
+                    <input type="number" data-system-action="changeSkillRating" class="short skinny" value="{{skill.base}}" data-skill="{{skill.id}}" {{#if skill.group}}disabled{{/if}}>
+                {{/if}}
+            {{else}}
+                <span data-skill-modifier-tooltip="{{skill.id}}">
+                    {{#if skill.system.skill.language.isNative}}
+                        {{localize "SR5.Skill.abbr.Native"}}
+                    {{else}}
+                        {{skill.value}}
+                    {{/if}}
+                </span>
+            {{/if}}
+        </div>
+        <div class="list-item-icons{{#if @root.isPlayMode}} skinny-icons {{/if}}" data-item-id="{{skill.id}}">
+            {{#if @root.isEditMode}}
+                <a data-action="editItem"
+                   data-tooltip="SR5.Edit">
+                    <i class="fas fa-pen-to-square"></i>
+                </a>
+                <a data-action="deleteItem"
+                   data-tooltip="SR5.DeleteSkill">
+                    <i class="fas fa-trash"></i>
+                </a>
+            {{else if skill.link}}
+                <a data-action="openSource" data-source="{{skill.link}}" data-tooltip="SR5.OpenSource">
+                    <i class="fas fa-file"></i>
+                </a>
+            {{/if}}
+        </div>
+    </div>
+    <div class="list-item-desc">
+        <div class="list-item-properties">
+            <label>{{localizeOb skill.attribute @root.config.attributes}}</label>
+            {{#if skill.group}}
+                <label>{{skill.group}}</label>
+            {{/if}}
+            {{#if skill.canDefault}}
+                <label>{{localize "SR5.CanDefault"}}</label>
+            {{/if}}
+        </div>
+        <div class="description-body">
+            {{{objValue (objValue @root.expandedSkills id) 'html'}}}
+        </div>
+    </div>
+</div>

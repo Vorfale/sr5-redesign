@@ -1,0 +1,72 @@
+{{!-- Bio tab as cards, like the other tabs: positive and negative qualities (life modules count as positive, like the
+      pills on the first tab), then metamagics (awakened) and echoes (emerged). Every card has its own header (bioCard):
+      columns from the block, an Add button, and in play mode it collapses from the header or its chevron (shares the
+      inventory's toggleExpanded state, keys in BIO_CARD_TYPES). The quality cards drop the type column (the card says
+      it) and their Add button creates a quality of that type (data-quality-type, see
+      SR5CharacterSheetRedesign#_handleCreateItem); the metamagic card keeps the initiation grade in its header. In play
+      mode an empty list is left out, and a tab with nothing at all shows the tab's empty state; edit mode keeps every
+      card (with its empty row) so entries can be added. --}}
+{{#*inline "bioCard"}}
+    {{#if (or @root.isEditMode list.length)}}
+    <div class="items-section card{{#unless (or (lookup @root.openSections type) @root.isEditMode)}} collapsed{{/unless}}" data-type="{{addType}}"{{#if qualityType}} data-quality-type="{{qualityType}}"{{/if}}>
+        <div class="list-item list-item-header{{#if @root.isPlayMode}} collapsible-header{{/if}}"
+             {{#unless @root.isEditMode}}data-action="toggleExpanded" data-item-type="{{type}}"{{/unless}}>
+            <div class="list-item-start{{#unless (lookup @root.openSections type)}} label-collapsed{{/unless}}">
+                <label>{{localize label}}</label>
+            </div>
+            {{> @partial-block }}
+            <div class="list-item-icons {{#if @root.isPlayMode}} skinny-icons {{/if}}">
+                {{#if @root.isEditMode}}
+                <a data-action="addItem" data-tooltip="{{createItemHeaderLabel addType}}" data-item-type="{{addType}}"{{#if qualityType}} data-quality-type="{{qualityType}}"{{/if}}>
+                    {{localize "SR5.Add"}}&nbsp;<i class="fas fa-plus"></i>
+                </a>
+                {{/if}}
+                {{> "systems/shadowrun5e/dist/templates/v2/list-items/toggle-expand-icon.hbs" isOpen=(lookup @root.openSections type) type=type }}
+            </div>
+        </div>
+        {{!-- rendered when collapsed too (CSS hides them), so the list search finds them --}}
+        {{#each list}}
+            {{> (concat "systems/shadowrun5e/dist/templates/v2/list-items/" ../addType "/item.hbs") item=this }}
+        {{else}}
+            {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}
+        {{/each}}
+    </div>
+    {{/if}}
+{{/inline}}
+<section class="tab sr-bio{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+{{#if tabEmpty}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-tab.hbs' }}
+{{else}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
+    {{!-- the quality rows keep the upstream type column; the empty one keeps header and rows index-aligned, CSS hides both --}}
+    {{#> bioCard type='quality_positive' addType='quality' qualityType='positive' label='SR5.Redesign.PositiveQualities' list=qualities.positive }}
+        <div class="list-item-col skinny-col" aria-hidden="true"></div>
+        <div class="list-item-col rtg-col"><label>{{localize "SR5.Rtg"}}</label></div>
+    {{/bioCard}}
+    {{#> bioCard type='quality_negative' addType='quality' qualityType='negative' label='SR5.Redesign.NegativeQualities' list=qualities.negative }}
+        <div class="list-item-col skinny-col" aria-hidden="true"></div>
+        <div class="list-item-col rtg-col"><label>{{localize "SR5.Rtg"}}</label></div>
+    {{/bioCard}}
+    {{#ife actor.type 'character'}}
+        {{#if awakened}}
+            {{#> bioCard type='metamagic' addType='metamagic' label='SR5.Metamagics' list=itemType.metamagic }}
+                {{!-- a header note, not a column of the rows (#alignTableLanes skips .lane-note) --}}
+                <div class="list-item-col lane-note">
+                    <label>
+                        {{localize "SR5.Initiation"}}&nbsp;
+                        {{#if @root.isEditMode}}
+                            {{formInput @root.systemFields.magic.fields.initiation value=@root.source.system.magic.initiation rootId=@root.rootId classes="short skinny"}}
+                        {{else}}
+                            {{@root.system.attributes.initiation.value}}
+                        {{/if}}
+                    </label>
+                </div>
+            {{/bioCard}}
+        {{/if}}
+        {{#if emerged}}
+            {{#> bioCard type='echo' addType='echo' label='SR5.Echoes' list=itemType.echo }}{{/bioCard}}
+        {{/if}}
+    {{/ife}}
+{{/if}}
+</section>

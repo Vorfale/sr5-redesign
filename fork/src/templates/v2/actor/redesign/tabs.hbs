@@ -1,0 +1,13 @@
+{{!-- Icon-only vertical tab rail on the right edge.
+      Buttons, so the rail is reachable by keyboard; Foundry's changeTab keeps aria-pressed in sync. --}}
+<nav class="tabs sr-rail" data-group="primary" aria-label="{{localize 'SHEETS.FormNavLabel'}}">
+    {{#each primaryTabs as |tab|}}
+        {{#unless tab.hidden}}
+        <button type="button" class="item control{{#if tab.active}} active{{/if}}"
+           data-action="tab" data-group="{{tab.group}}" data-tab="{{tab.id}}" aria-pressed="{{#if tab.active}}true{{else}}false{{/if}}"
+           data-tooltip="{{localize tab.label}}" data-tooltip-direction="RIGHT" aria-label="{{localize tab.label}}">
+            <i class="{{tab.icon}}" aria-hidden="true" inert></i>
+        </button>
+        {{/unless}}
+    {{/each}}
+</nav>

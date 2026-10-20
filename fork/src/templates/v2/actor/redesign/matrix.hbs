@@ -1,0 +1,176 @@
+{{!-- Matrix tab (after the upstream matrix.hbs) as three cards in two columns: on the left the device (rating, reboot;
+      then the matrix attributes and the condition monitor) above the network (connection + the icon lists); on the
+      right matrix actions (actions, complex forms, compilations, sprite powers). The sub-tab parts are moved into the
+      two .content sections by SR5MatrixActorSheet#_renderHTML, so those keep their upstream classes. --}}
+<section class="tab sr-matrix{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
+    <div class="matrix-columns">
+        <div class="matrix-left">
+            <div class="items-section card matrix-device{{#if matrixDeviceSwitch.hasDeck}} has-deck{{/if}}">
+                {{!-- the device as a plaque with a dropdown of the character's devices (type and DR in the list; the
+                      closed plaque shows the name): a choice equips that device (#switchMatrixDevice). Right click: the
+                      device's item menu (edit...). Then the device rating (roll) and the reboot, one height. --}}
+                <div class="list-item list-item-header device-header">
+                    <span class="device-plaque{{#unless matrixDevice}} empty{{/unless}}"
+                          {{#if matrixDevice}}data-item-id="{{matrixDevice.id}}" data-uuid="{{matrixDevice.uuid}}" data-context-menu="item"{{/if}}>
+                        <i class="fas {{matrixDeviceSwitch.icon}}" aria-hidden="true"></i>
+                        <span class="device-name">{{matrixDeviceSwitch.label}}</span>
+                        {{#if matrixDeviceSwitch.choices.length}}
+                            <select class="matrix-device-select" aria-label="{{localize 'SR5.Redesign.MatrixDevice.Switch'}}"
+                                    data-tooltip="SR5.Redesign.MatrixDevice.Switch">
+                                {{#each matrixDeviceSwitch.choices as |choice|}}
+                                    <option value="{{choice.id}}"{{#if choice.selected}} selected{{/if}}>{{choice.label}}</option>
+                                {{/each}}
+                            </select>
+                            <i class="fas fa-caret-down caret dropdown-caret" aria-hidden="true"></i>
+                        {{/if}}
+                    </span>
+                    {{#unless (isType actor 'sprite')}}
+                        <button type="button" class="device-rating" data-action="rollAttribute" data-attribute-id="rating"
+                                data-attribute-modifier-tooltip="rating"
+                                aria-label="{{localize 'SR5.Labels.ActorSheet.DeviceRating'}} {{system.matrix.rating}}">
+                            <span class="label">{{localize "SR5.Redesign.MatrixDevice.RatingShort"}}</span><span class="value">{{system.matrix.rating}}</span>
+                        </button>
+                    {{/unless}}
+                    {{#if (isType actor 'character' 'vehicle')}}
+                        <button type="button" class="device-reboot" data-action="rebootPersona"
+                                data-tooltip="{{#if isVehicle}}SR5.Redesign.Rigging.RebootDeviceHint{{else}}SR5.Tooltips.Actor.RebootPersonaAndClearAllMarks{{/if}}" aria-label="{{localize 'SR5.Labels.Sheet.RebootDevice'}}">
+                            <i class="fas fa-power-off" aria-hidden="true"></i>
+                        </button>
+                    {{/if}}
+                </div>
+                <div class="device-body">
+                    {{#if (isType actor 'ic')}}
+                        {{> 'systems/shadowrun5e/dist/templates/v2/actor/parts/ic-attributes.hbs' }}
+                    {{else}}
+                        {{!-- matrix attributes as plates like the attribute row on the first tab (click = roll), each
+                              coloured by its role; on a cyberdeck a swap chip sits under each plate --}}
+                        <div class="matrix-attributes">
+                            {{#each config.matrixAttributes as |label key|}}
+                                {{#with (lookup @root.system.matrix key) as |matrixAtt|}}
+                                <div class="matrix-attribute {{key}}" data-attribute-id="{{key}}" data-context-menu="attribute">
+                                    {{#if @root.isPlayMode}}
+                                        <button type="button" class="plate" data-action="rollAttribute" data-attribute-modifier-tooltip="{{key}}"
+                                                aria-label="{{localize 'SR5.Redesign.RollAttribute' name=(localize label)}}">
+                                            <span class="label">{{localize label}}</span>
+                                            <span class="value">{{matrixAtt.value}}</span>
+                                        </button>
+                                    {{else}}
+                                        <div class="plate" data-attribute-modifier-tooltip="{{key}}">
+                                            <span class="label">{{localize label}}</span>
+                                            <span class="value">{{matrixAtt.base}}</span>
+                                        </div>
+                                    {{/if}}
+                                    {{!-- a cyberdeck's four ratings can be rearranged: the mini chip under the plate (like the base
+                                          rating box on the first tab) holds a transparent select; picking another attribute swaps the
+                                          two values (upstream handler on .matrix-att-selector) --}}
+                                    {{#if @root.system.matrix.is_cyberdeck}}
+                                        <label class="swap-chip" data-tooltip="{{localize 'SR5.Redesign.MatrixAssign' name=(localize label)}}" data-tooltip-direction="DOWN">
+                                            <i class="fas fa-right-left" aria-hidden="true"></i>
+                                            <select class="matrix-att-selector" name="matrix-{{key}}" data-att="{{key}}"
+                                                    aria-label="{{localize 'SR5.Redesign.MatrixAssign' name=(localize label)}}">
+                                                {{#each @root.system.matrix.item.atts as |slot slotKey|}}
+                                                    {{#if (eq slotKey matrixAtt.device_att)}}
+                                                        <option value="{{slotKey}}" selected>{{localize (lookup @root.config.matrixAttributes slot.att)}} ({{slot.value}})</option>
+                                                    {{else}}
+                                                        <option value="{{slotKey}}">⇄ {{localize "SR5.Redesign.MatrixSwapWith" name=(localize (lookup @root.config.matrixAttributes slot.att)) value=slot.value}}</option>
+                                                    {{/if}}
+                                                {{/each}}
+                                            </select>
+                                        </label>
+                                    {{/if}}
+                                </div>
+                                {{/with}}
+                            {{/each}}
+                        </div>
+                    {{/if}}
+                    {{#if (isType actor 'character' 'vehicle')}}
+                        {{#if system.matrix.condition_monitor.max}}
+                            {{!-- built like the sidebar's monitors (sidebar.hbs): roll button with icon and name, count,
+                                  clear button; the track below on its dark frame, as many boxes a row as fit.
+                                  A vehicle's is its own track (track.matrix, what its rolls and its sidebar read) --}}
+                            {{#with (ifThen @root.isVehicle system.track.matrix system.matrix.condition_monitor) as |monitor|}}
+                            <div class="condition-monitor-container meter-group" data-id="matrix" role="group"
+                                 aria-label="{{localize 'SR5.Redesign.MatrixMonitor'}}: {{monitor.value}}/{{monitor.max}}">
+                                <div class="meter-label">
+                                    {{!-- a caption, not a roll: matrix damage has no recovery roll (Hardware repairs devices) --}}
+                                    <span class="meter-roll meter-caption">
+                                        <i class="fas fa-microchip" aria-hidden="true"></i>
+                                        <span>{{localize "SR5.Redesign.MatrixMonitor"}}</span>
+                                    </span>
+                                    <span class="meter-value">{{monitor.value}} / {{monitor.max}}</span>
+                                    <button type="button" class="unbutton meter-clear" data-action="clearConditionMonitor" data-id="matrix"
+                                            aria-label="{{localize 'SR5.Redesign.ClearMonitor'}}: {{localize 'SR5.Redesign.MatrixMonitor'}}"
+                                            data-tooltip="{{localize 'SR5.Redesign.ClearMonitor'}}"><i class="fas fa-ban" aria-hidden="true"></i></button>
+                                </div>
+                                <div class="meter matrix">
+                                    {{#for 1 (sum monitor.max 1)}}
+                                        <button type="button" class="cell{{#iflte this monitor.value}} filled{{/iflte}}" data-action="modifyConditionMonitor"
+                                                data-id="matrix" data-value="{{this}}" aria-pressed="{{#iflte this monitor.value}}true{{else}}false{{/iflte}}"
+                                                aria-label="{{localize 'SR5.Redesign.MatrixMonitor'}} {{this}}/{{monitor.max}}"
+                                                data-tooltip="{{localize 'SR5.Redesign.MatrixMonitor'}}: {{this}}/{{monitor.max}}"></button>
+                                    {{/for}}
+                                </div>
+                            </div>
+                            {{/with}}
+                        {{/if}}
+                    {{/if}}
+                </div>
+            </div>
+            <div class="items-section card matrix-network">
+                <div class="list-item list-item-header">
+                    <div class="list-item-start">
+                        <label class="card-title">{{localize "SR5.Redesign.Network"}}</label>
+                        {{#if vehicle.master}}
+                            <label>{{localize "SR5.Labels.ActorSheet.ConnectedTo"}}:&nbsp;</label>
+                            <div class="basic-row">
+                                {{> "systems/shadowrun5e/dist/templates/v2/list-items/item-roll-image.hbs" network }}
+                                <a data-action="openUuid" data-uuid="{{vehicle.master.uuid}}">{{vehicle.master.name}}</a>
+                            </div>
+                        {{else}}
+                            {{#if network}}
+                                <label>{{localize "SR5.Labels.ActorSheet.ConnectedTo"}}:&nbsp;</label>
+                                <div class="basic-row" data-uuid="{{network.uuid}}">
+                                    {{> "systems/shadowrun5e/dist/templates/v2/list-items/item-roll-image.hbs" network }}
+                                    <a data-action="openUuid">{{network.name}}</a>
+                                </div>
+                            {{else}}
+                                <label>{{localize "SR5.Labels.ActorSheet.NoNetwork"}}</label>
+                            {{/if}}
+                        {{/if}}
+                    </div>
+                    <div class="list-item-icons">
+                        {{!-- a vehicle on a PAN leaves its master; one with a driver and no network joins the driver's PAN --}}
+                        {{#if vehicle.master}}
+                            <button type="button" class="icon sr5-icon" data-action="removeMaster" data-tooltip="SR5.Tooltips.Actor.DisconnectNetwork">
+                                <i class="fas fa-right-from-bracket"></i>
+                            </button>
+                        {{else if network}}
+                            <button type="button" class="icon sr5-icon" data-action="disconnectNetwork" data-tooltip="SR5.Tooltips.Actor.DisconnectNetwork">
+                                <i class="fas fa-right-from-bracket"></i>
+                            </button>
+                        {{else if (and isVehicle vehicle.driver)}}
+                            <button type="button" class="icon sr5-icon" data-action="connectToDriver" data-tooltip="SR5.Labels.ActorSheet.ConnectToDriver">
+                                <i class="fas fa-link"></i>
+                            </button>
+                        {{/if}}
+                        {{#unless (or (isType network 'host') (isType vehicle.master 'host'))}}
+                            <button type="button" class="icon sr5-icon" data-action="openNetworkManager" data-tooltip="SR5.OpenNetworkManager">
+                                <i class="fas fa-network-wired"></i>
+                            </button>
+                        {{/unless}}
+                    </div>
+                </div>
+                {{tabGroup matrixLeftTabs}}
+                <section class="content matrix-left-tab-content"></section>
+            </div>
+        </div>
+        <div class="matrix-right">
+            <div class="items-section card matrix-actions">
+                {{tabGroup matrixRightTabs}}
+                <section class="content matrix-right-tab-content"></section>
+            </div>
+        </div>
+    </div>
+</section>

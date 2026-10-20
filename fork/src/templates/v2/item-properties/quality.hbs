@@ -1,0 +1,9 @@
+{{#unless (empty system.type)}}
+    <label data-prop="kind">{{#if (eq system.type 'negative')}}<i class="prop-icon fas fa-circle-minus" aria-hidden="true"></i>{{else}}<i class="prop-icon fas fa-circle-plus" aria-hidden="true"></i>{{/if}}{{localizeOb system.type @root.config.qualityTypes}}</label>
+{{/unless}}
+{{#if item.system.rating}}
+    <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-signal" aria-hidden="true"></i>{{localize "SR5.Rating"}}&nbsp;{{item.system.rating}}</label>
+{{/if}}
+{{#if item.system.karma}}
+    <label data-prop="stat"><i class="prop-icon fas fa-yin-yang" aria-hidden="true"></i>{{localize "SR5.Karma"}}&nbsp;{{item.system.karma}}</label>
+{{/if}}

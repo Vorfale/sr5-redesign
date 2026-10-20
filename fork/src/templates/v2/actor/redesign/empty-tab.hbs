@@ -1,0 +1,9 @@
+{{!-- The empty state of a whole tab in play mode (nothing in any of its tables), like the Description tab's: one card
+      with the tab's name and how to add entries. Edit mode draws the tables with their own empty rows instead.
+      Params: text (optional key, SR5.Redesign.EmptyTab by default). --}}
+<div class="items-section card empty-state">
+    <div class="list-item list-item-header">
+        <div class="list-item-start"><label>{{localize tab.label}}</label></div>
+    </div>
+    <p class="empty-hint">{{#if text}}{{localize text}}{{else}}{{localize "SR5.Redesign.EmptyTab"}}{{/if}}</p>
+</div>

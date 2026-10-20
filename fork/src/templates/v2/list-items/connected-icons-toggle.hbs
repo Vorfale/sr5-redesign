@@ -1,0 +1,6 @@
+{{!-- Font Awesome Free icons (the module has no Pro license) --~}}
+{{#if (hasConnectedIcons this)}}
+    <a data-action="toggleConnectedMatrixIcons" aria-expanded="{{#ifgt this.icons.length 0}}true{{else}}false{{/ifgt}}">
+        <i class="{{#ifgt this.icons.length 0}}fas fa-square-caret-down{{else}}fas fa-square-caret-right{{/ifgt}}"></i>
+    </a>
+{{/if}}

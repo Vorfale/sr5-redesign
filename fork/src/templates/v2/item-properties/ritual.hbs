@@ -1,0 +1,6 @@
+{{#unless (empty item.system.type)}}
+    <label data-prop="kind"><i class="prop-icon fas fa-hand-sparkles" aria-hidden="true"></i>{{localizeOb item.system.type @root.config.spellTypes}}</label>
+{{/unless}}
+{{#if item.system.descriptors}}
+    <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{item.system.descriptors}}</label>
+{{/if}}

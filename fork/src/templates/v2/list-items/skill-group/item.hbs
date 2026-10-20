@@ -1,0 +1,65 @@
+<div class="list-item-container {{#if (hasKey @root.expandedSkills group.item.id)}} expanded {{/if}}">
+    <div class="list-item {{#if (isOwner group.item owner=@root.actor)}} draggable {{/if}}"
+         data-source="{{group.item.system.description.source}}"
+         data-item-id="{{group.item.id}}"
+         data-uuid="{{group.item.uuid}}"
+         data-skill-id="{{group.item.id}}"
+            data-category="group"
+            data-context-menu="skill">
+        <div class="list-item-start" data-item-id="{{group.item.id}}">
+            <button class="list-item-image-container icon sr5-icon"
+                    type="button"
+                    data-uuid="{{group.item.uuid}}"
+                    data-tooltip="{{localize 'SR5.Labels.ActorSheet.TestKBoardModifiers' skip=@root.bindings.skip descr=@root.bindings.card}}"
+                    {{#if @root.isPlayMode}}
+                    data-action="rollItem"
+                    {{else}}
+                    data-action="editSkill"
+                    {{/if}}>
+                <img src="{{#if group.item.img}}{{group.item.img}}{{else}}systems/shadowrun5e/dist/icons/importer/action.svg{{/if}}"
+                     {{#if @root.isEditMode}}
+                         class="list-item-image-edit"
+                     {{else if (hasRoll group.item)}}
+                         class="list-item-image-roll"
+                     {{else}}
+                         class="list-item-image-info"
+                     {{/if}}
+                />
+            </button>
+            <a data-action="openSkillDescription">{{group.label}}</a>
+        </div>
+        <div class="list-item-col {{#if @root.isPlayMode}} skinny-col {{/if}}">
+            {{#if @root.isEditMode}}
+                {{#if @root.isSpirit}}
+                    <input type="checkbox"
+                           data-system-action="changeSkillRating"
+                           class="checkbox"
+                           {{checked (gt group.item.system.group.rating 0)}}>
+                {{else}}
+                    <input type="number" data-system-action="changeSkillRating" class="short skinny" value="{{group.item.system.group.rating}}">
+                {{/if}}
+            {{else}}
+                <label>{{group.displayRating}}</label>
+            {{/if}}
+        </div>
+        <div class="list-item-icons{{#if @root.isPlayMode}} skinny-icons {{/if}}" data-item-id="{{group.item.id}}">
+            {{#if @root.isEditMode}}
+                <a data-action="editSkill" data-tooltip="SR5.Edit">
+                    <i class="fas fa-pen-to-square"></i>
+                </a>
+                <a data-action="deleteItem" data-tooltip="SR5.DeleteSkill">
+                    <i class="fas fa-trash"></i>
+                </a>
+            {{/if}}
+        </div>
+    </div>
+    <div class="list-item-desc">
+        {{!-- the rating column again: the redesign sheet shows it beside the source link, which is all the line has --}}
+        <div class="list-item-properties">
+            <label class="prop-dup sr-redesign-only" data-prop="stat"><i class="prop-icon fas fa-signal" aria-hidden="true"></i>{{localize "SR5.Rating"}}&nbsp;{{group.displayRating}}</label>
+        </div>
+        <div class="description-body">
+            {{{objValue (objValue @root.expandedSkills group.item.id) 'html'}}}
+        </div>
+    </div>
+</div>

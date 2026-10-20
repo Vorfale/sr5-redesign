@@ -1,0 +1,7 @@
+{{!-- Collapses the left sidebar for the current tab.
+      Label, icon and aria-expanded are kept in sync by SR5CharacterSheetRedesign#applySidebarState. No data-tooltip: the
+      strip is as tall as the sidebar, so #wireCollapserTooltip shows the label next to the pointer instead. --}}
+<button type="button" class="sidebar-collapser" data-action="toggleSidebar" aria-expanded="true"
+        aria-label="{{localize 'JOURNAL.ViewCollapse'}}">
+    <i class="fas fa-caret-left" aria-hidden="true"></i>
+</button>

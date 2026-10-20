@@ -1,0 +1,507 @@
+import { SR5Actor } from "../../actor/SR5Actor";
+import { SR5 } from "../../config";
+import { Helpers } from "../../helpers";
+import { SR5Item } from "../../item/SR5Item";
+import { ModifiableValue } from "../../mods/ModifiableValue";
+import { SuccessTest, TestOptions } from "../SuccessTest";
+import { MatrixTest, MatrixTestData, OpposedMatrixTestData } from "../MatrixTest";
+import { MatrixRules } from "../../rules/MatrixRules";
+import { MatrixDefenseTest } from "../MatrixDefenseTest";
+import { MatrixResistTest, MatrixResistTestData } from "../MatrixResistTest";
+import { BiofeedbackResistTest } from "../BiofeedbackResistTest";
+import { OpposedMatrixTest } from '@/module/tests/OpposedMatrixTest';
+import { MatrixOpposedTargetFlow } from '@/module/tests/flows/MatrixOpposedTargetFlow';
+import Document = foundry.abstract.Document;
+
+/**
+ * Apply Matrix Rules to Success Test Data relating to matrix.
+ */
+export const MatrixTestDataFlow = {
+    addMatrixModifiers: function(test: SuccessTest) {
+        if (test.source instanceof SR5Item) return;
+        // do not add matrix modifier for resist tests
+        if (test.data.action.test === 'MatrixResistTest') return;
+        if (test.data.action.test === 'BiofeedbackResistTest') return;
+
+        MatrixTestDataFlow.removeMatrixModifiers(test);
+
+        const pool = new ModifiableValue(test.data.pool);
+        const action = test.data.action;
+        const actor = test.source;
+
+        if (!action) return;
+        if (!actor) return;
+
+        const directConnection = (test.data as MatrixTestData).directConnection ?? false;
+
+        if (action.attribute && MatrixTestDataFlow.isMatrixAttribute(action.attribute))
+            MatrixTestDataFlow.addMatrixModifiersToPool(actor, pool, true, directConnection);
+
+        if (action.attribute2 && MatrixTestDataFlow.isMatrixAttribute(action.attribute2))
+            MatrixTestDataFlow.addMatrixModifiersToPool(actor, pool, true, directConnection);
+
+        if (action.limit.attribute && MatrixTestDataFlow.isMatrixAttribute(action.limit.attribute))
+            MatrixTestDataFlow.addMatrixModifiersToPool(actor, pool, true, directConnection);
+    },
+
+    /**
+     * Is the given attribute id a matrix attribute
+     */
+    isMatrixAttribute(attribute: string): boolean {
+        return Object.hasOwn(SR5.matrixAttributes, attribute);
+    },
+
+    /**
+     * Remove matrix modifier values to the given modifier part
+     *
+     * @param test A Value.mod field as a PartsList
+     */
+    removeMatrixModifiers(test: SuccessTest) {
+        const pool = new ModifiableValue(test.data.pool);
+        ['SR5.HotSim', 'SR5.RunningSilent', 'SR5.PublicGrid'].forEach(part => pool.remove(part));
+    },
+
+    /**
+     *
+     * Will add modifiers based on actor data to test pool
+     */
+    addMatrixModifiersToPool(actor: SR5Actor, pool: ModifiableValue, atts: any, directConnection = false) {
+        if (Helpers.isMatrix(atts)) {
+            if (!("matrix" in actor.system)) return;
+
+            // Apply general matrix modifiers based on commlink/cyberdeck status.
+            const matrix = actor.system.matrix!;
+            if (matrix.hot_sim) pool.addUnique('SR5.HotSim', 2);
+            if (matrix.running_silent) pool.addUnique('SR5.RunningSilent', -2);
+
+            if (!directConnection && actor.network?.isPublicGrid()) {
+                pool.addUnique('SR5.PublicGrid', actor.getPublicGridModifier());
+            }
+        }
+    },
+
+    /**
+     * Add Matrix damage to a Test that is a Matrix Attack and will do extra damage based on the number of marks
+     */
+    addMatrixDamageForTargetMarks(test: SuccessTest) {
+        if (!test.opposed || !test.hasDamage) return;
+        if (!test.hasTestCategory('attack_matrix')) return;
+        const actor = test.actor;
+        if (!actor) return;
+
+        const icon = (test as MatrixTest).icon;
+
+        if (icon) {
+            // get the target's persona if the target itself is not an item
+            const targetItem = (icon instanceof SR5Item)
+                ? icon : icon instanceof SR5Actor ? icon.hasPersona
+                    ? icon.getMatrixDevice() : undefined : undefined;
+            if (targetItem) {
+                if (!targetItem.uuid) return;
+                const marks = actor.getMarksPlaced(targetItem.uuid);
+                if (marks > 0) {
+                    // add damage per mark on the target item
+                    ModifiableValue.addUnique(
+                        test.data.damage, "SR5.Marks",
+                        marks * (targetItem.actor?.getExtraMarkDamageModifier() ?? MatrixRules.getExtraMarkDamageModifier())
+                    );
+                    test.data.damage.value = ModifiableValue.calcTotal(test.data.damage, { min: 0 })
+                }
+                // if there wasn't a matrix device, see if we have marks placed on the actor itself
+            } else if (icon instanceof SR5Actor) {
+                if (!icon.uuid) return;
+                const marks = actor.getMarksPlaced(icon.uuid);
+                if (marks > 0) {
+                    // add damage per mark on the target item
+                    ModifiableValue.addUnique(
+                        test.data.damage, "SR5.Marks", marks * icon.getExtraMarkDamageModifier()
+                    );
+                    test.data.damage.value = ModifiableValue.calcTotal(test.data.damage, { min: 0 })
+                }
+            }
+        }
+    },
+
+    /**
+     * Prepare data for Resisting matrix damage
+     */
+    _prepareDataResist<D extends MatrixResistTestData>(data: D): D {
+        // Allow for token targeting to be used to target the main icon.
+        if (!data.iconUuid) data.iconUuid = data.targetUuids.length === 1 ? data.targetUuids[0] : undefined;
+
+        data.personaUuid = data.personaUuid ?? undefined;
+        data.iconUuid = data.iconUuid ?? undefined;
+
+        return data;
+    },
+
+    /**
+     * Prepare data for the initial mark placement test.
+     */
+    _prepareData<D extends MatrixTestData>(data: D): D {
+        // Allow for token targeting to be used to target the main icon.
+        if (!data.iconUuid) data.iconUuid = data.targetUuids.length === 1 ? data.targetUuids[0] : undefined;
+
+        // Assume decker and target reside on the same Grid
+        data.sameGrid = data.sameGrid ?? true;
+        data.sameGridDisabled = data.sameGridDisabled ?? false;
+        // Assume no direct connection
+        data.directConnection = data.directConnection ?? false;
+        data.personaUuid = data.personaUuid ?? undefined;
+        data.iconUuid = data.iconUuid ?? undefined;
+        // assume we are targeting the persona
+        data.targetMainIcon = data.targetMainIcon ?? true;
+
+        return data;
+    },
+
+    /**
+     * Prepare data for the opposing mark placement test.
+     */
+    _prepareOpposedData<D extends OpposedMatrixTestData>(data: D): D {
+        data.personaUuid = data.personaUuid ?? data.against.personaUuid;
+        data.iconUuid = data.iconUuid ?? data.against.iconUuid;
+        data.targetMainIcon = data.targetMainIcon ?? data.against.targetMainIcon;
+        data.directConnection = data.directConnection ?? data.against.directConnection;
+        return data;
+    },
+
+    /**
+     * Prepare data for matrix resist data from following test data
+     */
+    _prepareFollowingData<D extends MatrixResistTestData>(data: D): D {
+        data.personaUuid = data.personaUuid ?? data.following?.personaUuid;
+        data.iconUuid = data.iconUuid ?? data.following?.iconUuid;
+        return data;
+    },
+
+    /**
+     * Prepare all test modifiers for the mark placement test based on user selection.
+     *
+     * @param test The initial test to modify.
+     */
+    prepareTestModifiers(test: MatrixTest) {
+
+        const pool = new ModifiableValue(test.data.pool);
+        const { sameGrid, directConnection } = test.data;
+
+        // 1. Grid Penalty: Applies if NOT directly connected AND on a different grid
+        if (!directConnection && !sameGrid)
+            pool.addUnique('SR5.ModifierTypes.DifferentGrid', MatrixRules.differentGridModifier());
+        else
+            pool.remove('SR5.ModifierTypes.DifferentGrid');
+
+        // 2. Noise Penalty: Applies if NOT directly connected
+        if (!directConnection)
+            pool.setUnique('SR5.ModifierTypes.Noise', test.actor.modifiers.totalFor('noise'));
+    },
+
+    /**
+     * Prepare test values for a mark placement test.
+     *
+     * @param test The test placing any mark.
+     */
+    prepareTestValues(test: MatrixTest) {
+        // Host devices always use direct connections. See SR5#233 'PANS and WANS'
+        if (test.host) test.data.directConnection = true;
+        // If a device has been pre-targeted before dialog, show this on the first render.
+        if (test.icon instanceof SR5Item && !test.icon.isType('host')) test.data.targetMainIcon = false;
+        // Grid items don´t show any devices for now.
+        if (test.icon instanceof SR5Item && test.icon.isType('grid')) test.data.targetMainIcon = true;
+        // Cross grid placement between source and target.
+        if (test.source instanceof SR5Actor && test.icon instanceof SR5Actor) MatrixTestDataFlow._crossGridConnectionForActors(test);
+        if (test.source instanceof SR5Actor && test.icon instanceof SR5Item) MatrixTestDataFlow._crossGridConnectionForActorAndItem(test);
+    },
+
+    /**
+     * Compare actor grid networks.
+     * @param test The test placing any mark.
+     */
+    _crossGridConnectionForActors(test: MatrixTest) {
+        const sourceActor = test.source as SR5Actor;
+        const sourceNetwork = sourceActor.network;
+        if (!sourceNetwork?.isType('grid')) return;
+
+        const targetActor = test.icon as SR5Actor;
+        const targetNetwork = targetActor.network;
+        if (!targetNetwork?.isType('grid')) return;
+
+        // Auto set and fix the same grid. Disallow users from changing it.
+        // Currently this is reset on each test change, so user changes can't be made.
+        test.data.sameGrid = sourceNetwork.uuid === targetNetwork.uuid;
+        test.data.sameGridDisabled = true;
+    },
+
+    /**
+     * Compare actor and item grid networks.
+     * @param test The test placing any mark.
+     */
+    _crossGridConnectionForActorAndItem(test: MatrixTest) {
+        const sourceActor = test.source as SR5Actor;
+        const sourceNetwork = sourceActor.network;
+        if (!sourceNetwork?.isType('grid')) return;
+
+        const targetActor = test.icon as SR5Actor;
+        const targetNetwork = targetActor.master;
+        if (!targetNetwork?.isType('grid')) return;
+
+        // Auto set and fix the same grid. Disallow users from changing it.
+        // Currently this is reset on each test change, so user changes can't be made.
+        test.data.sameGrid = sourceNetwork.uuid === targetNetwork.uuid;
+        test.data.sameGridDisabled = true;
+    },
+
+    /**
+     * Prepare icon and persona based on given uuid or user selection.
+     */
+    populateDocuments(test: MatrixTest) {
+        // Handle icons around targeting.
+        MatrixTestDataFlow._prepareIcon(test);
+        MatrixTestDataFlow._prepareTokenTargetIcon(test);
+
+        // Target is a persona or a persona device.
+        MatrixTestDataFlow._prepareActorDevices(test);
+
+        // Target is a host or a host device.
+        MatrixTestDataFlow._prepareHostDevices(test);
+
+        // Target is a device on a network.
+        MatrixTestDataFlow._prepareNetworkDevice(test);
+    },
+
+    /**
+     * Prepare icon and persona within a an opposing test context.
+     *
+     * The icon targeted by initial mark placement is either a persona or a device.
+     * Devices might be related to a persona, in which case a persona will be present.
+     * @param test The test to populate with documents.
+     */
+    async populateResistDocuments(test: MatrixResistTest | BiofeedbackResistTest) {
+        if (test.data.iconUuid) {
+            test.icon = await fromUuid(test.data.iconUuid) as SR5Item;
+        }
+        if (test.data.personaUuid) {
+            test.persona = await fromUuid(test.data.personaUuid) as SR5Actor;
+        }
+        if (test.icon instanceof SR5Item) {
+            test.device = test.icon;
+        }
+    },
+
+    /**
+     * Prepare icon and persona within a an opposing test context.
+     *
+     * The icon targeted by initial mark placement is either a persona or a device.
+     * Devices might be related to a persona, in which case a persona will be present.
+     * @param test The test to populate with documents.
+     */
+    async populateOpposedDocuments(test: MatrixDefenseTest | OpposedMatrixTest) {
+        if (test.against?.data.iconUuid) {
+            test.icon = await fromUuid(test.against.data.iconUuid) as SR5Item;
+        }
+        if (test.against?.data.personaUuid) {
+            test.persona = await fromUuid(test.against.data.personaUuid) as SR5Actor;
+        }
+        if (test.icon instanceof SR5Item) {
+            test.device = test.icon;
+        }
+    },
+
+    /**
+     * Prepare Icon and Persona for this test based on data.
+     */
+    _prepareIcon(test: MatrixTest) {
+        // When given an icon uuid, load it.
+        if (!test.data.iconUuid) return;
+        test.icon = fromUuidSync(test.data.iconUuid) as SR5Item | SR5Actor;
+
+        // Depending on icon type, categorize targets for display and device selection.
+        if (test.icon instanceof SR5Actor) {
+            test.data.personaUuid = test.icon.uuid ?? undefined;
+        }
+
+        // Store network type icons for easy access.
+        if (test.icon instanceof SR5Item && test.icon.isType('host')) test.host = test.icon;
+        if (test.icon instanceof SR5Item && test.icon.isType('grid')) test.grid = test.icon;
+
+        // When given a persona uuid, load it.
+        if (test.data.personaUuid) test.persona = fromUuidSync(test.data.personaUuid) as SR5Actor;
+
+        // If a device icon is targeted, it might be part of another main icon (persona / network)
+        // Make sure to display icon target as sub-icon of this main icon.
+        if (test.icon instanceof SR5Item && !test.persona && !test.host && !test.grid) {
+            const persona = test.icon.persona;
+            if (persona) {
+                // ... persona
+                test.data.personaUuid = persona.uuid ?? undefined;
+            } else {
+                // ... network
+                const master = test.icon.master;
+                if (!master) return;
+                if (master.isType('host')) test.host = master;
+                if (master.isType('grid')) test.grid = master;
+            }
+        }
+    },
+
+    /**
+     * Prepare a icon based on token targeting.
+     */
+    _prepareTokenTargetIcon(test: MatrixTest) {
+        // If a persona has been loaded via uuid already, don't determine it anymore via token targeting.
+        if (test.persona || !test.hasTargets) return;
+        if (test.targets.length !== 1) {
+            console.error('Shadowrun 5e | Multiple targets for mark placement', test.targets);
+            return;
+        }
+
+        // taM check this
+        const target = test.targets[0] as TokenDocument;
+        const actor = target.actor!;
+
+        test.persona = actor;
+        // Retrieve the target icon document.
+        test.icon = actor.hasDevicePersona() ?
+            actor.getMatrixDevice() as SR5Item :
+            actor;
+
+        test.data.iconUuid = test.icon.uuid ?? undefined;
+        test.data.personaUuid = test.persona.uuid ?? undefined;
+    },
+
+    /**
+     * Retrieve all devices connected with the persona actor.
+     */
+    _prepareActorDevices(test: MatrixTest) {
+        test.devices = [];
+        if (!test.persona) return;
+        if (!test.persona.isType('character', 'vehicle')) return;
+
+        // Collect network devices
+        test.devices = test.persona.wirelessDevices();
+    },
+
+    /**
+     * Retrieve all devices connected to the host.
+     */
+    _prepareHostDevices(test: MatrixTest) {
+        if (!(test.icon instanceof SR5Item)) return;
+        const host = test.icon.asType('host');
+        if (!host) return;
+
+        // Whatever is connected to a host, is always 'wireless'.
+        test.devices = host.system.slaves.map(uuid => fromUuidSync(uuid) as SR5Item);
+    },
+
+    /**
+     * Prepare single device target on network.
+     * 
+     * Have the matrix dialog behave the same as when a persona or host is targeted and 
+     * is switched to non-main target icon.
+     */
+    _prepareNetworkDevice(test: MatrixTest) {
+        if (!(test.icon instanceof SR5Item)) return;
+        if (!test.icon.canBeSlave) return;
+
+        // As a single device was pre-targeted by matrix icon list,
+        // it's unlikely the user wants to select another device.
+        // Therefore, we limit the list to the target only.
+        test.devices = [test.icon];
+    },
+
+    /**
+     * Retrieve all started IC connected to the host.
+     */
+    _prepareHostIC(test: MatrixTest) {
+        if (test.icon instanceof SR5Actor) return;
+        const host = test.icon.asType('host');
+        if (!host) return;
+
+        // Whatever is connected to a host, is always 'wireless'.
+        test.ic = host.system.ic.map(uuid => fromUuidSync(uuid) as SR5Actor);
+    },
+
+    /**
+     * TestDialog has issues when show / hiding elements, here the iconUuid device selection, with cleaning up data set
+     * by previous render cycles.
+     *
+     * Here:
+     * - First place mark on main icon
+     * - Then select a device to place the mark on
+     * - Reverse and place mark on main icon again
+     * - iconUuid is still set to the device, as the render flow of the TestDialog doesn't clean up the data set by the
+     */
+    async setIconUuidBasedOnPlacementSelection(test: MatrixTest) {
+        // Assure main icon selection is set as the target icon.
+        if (test.data.targetMainIcon) test.data.iconUuid = this._getMainIconUuid(test);
+        // Document might have changed in between initial preparation and dialog selections.
+        test.icon = fromUuidSync(test.data.iconUuid) as SR5Item | SR5Actor;
+    },
+
+    /**
+     * Based on targeted main icon type, return the uuid of the main icon.
+     */
+    _getMainIconUuid(test: MatrixTest): string | undefined {
+        if (test.persona) return test.persona.uuid ?? undefined;
+        if (test.host) return test.host.uuid ?? undefined;
+        if (test.grid) return test.grid.uuid ?? undefined;
+        return undefined;
+    },
+
+    /**
+     * Provide easy way to set a target for mark placement tests.
+     */
+    async addTarget(test: MatrixTest, document: SR5Actor | SR5Item) {
+        if (test.targets.length > 1) {
+            console.error(`Shadowrun 5e | ${this.constructor.name} only supports a single target`);
+            return;
+        }
+
+        if (!document.uuid) return;
+
+        test.data.iconUuid = document.uuid;
+        await test.populateDocuments();
+    },
+
+    /**
+     * Handle target selection flow for matrix mark placement actions.
+     *
+     * NOTE: This method is bound to the calling class and should be called after .bind(s.this) by the caller.
+     */
+    async executeMessageAction(testCls: typeof SuccessTest, againstData: MatrixTestData, messageId: string, options: Partial<TestOptions>): Promise<void> {
+        let document: SR5Actor | SR5Item | null = null;
+        const caster = againstData.sourceActorUuid
+            ? await fromUuid<SR5Actor>(againstData.sourceActorUuid)
+            : null;
+
+        // CASE A) Resolve targeted document by targeted icon.
+        if (againstData.iconUuid) {
+            document = await fromUuid(againstData.iconUuid);
+        }
+
+        // CASE B) Resolve targeted document by creation one on the fly.
+        if (!document && !againstData.iconUuid) {
+            document = await MatrixOpposedTargetFlow.createTemporaryDocument(caster ?? undefined);
+            if (document) againstData.iconUuid = document.uuid ?? undefined;
+        }
+
+        // CASE C) Resolve targeted document by whatever is selected.
+        if (!document) {
+            const actor = Helpers.getSelectedActorsOrCharacter()[0];
+            document = actor;
+            againstData.iconUuid = actor?.uuid ?? undefined;
+        }
+        if (!document) {
+            document = game.user.character;
+            againstData.iconUuid = game.user.character?.uuid ?? undefined;
+        }
+        if (!document) return;
+
+        const data = await testCls._getOpposedActionTestData(againstData, document, messageId);
+        if (!data) return;
+
+        const test = new testCls(data, { source: document }, options);
+
+        await test.execute();
+    },
+}

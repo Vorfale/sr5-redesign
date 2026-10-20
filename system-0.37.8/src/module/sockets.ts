@@ -1,0 +1,46 @@
+import { SYSTEM_SOCKET } from "./constants";
+import SocketMessageBody = Shadowrun.SocketMessageData;
+
+/**
+ * Simple handling of creating and emitting socket messages
+ * Use emit for messages meant for all users
+ * > SocketMessage.emit(FLAGS.<yourFlag>, {yourDataField: 'yourData'})
+ *
+ * Use emitForGM for messages meant only for ONE gm
+ * > SocketMessage.emitGM(FLAGS.<yourFlag>, {yourDataField: 'yourData'})
+ * 
+ * To listen to these socket messages see Hooks#registerSocketListeners
+ */
+export class SocketMessage {
+    static _createMessage(type: string, data: any, userId?: string): SocketMessageBody {
+        return { type, data, userId };
+    }
+
+    static emit(type: string, data: any) {
+        if (!game.socket) return;
+
+        const message = SocketMessage._createMessage(type, data);
+        console.trace('Shadowrun 5e | Emitting Shadowrun5e system socket message', message);
+        game.socket.emit(SYSTEM_SOCKET, message);
+    }
+
+    /**
+     * Execute this message in the context of an active GM user.
+     * This will be assured before the registered handleres are executed in a pre-call check.
+     * Only the GM user matching the id given in the message will receive the message.
+     */
+    static emitForGM(type: string, data: any) {
+        if (!game.socket || !game.user || !game.users) return;
+        if (game.user.isGM) return console.error('Active user is GM! Aborting socket message...');
+
+        const gmUser = game.users.find(user => user.active && user.isGM);
+        if (!gmUser) {
+            ui.notifications.error('There is no active GM user to perform this action. Please ask your GM to logon.');
+            throw new Error('Shadowrun 5e | No active GM user found.');
+        }
+
+        const message = SocketMessage._createMessage(type, data, gmUser.id);
+        console.trace('Shadowrun 5e | Emitting Shadowrun5e system socket message', message);
+        game.socket.emit(SYSTEM_SOCKET, message);
+    }
+}

@@ -1,0 +1,47 @@
+# Builds the module on every push and pull request (the result is the run's artifact). A tag v<version> matching
+# package.json also drafts a GitHub release with module.json and module.zip; the draft is published by hand.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build the module
+        run: npm run build
+        env:
+          SR5_REPO: ${{ github.repository }}
+      - name: Package
+        run: |
+          cp dist/sr5-redesign/module.json dist/module.json
+          (cd dist/sr5-redesign && zip -qr ../module.zip . -x '.DS_Store')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sr5-redesign
+          path: |
+            dist/module.json
+            dist/module.zip
+      - name: Draft the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          [ "$GITHUB_REF_NAME" = "v$version" ] || { echo "tag $GITHUB_REF_NAME does not match package.json $version"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" dist/module.json dist/module.zip --draft \
+            --title "SR5 Redesign $version" --notes "Changes: CHANGELOG.md"

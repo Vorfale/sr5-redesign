@@ -1,0 +1,65 @@
+import { SR5 } from "@/module/config";
+import { MatrixLimits } from "../template/Limits";
+import { Initiative } from "../template/Initiative";
+import { Tracks } from "../template/ConditionMonitors";
+import { VisibilityChecks } from "../template/Visibility";
+import { MatrixAttributes, MatrixData } from "../template/Matrix";
+import { ActorBase, CommonData, CreateModifiers } from "./Common";
+import { Attributes, MatrixActorAttributes } from '../template/Attributes';
+const { SchemaField, NumberField, StringField } = foundry.data.fields;
+
+// === Main Schema ===
+const ICData = () => ({
+    // === Core Identity ===
+    ...CommonData(),
+    icType: new StringField({
+        required: true,
+        initial:'patrol',
+        choices: SR5.icTypes,
+    }),
+    special: new StringField({ required: true, initial: 'mundane', choices: ['mundane'], readonly: true }),
+
+    // === Matrix & Host ===
+    matrix: new SchemaField(MatrixData()),
+    host: new SchemaField({
+        rating: new NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 }),
+        atts: new SchemaField(MatrixAttributes(false)),
+    }),
+
+    // === Attributes ===
+    attributes: new SchemaField({
+        ...Attributes(),
+        ...MatrixActorAttributes(),
+    }),
+    limits: new SchemaField(MatrixLimits()),
+
+    // === Condition & Monitoring ===
+    track: new SchemaField(Tracks('matrix')),
+    initiative: new SchemaField(Initiative({
+        matrix: { attributeA: 'rating', attributeB: 'rating', constant: 0, dice: 4 },
+    })),
+    visibilityChecks: new SchemaField(VisibilityChecks('matrix')),
+
+    // === Modifiers ===
+    modifiers: new SchemaField(CreateModifiers(
+        "defense",
+        "defense_dodge",
+        "defense_block",
+        "defense_parry",
+        "defense_melee",
+        "defense_ranged",
+        "soak",
+        "matrix_track",
+        'mark_damage',
+        "global"
+    )),
+});
+
+export class IC extends ActorBase<ReturnType<typeof ICData>> {
+    static override defineSchema() {
+        return ICData();
+    }
+    static override LOCALIZATION_PREFIXES = ["SR5.IC", "SR5.Actor"];
+}
+
+console.log("ICData", ICData(), new IC());

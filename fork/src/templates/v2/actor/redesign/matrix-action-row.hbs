@@ -1,0 +1,47 @@
+{{!-- One matrix action row: the upstream list-items/action/item.hbs with the sort values on the container
+      (data-sort-*, see SR5CharacterSheetRedesign#applySkillSort). Expects 'item' (the action), 'name' (localized) and
+      'sortMarks' / 'sortType' (numbers). --}}
+{{#if (or @root.isEditMode (isVisible item))}}
+<div class="list-item-container {{#if (hasKey @root.expandedUuids item.uuid)}} expanded {{/if}}"
+     data-sort-name="{{name}}" data-sort-marks="{{sortMarks}}" data-sort-type="{{sortType}}">
+    <div class="list-item {{#if (isOwner item owner=@root.actor)}} draggable {{/if}}"
+         data-source="{{item.system.description.source}}"
+         data-item-id="{{item.id}}"
+         data-context-menu="item"
+         data-uuid="{{item.uuid}}">
+        <div class="list-item-start">
+            {{> "systems/shadowrun5e/dist/templates/v2/list-items/item-roll-image.hbs" item }}
+            {{> "systems/shadowrun5e/dist/templates/v2/common/import-flag.hbs" item }}
+            {{> "systems/shadowrun5e/dist/templates/v2/list-items/item-name.hbs" item name=name }}
+        </div>
+
+        <div class="list-item-col">
+            <label>{{marksRequired item}}</label>
+        </div>
+
+        <div class="list-item-col">
+            <label>{{localizeOb item.system.action.type @root.config.actionTypes}}</label>
+        </div>
+
+        <div class="list-item-icons {{#if @root.isPlayMode}} skinny-icons {{/if}}">
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/open-source-icon.hbs' item }}
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/favorite-icon.hbs' item }}
+            {{#if (isOwner item owner=@root.actor)}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/list-items/edit-delete-icons.hbs' item }}
+            {{else}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/list-items/toggle-visible-icon.hbs' item }}
+            {{/if}}
+        </div>
+    </div>
+    <div class="list-item-desc">
+        <div class="list-item-properties">
+            {{!-- the Marks column again, for an action whose line would hold only its source (#arrangeProperties) --}}
+            <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localize "SR5.Marks"}}&nbsp;{{marksRequired item}}</label>
+            {{> 'systems/shadowrun5e/dist/templates/v2/item-properties/action.hbs' item=item }}
+        </div>
+        <div class="description-body">
+            {{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}
+        </div>
+    </div>
+</div>
+{{/if}}

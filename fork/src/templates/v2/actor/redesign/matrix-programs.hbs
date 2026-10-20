@@ -1,0 +1,18 @@
+{{!-- programs (after tabs/matrix/programs.hbs) with a note when the list is empty that says why,
+      by the Shadowrun rules and the way the system fills the list. --}}
+<section class="tab hide-overflow{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    <div class="fill-container">
+        {{> 'systems/shadowrun5e/dist/templates/v2/list-items/program/header.hbs'
+            cssClass="header-for-scrollable"
+            label='SR5.Programs'
+            type='program' }}
+        <div id="programs-scroll" class="scrollable">
+        {{#each itemType.program}}
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/program/item.hbs' item=this }}
+        {{else}}
+            {{!-- empty: why, by Shadowrun rules and the way the system fills this list --}}
+            <p class="empty-note matrix-empty">{{localize "SR5.Redesign.MatrixEmpty.programs"}}</p>
+        {{/each}}
+        </div>
+    </div>
+</section>

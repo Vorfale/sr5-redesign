@@ -1,0 +1,53 @@
+<div class="fill-container">
+    <div class="list-item">
+        <div class="list-item-start">
+            <label>{{localize "SR5.StreetCred"}}</label>
+        </div>
+        <div class="list-item-col">
+            <button type="button" class="mod-step" name="step-reduce-street_cred" data-action="reduce" data-type="street_cred">−1</button>
+            &nbsp;
+            <input class="short midd center mod-input" type="number" name="incoming-street-cred" value={{streetCredModifier}} aria-label="{{localize 'SR5.StreetCred'}}" />
+            &nbsp;
+            <button type="button" class="mod-step" name="step-increase-street_cred" data-action="increase" data-type="street_cred">+1</button>
+        </div>
+        <div class="list-item-col">
+            <label class="label {{#if (gt streetCredModifier 0)}} positive {{else if (lt streetCredModifier 0)}} negative {{/if}}">
+                {{streetCred}}
+            </label>
+        </div>
+    </div>
+    <div class="list-item">
+        <div class="list-item-start">
+            <label>{{localize "SR5.Notoriety"}}</label>
+        </div>
+        <div class="list-item-col">
+            <button type="button" class="mod-step" name="step-reduce-notoriety" data-action="reduce" data-type="notoriety">−1</button>
+            &nbsp;
+            <input class="short midd center mod-input" type="number" name="incoming-notoriety" value={{notorietyModifier}} aria-label="{{localize 'SR5.Notoriety'}}" />
+            &nbsp;
+            <button type="button" class="mod-step" name="step-increase-notoriety" data-action="increase" data-type="notoriety">+1</button>
+        </div>
+        <div class="list-item-col">
+            <label class="label {{#if (gt notorietyModifier 0)}} positive {{else if (lt notorietyModifier 0)}} negative {{/if}}">
+                {{notoriety}}
+            </label>
+        </div>
+    </div>
+    <div class="list-item">
+        <div class="list-item-start">
+            <label>{{localize "SR5.PublicAwareness"}}</label>
+        </div>
+        <div class="list-item-col">
+            <button type="button" class="mod-step" name="step-reduce-public_awareness" data-action="reduce" data-type="public_awareness">−1</button>
+            &nbsp;
+            <input class="short midd center mod-input" type="number" name="incoming-public-awareness" value={{publicAwarenessModifier}} aria-label="{{localize 'SR5.PublicAwareness'}}" />
+            &nbsp;
+            <button type="button" class="mod-step" name="step-increase-public_awareness" data-action="increase" data-type="public_awareness">+1</button>
+        </div>
+        <div class="list-item-col">
+            <label class="label {{#if (gt publicAwarenessModifier 0)}} positive {{else if (lt publicAwarenessModifier 0)}} negative {{/if}}">
+                {{publicAwareness}}
+            </label>
+        </div>
+    </div>
+</div>

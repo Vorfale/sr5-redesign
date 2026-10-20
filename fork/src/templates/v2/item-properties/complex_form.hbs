@@ -1,0 +1,8 @@
+{{#unless (empty item.system.target)}}
+    <label class="prop-dup" data-prop="kind"><i class="prop-icon fas fa-bullseye" aria-hidden="true"></i>{{localizeOb item.system.target @root.config.matrixTargets}}</label>
+{{/unless}}
+{{#if item.system.duration}}
+    <label class="prop-dup" data-prop="time"><i class="prop-icon fas fa-hourglass-half" aria-hidden="true"></i>{{localizeOb item.system.duration @root.config.complexForm.durations}}</label>
+{{/if}}
+{{!-- as the row's Fade column: 'Fade L − 2' --}}
+<label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-droplet" aria-hidden="true"></i>{{localize "SR5.Fade"}}&nbsp;{{forceValue (localize "SR5.Redesign.Tooltip.Abbr.level") item.system.fade}}</label>

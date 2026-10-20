@@ -1,0 +1,48 @@
+{{!-- Languages and knowledge skills with pools, after parts/language-and-knowledge-skills.hbs. Play mode leaves the
+      empty lists out; edit mode draws all of them, an empty one with its empty row. --}}
+{{#*inline "skillHeader"}}
+<div class="list-item list-item-header skill-table-header" data-sort-table="knowledge">
+    <div class="list-item-start" role="columnheader">
+        <button type="button" class="unbutton sort-button" data-action="sortSkills" data-sort="name">
+            <h3>{{label}}</h3>
+        </button>
+    </div>
+    <div class="list-item-col attr-col" aria-hidden="true">{{localize "SR5.Redesign.AttrColumn"}}</div>
+    <div class="list-item-col rtg-col" role="columnheader">
+        <button type="button" class="unbutton sort-button numeric" data-action="sortSkills" data-sort="rtg">
+            <span>{{localize "SR5.Rtg"}}</span>
+        </button>
+    </div>
+    <div class="list-item-col pool-col" role="columnheader">
+        <button type="button" class="unbutton sort-button numeric" data-action="sortSkills" data-sort="pool">
+            <span>{{localize "SR5.Redesign.Pool"}}</span>
+        </button>
+    </div>
+    <div class="list-item-icons">
+        {{#if @root.isEditMode}}
+            {{> "systems/shadowrun5e/dist/templates/v2/list-items/add-icon.hbs"
+                action='addItem' tooltip="SR5.Add" type='skill' data=(skillAddItemData category knowledgeType) }}
+        {{/if}}
+    </div>
+</div>
+{{/inline}}
+<div id="language-knowledge-skills-scrollable" class="scrollable skill-table">
+    {{#if (or @root.isEditMode (not (empty system.skills.language)))}}
+    {{> skillHeader label=(localize "SR5.Languages") category='language'}}
+    {{#each system.skills.language as |skill|}}
+        {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/skill-row.hbs' skill=skill category='language' pool=(lookup @root.skillPools skill.id) }}
+    {{else}}
+        {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}
+    {{/each}}
+    {{/if}}
+    {{#each system.skills.knowledge as |skills knowledgeType|}}
+        {{#if (or @root.isEditMode (not (empty skills)))}}
+            {{> skillHeader label=(localizeOb knowledgeType @root.config.knowledgeSkillCategories) category='knowledge' knowledgeType=knowledgeType}}
+            {{#each skills as |skill|}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/skill-row.hbs' skill=skill category='knowledge' subcategory=knowledgeType pool=(lookup @root.skillPools skill.id) }}
+            {{else}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}
+            {{/each}}
+        {{/if}}
+    {{/each}}
+</div>

@@ -1,0 +1,42 @@
+// The changes lab/sheet-redesign made to the system's own stylesheets (list-item.scss, context-menu.scss,
+// actor-apps.scss, bundle-v2.scss), which the module cannot patch in the release: the same rules, under the same
+// selectors, so they land on the release's elements.
+
+.sr5v2 .list-item {
+    // where a dragged favorite or item row lands (sheet-base shim: drops anywhere on the favorites row)
+    .list-item-image-container.favorite-drop-before { box-shadow: -3px 0 0 var(--sr5v2-control-border-hover); }
+    &.list-item-favorites {
+        &.favorite-drop-target { outline: 1px dashed var(--sr5v2-control-border-hover); outline-offset: -1px; }
+        &.favorite-drop-end .favorite:last-of-type { box-shadow: 3px 0 0 var(--sr5v2-control-border-hover); }
+    }
+}
+
+// shown under the pointer, and to the keyboard: a focused button that stays invisible is lost (WCAG 2.4.7)
+.sr5v2 .hover-show-button-container:focus-within .hover-show-button { opacity: 1; }
+
+// keyboard use of the row menus (RedesignRowMenu): the focused entry is marked like the hovered one, plus a ring
+nav#context-menu li, menu.controls-dropdown li {
+    &:focus-visible {
+        color: var(--sr5-context-hover-text);
+        background: var(--sr5-context-hover-bg);
+        outline: 2px solid currentColor;
+        outline-offset: -2px;
+    }
+}
+
+// the +/- steps of the karma, nuyen and reputation managers are buttons (reachable with Tab), drawn like the links they were
+.sr5v2:is(.karma-manager, .nuyen-manager, .reputation-manager) button.mod-step {
+    width: auto;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
+    font: inherit;
+    line-height: inherit;
+    color: inherit;
+    cursor: pointer;
+    &:hover { text-shadow: 0 0 8px var(--color-shadow-primary); }
+}

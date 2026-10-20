@@ -1,0 +1,54 @@
+{{!-- Actions tab: the action list in a card, like every other table of the sheet, or a card per kind of action
+      when the grouping button by the search groups them (SR5CharacterSheetRedesign#actionGroups). --}}
+<section class="tab sr-actions{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{!-- edit mode: a new group of the player's own, by the title (as the inventory tab's new inventory) --}}
+    {{#if @root.isEditMode}}
+    {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+        <button type="button" class="unbutton" data-action="addActionGroup" data-tooltip="SR5.Redesign.ActionGroups.AddTitle"
+                aria-label="{{localize 'SR5.Redesign.ActionGroups.AddTitle'}}"><i class="fas fa-plus" aria-hidden="true"></i></button>
+    {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs'}}
+    {{else}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+    {{/if}}
+    {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
+    {{#if actionGroups}}
+        {{!-- a card per group: the kinds, then the player's own groups; collapsible from the header like the
+              inventory's cards (the same toggleExpanded state). Edit mode: every card, empty ones too, each with Add
+              (a new action in that group); an own group also renames and removes --}}
+        {{#each actionGroups as |group|}}
+        <div class="items-section card action-group{{#if group.own}} own-group{{/if}}{{#unless (or group.isOpen @root.isEditMode)}} collapsed{{/unless}}" data-type="{{group.type}}">
+            <div class="list-item list-item-header{{#if @root.isPlayMode}} collapsible-header{{/if}}"
+                 data-item-type="{{group.type}}"{{#if @root.isPlayMode}} data-action="toggleExpanded"{{/if}}>
+                <div class="list-item-start"><label>{{group.label}}</label></div>
+                <div class="list-item-col"></div>
+                <div class="list-item-col"><label>{{localize "SR5.ActionType.Label"}}</label></div>
+                <div class="list-item-icons {{#if @root.isPlayMode}} skinny-icons {{/if}}">
+                    {{#if @root.isEditMode}}
+                        {{#if group.own}}
+                            <a data-action="renameActionGroup" data-group="{{group.key}}" data-tooltip="SR5.Redesign.ActionGroups.RenameTitle"
+                               aria-label="{{localize 'SR5.Redesign.ActionGroups.RenameTitle'}}"><i class="fas fa-pen-to-square" aria-hidden="true"></i></a>
+                            <a data-action="removeActionGroup" data-group="{{group.key}}" data-tooltip="SR5.Redesign.ActionGroups.RemoveTitle"
+                               aria-label="{{localize 'SR5.Redesign.ActionGroups.RemoveTitle'}}"><i class="fas fa-trash" aria-hidden="true"></i></a>
+                        {{/if}}
+                        <a data-action="addGroupAction" data-group="{{group.key}}" data-tooltip="{{localize 'SR5.Redesign.ActionGroups.AddAction' group=group.label}}">
+                            {{localize "SR5.Add"}}&nbsp;<i class="fas fa-plus"></i></a>
+                    {{/if}}
+                    {{> "systems/shadowrun5e/dist/templates/v2/list-items/toggle-expand-icon.hbs" isOpen=group.isOpen type=group.type }}
+                </div>
+            </div>
+            {{#each group.actions}}
+                {{> 'systems/shadowrun5e/dist/templates/v2/list-items/action/item.hbs' item=this.action name=this.name }}
+            {{else}}
+                <div class="action-group-empty">{{localize "SR5.Redesign.ActionGroups.Empty"}}</div>
+            {{/each}}
+        </div>
+        {{/each}}
+    {{else}}
+    <div class="items-section card" data-type="action">
+        {{> 'systems/shadowrun5e/dist/templates/v2/list-items/action/header.hbs' label='SR5.Actions' type='action' }}
+        {{#each actions}}
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/action/item.hbs' item=this.action name=this.name }}
+        {{/each}}
+    </div>
+    {{/if}}
+</section>

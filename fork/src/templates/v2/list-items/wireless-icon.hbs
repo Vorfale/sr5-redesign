@@ -1,0 +1,25 @@
+{{!-- Font Awesome Free icons (the module has no Pro license): running silent and wireless off draw fa-wifi dimmed and
+     struck through (.sr5-icon-dim / .sr5-icon-strike in actor-redesign.scss) --~}}
+{{#if @root.isPlayMode}}
+    {{#if (canBeWireless this)}}
+        {{#if (isBroken this)}}
+            <a data-tooltip="SR5.Broken"
+               data-action="repairBrokenItem">
+                <i class="fas fa-link-slash"></i>
+            </a>
+        {{else}}
+            <a data-tooltip="SR5.Tooltips.Actor.MatrixRunningSilentToggle"
+                data-action="toggleItemWireless">
+                <i
+            {{#if (isRunningSilent this)}}
+                   class="fas fa-wifi sr5-icon-dim"
+            {{else if (isWireless this)}}
+                   class="fas fa-wifi"
+            {{else}}
+                   class="fas fa-wifi sr5-icon-strike"
+            {{/if}}
+                ></i>
+            </a>
+        {{/if}}
+    {{/if}}
+{{/if}}

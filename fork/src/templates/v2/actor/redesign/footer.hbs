@@ -1,0 +1,125 @@
+{{!-- Bookkeeping strip at the bottom of the window: karma, nuyen and reputation change between sessions, not during a run;
+      the actor's source closes it on the right.
+      NPCs and critters first say what they are (critter, NPC, grunt; set on the Configuration tab), then keep what
+      the rules give them (SR5 Grunts / Prime Runners / Critters, footerLedgers): a prime runner is built and advanced
+      like a player character (all three), a grunt is nameless (cash only, no karma or reputation), a critter NPC none. --}}
+<footer class="sr-footer">
+    {{#unless isLimited}}
+    {{#if (or system.is_npc system.is_critter)}}
+    <div class="ledger role" data-tooltip="SR5.Redesign.RoleHint">
+        <span class="ledger-button ledger-icon" aria-hidden="true"><i class="fas {{#if system.is_critter}}fa-paw{{else}}fa-user-secret{{/if}}"></i></span>
+        {{#if system.is_critter}}<span class="caption">{{localize "SR5.IsCritter"}}</span>{{/if}}
+        {{#if (and system.is_critter system.is_npc)}}<span class="caption" aria-hidden="true">&middot;</span>{{/if}}
+        {{#if system.is_npc}}<span class="caption">{{localize "SR5.IsNPC"}}</span>{{/if}}
+        {{#if (and system.is_npc system.npc.is_grunt)}}<span class="caption" aria-hidden="true">&middot;</span><span class="caption">{{localize "SR5.IsGrunt"}}</span>{{/if}}
+    </div>
+    {{/if}}
+    {{#if isVehicle}}
+    {{!-- a vehicle's bookkeeping: what it costs to get (availability, price; SR5#461), then its source --}}
+    <div class="ledger availability">
+        <span class="ledger-button ledger-icon" aria-hidden="true"><i class="fas fa-store"></i></span>
+        {{#if @root.isEditMode}}
+            <label><span class="caption">{{localize "SR5.Availability"}}</span>
+                {{formInput systemFields.availability value=source.system.availability classes="uninput short" rootId=rootId}}</label>
+        {{else}}
+            <span class="caption">{{localize "SR5.Availability"}}</span>
+            <span class="value">{{#if system.availability}}{{system.availability}}{{else}}&ndash;{{/if}}</span>
+        {{/if}}
+    </div>
+    <div class="ledger nuyen">
+        <span class="ledger-button ledger-icon" aria-hidden="true"><i class="fas fa-yen-sign"></i></span>
+        {{#if @root.isEditMode}}
+            <label><span class="caption">{{localize "SR5.Cost"}}</span>
+                {{formInput systemFields.cost value=source.system.cost classes="uninput" rootId=rootId}}</label>
+        {{else}}
+            <span class="caption">{{localize "SR5.Cost"}}</span>
+            <span class="value">{{nuyenValue system.cost}}</span>
+        {{/if}}
+    </div>
+    {{/if}}
+    {{#if footerLedgers.karma}}
+    {{!-- available = unspent Karma; total = all Karma earned (SR5#495 record sheet "Karma" / "Total Karma", Street Cred SR5#368) --}}
+    <div class="ledger karma">
+        <button type="button" class="ledger-button" data-action="openKarmaManager" aria-label="{{localize 'SR5.Karma'}}"
+                {{#unless (and @root.isEditable @root.isPlayMode)}}disabled{{/unless}}>
+            <i class="fas fa-yin-yang" aria-hidden="true"></i>
+        </button>
+        {{#if @root.isEditMode}}
+            <label data-tooltip="SR5.Redesign.KarmaAvailableHint"><span class="caption">{{localize "SR5.Redesign.KarmaAvailable"}}</span>
+                {{formInput systemFields.karma.fields.value value=source.system.karma.value classes="uninput short" rootId=rootId}}</label>
+            <label data-tooltip="SR5.Redesign.KarmaTotalHint"><span class="caption">{{localize "SR5.Redesign.KarmaTotal"}}</span>
+                {{formInput systemFields.karma.fields.max value=source.system.karma.max classes="uninput short" rootId=rootId}}</label>
+        {{else}}
+            <span class="ledger-pair" data-tooltip="SR5.Redesign.KarmaAvailableHint">
+                <span class="caption">{{localize "SR5.Redesign.KarmaAvailable"}}</span>
+                <span class="value">{{system.karma.value}}</span>
+            </span>
+            <span class="ledger-pair" data-tooltip="SR5.Redesign.KarmaTotalHint">
+                <span class="caption muted">{{localize "SR5.Redesign.KarmaTotal"}}</span>
+                <span class="value muted">{{system.karma.max}}</span>
+            </span>
+        {{/if}}
+    </div>
+    {{/if}}
+    {{#if footerLedgers.nuyen}}
+    <div class="ledger nuyen">
+        <button type="button" class="ledger-button" data-action="openNuyenManager" aria-label="{{localize 'SR5.Nuyen'}}"
+                {{#unless (and @root.isEditable @root.isPlayMode)}}disabled{{/unless}}>
+            <i class="fas fa-yen-sign" aria-hidden="true"></i>
+        </button>
+        {{#if @root.isEditMode}}
+            <label><span class="caption">{{localize "SR5.Nuyen"}}</span>
+                {{formInput systemFields.nuyen value=source.system.nuyen classes="uninput" rootId=rootId}}</label>
+        {{else}}
+            <span class="caption">{{localize "SR5.Nuyen"}}</span>
+            <span class="value">{{nuyenValue system.nuyen}}</span>
+        {{/if}}
+    </div>
+    {{/if}}
+    {{#if footerLedgers.reputation}}
+    <div class="ledger reputation">
+        <button type="button" class="ledger-button" data-action="openReputationManager" aria-label="{{localize 'SR5.Redesign.Reputation'}}"
+                {{#unless (and @root.isEditable @root.isPlayMode)}}disabled{{/unless}}>
+            <i class="fas fa-people-group" aria-hidden="true"></i>
+        </button>
+        {{#if @root.isEditMode}}
+            <label data-tooltip="{{systemFields.street_cred.hint}}"><span class="caption">{{localize "SR5.Redesign.RepShort.street_cred"}}</span>
+                {{formInput systemFields.street_cred value=source.system.street_cred classes="uninput short" rootId=rootId}}</label>
+        {{else}}
+            <span class="caption" data-tooltip="{{systemFields.street_cred.label}}">{{localize "SR5.Redesign.RepShort.street_cred"}}</span>
+            <span class="value">{{system.street_cred}}</span>
+        {{/if}}
+        {{#if @root.isEditMode}}
+            <label data-tooltip="{{systemFields.notoriety.hint}}"><span class="caption">{{localize "SR5.Redesign.RepShort.notoriety"}}</span>
+                {{formInput systemFields.notoriety value=source.system.notoriety classes="uninput short" rootId=rootId}}</label>
+        {{else}}
+            <span class="caption" data-tooltip="{{systemFields.notoriety.label}}">{{localize "SR5.Redesign.RepShort.notoriety"}}</span>
+            <span class="value">{{system.notoriety}}</span>
+        {{/if}}
+        {{#if @root.isEditMode}}
+            <label data-tooltip="{{systemFields.public_awareness.hint}}"><span class="caption">{{localize "SR5.Redesign.RepShort.public_awareness"}}</span>
+                {{formInput systemFields.public_awareness value=source.system.public_awareness classes="uninput short" rootId=rootId}}</label>
+        {{else}}
+            <span class="caption" data-tooltip="{{systemFields.public_awareness.label}}">{{localize "SR5.Redesign.RepShort.public_awareness"}}</span>
+            <span class="value">{{system.public_awareness}}</span>
+        {{/if}}
+    </div>
+    {{/if}}
+    {{!-- the book page or link the actor comes from, in the right corner (every actor kind); play mode only when set --}}
+    {{#if (or @root.isEditMode system.description.source)}}
+    <div class="ledger source">
+        <button type="button" class="ledger-button" data-action="openSource" data-source="{{system.description.source}}"
+                data-tooltip="SR5.OpenSource" aria-label="{{localize 'SR5.OpenSource'}}"{{#unless system.description.source}} disabled{{/unless}}>
+            <i class="fas {{#if system.description.source}}{{sourceIcon system.description.source}}{{else}}fa-book{{/if}}" aria-hidden="true"></i>
+        </button>
+        {{#if @root.isEditMode}}
+            <label><span class="caption">{{localize "SR5.Source"}}</span>
+                {{formInput systemFields.description.fields.source value=source.system.description.source classes="uninput" placeholder=(localize "SR5.Source") rootId=rootId}}</label>
+        {{else}}
+            <span class="caption">{{localize "SR5.Source"}}</span>
+            <span class="value" data-tooltip="{{system.description.source}}">{{sourceLabel system.description.source}}</span>
+        {{/if}}
+    </div>
+    {{/if}}
+    {{/unless}}
+</footer>

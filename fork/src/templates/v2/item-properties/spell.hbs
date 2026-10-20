@@ -1,0 +1,57 @@
+{{#unless (empty item.system.category)}}
+    <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localizeOb item.system.category @root.config.spellCategories}}</label>
+{{/unless}}
+{{#if (eq item.system.category 'combat')}}
+    {{#unless (empty item.system.combat.type)}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localizeOb item.system.combat.type @root.config.combatSpellTypes}}</label>
+    {{/unless}}
+{{else if (eq item.system.category 'illusion')}}
+    {{#unless (empty item.system.illusion.type)}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localizeOb item.system.illusion.type @root.config.illusionSpellTypes}}</label>
+    {{/unless}}
+    {{#unless (empty item.system.illusion.sense)}}
+        <label data-prop="kind"><i class="prop-icon fas fa-eye" aria-hidden="true"></i>{{localizeOb item.system.illusion.sense @root.config.illusionSpellSense}}</label>
+    {{/unless}}
+{{else if (eq item.system.category 'manipulation')}}
+    {{#if item.system.manipulation.damaging}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localize "SR5.Spell.ManipulationDamaging"}}</label>
+    {{/if}}
+    {{#if item.system.manipulation.mental}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localize "SR5.Spell.ManipulationMental"}}</label>
+    {{/if}}
+    {{#if item.system.manipulation.environmental}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localize "SR5.Spell.ManipulationEnvironmental"}}</label>
+    {{/if}}
+    {{#if item.system.manipulation.physical}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localize "SR5.Spell.ManipulationPhysical"}}</label>
+    {{/if}}
+{{else if (eq item.system.category 'detection')}}
+    {{#unless (empty item.system.detection.type)}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localizeOb item.system.detection.type @root.config.detectionSpellTypes}}</label>
+    {{/unless}}
+    {{#if item.system.detection.passive}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localize "SR5.Passive"}}</label>
+    {{else}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localize "SR5.Active"}}</label>
+    {{/if}}
+    {{#if item.system.detection.extended}}
+        <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localize "SR5.DetectionSpellExtended"}}</label>
+    {{/if}}
+{{/if}}
+{{#if item.system.action.damage.element.value}}
+    <label data-prop="stat" data-tooltip="{{localizeOb item.system.action.damage.element.value @root.config.elementTypes}}">
+        <i class="{{elementIcon item.system.action.damage.element.value}}"></i>
+        {{localizeOb item.system.action.damage.element.value @root.config.elementTypes}}
+    </label>
+{{/if}}
+{{#unless (empty item.system.type)}}
+    <label class="prop-dup" data-prop="kind"><i class="prop-icon fas fa-hand-sparkles" aria-hidden="true"></i>{{localizeOb item.system.type @root.config.spellTypes}}</label>
+{{/unless}}
+{{#unless (empty item.system.range)}}
+    <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-ruler" aria-hidden="true"></i>{{localizeOb item.system.range @root.config.spellRanges}}</label>
+{{/unless}}
+{{#unless (empty item.system.duration)}}
+    <label class="prop-dup" data-prop="time"><i class="prop-icon fas fa-hourglass-half" aria-hidden="true"></i>{{localizeOb item.system.duration @root.config.durations}}</label>
+{{/unless}}
+{{!-- as the row's Drain column: 'Drain F − 1' (forceValue: minus sign, spaced) --}}
+<label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-droplet" aria-hidden="true"></i>{{localize "SR5.Drain"}}&nbsp;{{forceValue (localize "SR5.Redesign.Tooltip.Abbr.force") item.system.drain}}</label>

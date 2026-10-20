@@ -1,0 +1,51 @@
+{{!-- Font Awesome Free icons (the module has no Pro license): running silent and wireless off draw fa-wifi dimmed and
+     struck through (.sr5-icon-dim / .sr5-icon-strike in actor-redesign.scss) --~}}
+{{#if (eq item.system.category 'range')}}
+    <label data-prop="stat" data-tooltip="SR5.Weapon.Range.Range">
+        <i class="fas fa-ruler"></i>
+        {{item.system.range.ranges.short}}/{{item.system.range.ranges.medium}}/{{item.system.range.ranges.long}}/{{item.system.range.ranges.extreme}}{{#if item.system.range.ranges.attribute}}/{{localizeOb item.system.range.ranges.attribute @root.config.attributes}}{{/if}}m
+    </label>
+    <label data-prop="stat" data-tooltip="SR5.Weapon.Range.Modes">
+        <i class="fas fa-gun"></i>
+        {{#if item.system.range.modes.single_shot}}{{localize "SR5.Weapon.Mode.Short.SingleShot"}}{{#if (or item.system.range.modes.semi_auto item.system.range.modes.burst_fire item.system.range.modes.full_auto)}}/{{/if}}{{/if}}{{#if item.system.range.modes.semi_auto}}{{localize "SR5.Weapon.Mode.Short.SemiAuto"}}{{#if (or item.system.range.modes.burst_fire item.system.range.modes.full_auto)}}/{{/if}}{{/if}}{{#if item.system.range.modes.burst_fire}}{{localize "SR5.Weapon.Mode.Short.BurstFire"}}{{#if item.system.range.modes.full_auto}}/{{/if}}{{/if}}{{#if item.system.range.modes.full_auto}}{{localize "SR5.Weapon.Mode.Short.FullAuto"}}{{/if}}
+    </label>
+    <label data-prop="stat"><i class="prop-icon fas fa-arrows-up-to-line" aria-hidden="true"></i>
+        {{localize "SR5.RecoilCompensation"}}&nbsp;{{item.system.range.rc.value}}
+        {{#if item.actor}}
+            <span data-tooltip="SR5.Total">({{item.totalRecoilCompensation}})</span>
+        {{/if}}
+    </label>
+{{else if (eq item.system.category 'thrown')}}
+    <label data-prop="stat" data-tooltip="SR5.Weapon.Thrown.Range">
+        <i class="fas fa-ruler"></i>
+        {{item.system.thrown.ranges.short}}/{{item.system.thrown.ranges.medium}}/{{system.thrown.ranges.long}}/{{system.thrown.ranges.extreme}}m
+    </label>
+{{else if (eq item.system.category 'melee')}}
+    <label data-prop="stat"><i class="prop-icon fas fa-arrows-left-right" aria-hidden="true"></i>{{localize "SR5.Reach"}}&nbsp;{{item.system.melee.reach}}</label>
+{{/if}}
+
+{{#if (and (usesAmmo item) (hasAmmo item) (equippedAmmo item))}}
+    <label data-prop="stat" class="prop-ammo-count"><i class="prop-icon fas fa-box-archive" aria-hidden="true"></i>{{localize "SR5.Weapon.AmmoCount"}}&nbsp;{{item.system.ammo.current.value}}/{{item.system.ammo.current.max}}</label>
+    {{#if item.system.ammo.spare_clips.max}}
+        <label data-prop="stat"><i class="prop-icon fas fa-boxes-stacked" aria-hidden="true"></i>{{localize "SR5.Weapon.SpareReloads"}}&nbsp;{{item.system.ammo.spare_clips.value}}/{{item.system.ammo.spare_clips.max}}</label>
+    {{/if}}
+{{/if}}
+
+{{#each (equippedMods item)}}
+    <label data-prop="mod">
+        {{#if (canBeWireless this)}}
+            {{#if (isBroken this)}}
+                <i class="fas fa-link-slash"></i>
+            {{else if (isRunningSilent this)}}
+                <i class="fas fa-wifi sr5-icon-dim"></i>
+            {{else if (isWireless this)}}
+                <i class="fas fa-wifi"></i>
+            {{else}}
+                <i class="fas fa-wifi sr5-icon-strike"></i>
+            {{/if}}
+        {{else}}
+            <img src="{{this.img}}" width="12px" height="12px">
+        {{/if}}
+        {{this.name}}
+    </label>
+{{/each}}

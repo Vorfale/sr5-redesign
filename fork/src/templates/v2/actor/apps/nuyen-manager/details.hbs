@@ -1,0 +1,25 @@
+<div class="fill-container">
+    <div class="input-row">
+        <label class="label" data-tooltip="SR5.NuyenManager.CurrentNuyen">¥{{nuyenValue nuyen}}</label>
+        <label class="manager-operator" aria-hidden="true"><i class="fas fa-plus"></i></label>
+        <div class="input-col">
+            <div class="mod-button-container">
+                <button type="button" class="mod-step" name="step-increaseNuyen-10" data-action="increaseNuyen" data-amount="10">+¥10</button>
+                <button type="button" class="mod-step" name="step-increaseNuyen-100" data-action="increaseNuyen" data-amount="100">+¥100</button>
+                <button type="button" class="mod-step" name="step-increaseNuyen-1000" data-action="increaseNuyen" data-amount="1000">+¥1000</button>
+            </div>
+            <div>
+                <input class="short nuyen center mod-input" type="number" name="incoming-nuyen" value={{nuyenModifier}}
+                       aria-label="{{localize 'SR5.NuyenManager.Title'}}" />
+            </div>
+            <div class="mod-button-container">
+                <button type="button" class="mod-step" name="step-reduceNuyen-10" data-action="reduceNuyen" data-amount="10">−¥10</button>
+                <button type="button" class="mod-step" name="step-reduceNuyen-100" data-action="reduceNuyen" data-amount="100">−¥100</button>
+                <button type="button" class="mod-step" name="step-reduceNuyen-1000" data-action="reduceNuyen" data-amount="1000">−¥1000</button>
+            </div>
+        </div>
+        <label class="manager-operator" aria-hidden="true"><i class="fas fa-equals"></i></label>
+        <label class="label {{#if (gt nuyenModifier 0)}} positive {{else if (lt nuyenModifier 0)}} negative {{/if}}"
+               data-tooltip="SR5.NuyenManager.FinalNuyen">¥{{nuyenValue modifiedNuyen}}</label>
+    </div>
+</div>

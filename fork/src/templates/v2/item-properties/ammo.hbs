@@ -1,0 +1,21 @@
+{{#if item.system.damageType}}
+    <label data-prop="kind" data-tooltip="SR5.DamageType"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localizeOb item.system.damageType @root.config.damageTypes}}</label>
+{{/if}}
+{{#if item.system.damage}}
+    <label data-prop="stat"><i class="prop-icon fas fa-burst" aria-hidden="true"></i>{{localize "SR5.DamageValue"}}&nbsp;{{numberFormat item.system.damage sign=true}}</label>
+{{/if}}
+{{#if item.system.element}}
+    <label data-prop="stat" data-tooltip="SR5.Element.Label">
+        <i class="{{elementIcon item.system.element}}"></i>
+        {{localizeOb item.system.element @root.config.elementTypes}}
+    </label>
+{{/if}}
+{{#if item.system.ap}}
+    <label data-prop="stat"><i class="prop-icon fas fa-crosshairs" aria-hidden="true"></i>{{localize "SR5.AP"}}&nbsp;{{numberFormat item.system.ap sign=true}}</label>
+{{/if}}
+{{#if item.system.blast.radius}}
+    <label data-prop="stat"><i class="prop-icon fas fa-bomb" aria-hidden="true"></i>{{localize "SR5.BlastRadius"}}&nbsp;{{item.system.blast.radius}}m</label>
+{{/if}}
+{{#if item.system.blast.dropoff}}
+    <label data-prop="stat"><i class="prop-icon fas fa-arrow-trend-down" aria-hidden="true"></i>{{localize "SR5.Dropoff"}}&nbsp;{{item.system.blast.dropoff}}/m</label>
+{{/if}}
