@@ -37,7 +37,8 @@ export function sortValue(cell: HTMLElement | null, key?: string): SortValue {
         return name ? { text: name } : null;
     }
     const field = cell.querySelector<HTMLInputElement | HTMLSelectElement>('input:not([type="hidden"]), select');
-    const raw = field instanceof HTMLSelectElement ? field.selectedOptions[0]?.textContent ?? '' : field ? field.value : cell.textContent ?? '';
+    // a cell may say what it sorts by: the action type column, whose interrupts show their initiative cost too
+    const raw = cell.dataset.sortText !== undefined ? cell.dataset.sortText : field instanceof HTMLSelectElement ? field.selectedOptions[0]?.textContent ?? '' : field ? field.value : cell.textContent ?? '';
     const text = raw.replace(/[\u2212\u2013]/g, '-').replace(/\s+/g, ' ').trim();
     if (!text || /^[-—]$/.test(text)) return null;
     const rank = ACTION_TYPE_ORDER.findIndex(type => game.i18n.localize(SR5.actionTypes[type as keyof typeof SR5.actionTypes]) === text);

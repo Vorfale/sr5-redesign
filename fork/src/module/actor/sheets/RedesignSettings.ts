@@ -1,3 +1,6 @@
+import { RedesignRulebook } from '@/module/actor/sheets/redesign/RedesignRulebook';
+import { setLazyBaseActorSync } from '@/module/token/LazyBaseActorSync';
+
 /** A group of the SR5 Redesign settings, by what its features are for. */
 interface SettingsCategory {
     id: string;
@@ -26,6 +29,7 @@ const CATEGORIES: SettingsCategory[] = [
     { id: 'sidebar', label: 'SR5.Redesign.Settings.Category.Sidebar' },
     { id: 'details', label: 'SR5.Redesign.Settings.Category.Details' },
     { id: 'accessibility', label: 'SR5.Redesign.Settings.Category.Accessibility' },
+    { id: 'performance', label: 'SR5.Redesign.Settings.Category.Performance' },
 ];
 
 /** Readable text: a body class the stylesheet keys on (actor-redesign.scss, the end), no render needed. */
@@ -63,6 +67,17 @@ const SETTINGS: RedesignSetting[] = [
         tooltip: 'SR5.Redesign.Settings.ReadableText.Tooltip',
         onChange: applyReadableText,
     },
+    {
+        key: 'lazyTokenSync',
+        category: 'performance',
+        scope: 'world',
+        type: Boolean,
+        default: true,
+        name: 'SR5.Redesign.Settings.LazyTokenSync.Name',
+        hint: 'SR5.Redesign.Settings.LazyTokenSync.Hint',
+        tooltip: 'SR5.Redesign.Settings.LazyTokenSync.Tooltip',
+        onChange: value => setLazyBaseActorSync(!!value),
+    },
 ];
 
 /**
@@ -88,8 +103,13 @@ export const RedesignSettings = {
                 onChange: setting.onChange ?? (() => RedesignSettings.redrawSheets()),
             });
         }
+        // the rulebook import: its menu and the text it keeps (RedesignRulebook)
+        RedesignRulebook.register();
         // user settings are read once the user is known
-        Hooks.once('ready', () => applyReadableText(RedesignSettings.get('readableText')));
+        Hooks.once('ready', () => {
+            applyReadableText(RedesignSettings.get('readableText'));
+            setLazyBaseActorSync(RedesignSettings.get('lazyTokenSync') !== false);
+        });
         RedesignSettings.teachSettingsConfig();
     },
 

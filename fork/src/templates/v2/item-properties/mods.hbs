@@ -1,0 +1,26 @@
+{{!-- The modifications an item holds, one chip each with its wireless state (or its picture): a weapon's
+      (weapon.hbs), an armor's and an implant's (the armor, cyberware and bioware rows). The installed ones first; one
+      that is not installed (a dropped one comes in so) is dimmed: it takes no capacity and changes nothing until it is
+      equipped on the item's Mods tab. An implant also says how much of its capacity they take (WarePrep: the
+      installed modifications' slots), red when they take more than it has. --}}
+{{#each (itemMods item)}}
+    <label data-prop="mod"{{#unless (isEquipped this)}} class="prop-mod-off" data-tooltip="SR5.Redesign.ModNotInstalled"{{/unless}}>
+        {{#if (canBeWireless this)}}
+            {{#if (isBroken this)}}
+                <i class="fas fa-link-slash"></i>
+            {{else if (isRunningSilent this)}}
+                <i class="fas fa-wifi sr5-icon-dim"></i>
+            {{else if (isWireless this)}}
+                <i class="fas fa-wifi"></i>
+            {{else}}
+                <i class="fas fa-wifi sr5-icon-strike"></i>
+            {{/if}}
+        {{else}}
+            <img src="{{this.img}}" width="12px" height="12px">
+        {{/if}}
+        {{this.name}}
+    </label>
+{{/each}}
+{{#if (and (isType item 'cyberware' 'bioware') item.system.capacity.total)}}
+    <label data-prop="stat"{{#if (gt item.system.capacity.used item.system.capacity.total)}} class="prop-over" data-tooltip="SR5.Redesign.CapacityOver"{{else}} data-tooltip="SR5.Capacity"{{/if}}><i class="prop-icon fas fa-box-open" aria-hidden="true"></i>{{localize "SR5.Capacity"}}&nbsp;{{item.system.capacity.used}}/{{item.system.capacity.total}}</label>
+{{/if}}

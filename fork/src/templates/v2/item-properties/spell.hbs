@@ -10,7 +10,7 @@
         <label data-prop="kind"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localizeOb item.system.illusion.type @root.config.illusionSpellTypes}}</label>
     {{/unless}}
     {{#unless (empty item.system.illusion.sense)}}
-        <label data-prop="kind"><i class="prop-icon fas fa-eye" aria-hidden="true"></i>{{localizeOb item.system.illusion.sense @root.config.illusionSpellSense}}</label>
+        <label data-prop="kind"><i class="prop-icon fas fa-eye" aria-hidden="true"></i>{{localizeOb item.system.illusion.sense @root.config.illusionSpellSenses}}</label>
     {{/unless}}
 {{else if (eq item.system.category 'manipulation')}}
     {{#if item.system.manipulation.damaging}}

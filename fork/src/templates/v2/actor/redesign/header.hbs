@@ -27,7 +27,17 @@
         </div>
         <div class="sr-subtitle">
             <span class="chevron" aria-hidden="true">&raquo;</span>
-            {{#if isVehicle}}
+            {{#if isIC}}
+                {{!-- an IC: its type (edit mode: chosen here) and the host it runs on --}}
+                {{#if @root.isEditMode}}
+                    <label class="sr-only" for="{{rootId}}-ic-type">{{localize "SR5.IC.FIELDS.icType.label"}}</label>
+                    {{formInput systemFields.icType value=source.system.icType localize=true classes="uninput" id=(concat rootId "-ic-type")}}
+                {{else}}
+                    <span>{{icKind.type}}</span>
+                {{/if}}
+                <span class="separator" aria-hidden="true">&bull;</span>
+                {{#if icKind.host}}<span>{{icKind.host}}</span>{{else}}<span class="muted">{{localize "SR5.Redesign.IC.NoHost"}}</span>{{/if}}
+            {{else if isVehicle}}
                 {{!-- a vehicle: drone or vehicle, its size (drones) or Chummer category, its type; edit mode sets the size
                       and the type here, like a character's metatype (drone or not: the Configuration tab) --}}
                 {{#if @root.isEditMode}}
@@ -51,7 +61,7 @@
             {{/if}}
             {{/if}}
             {{!-- race, archetype, awakened / emerged (a character's line) --}}
-            {{#if isVehicle}}
+            {{#if (or isVehicle isIC)}}
             {{else if @root.isEditMode}}
                 <label class="sr-only" for="{{rootId}}-archetype">{{localize "SR5.Redesign.Archetype"}}</label>
                 <input type="text" class="archetype-input" id="{{rootId}}-archetype" name="{{archetypeName}}" value="{{archetype}}"

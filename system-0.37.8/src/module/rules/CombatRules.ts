@@ -1,0 +1,275 @@
+import {SR} from "../constants";
+import {ModifiableValue} from "../mods/ModifiableValue";
+import {Helpers} from "../helpers";
+import {SoakRules} from "./SoakRules";
+import {SR5Actor} from "../actor/SR5Actor";
+import { DamageType } from "../types/item/Action";
+import { ValueFieldType } from "../types/template/Base";
+
+export class CombatRules {
+    /**
+     * Reduce the given initiative score according to @PDF SR5#159
+     * @param score The initiative score to be reduced
+     */
+    static initAfterPass(score: null): null;
+    static initAfterPass(score: number): number;
+    static initAfterPass(score: number | null): number | null;
+    static initAfterPass(score: number | null): number | null {
+        if (score === null) return null;
+        return score + SR.combat.PASS_PENALTY;
+    }
+
+    /**
+     * Determine if an attack hits the defender based on their hits.
+     *
+     * According to combat sequence (SR5#173) part defend.
+     *
+     * @param attackerHits
+     * @param defenderHits
+     * @returns true, when the attack hits.
+     */
+    static attackHits(attackerHits: number, defenderHits: number): boolean {
+        return attackerHits > defenderHits;
+    }
+
+    /**
+     * Determine if an attack grazes the defender.
+     *
+     * According to combat sequence (SR5#173) part defend.
+     *
+     * @param attackerHits
+     * @param defenderHits
+     * @returns true, when the attack grazes.
+     */
+    static attackGrazes(attackerHits: number, defenderHits: number): boolean {
+        return attackerHits === defenderHits;
+    }
+
+    /**
+     * Determine if an attack misses the defender based on their hits.
+     *
+     * According to combat sequence (SR5#173) part defend.
+     *
+     * @param attackerHits
+     * @param defenderHits
+     * @returns true, when the attack hits.
+     */
+    static attackMisses(attackerHits: number, defenderHits: number): boolean {
+        return !CombatRules.attackHits(attackerHits, defenderHits);
+    }
+
+    /**
+     * Modify Damage according to combat sequence (SR5#173) part defend. Successful attack.
+     *
+     * @param defender The active defender
+     * @param attackerHits The attackers hits. Should be a positive number.
+     * @param defenderHits The attackers hits. Should be a positive number.
+     * @param damage Incoming damage to be modified
+     * @return A new damage object for modified damage.
+     */
+    static modifyDamageAfterHit(defender: SR5Actor, attackerHits: number, defenderHits: number, damage: DamageType): DamageType {
+        let modified = foundry.utils.duplicate(damage) as DamageType;
+
+        // netHits should never be below zero...
+        if (attackerHits < 0) attackerHits = 0;
+        if (defenderHits < 0) defenderHits = 0;
+
+        // SR5#173  Step3: Defend B.
+        const mod = new ModifiableValue(modified);
+        mod.addUnique('SR5.Attacker', attackerHits);
+        mod.addUnique('SR5.Defender', -defenderHits);
+        ModifiableValue.calcTotal(modified, { min: 0 });
+
+        // SR5#173 Step 3: Defend B.
+        modified = CombatRules.modifyDamageTypeAfterHit(modified, defender);
+
+        return modified;
+    }
+
+    /**
+     * Check if vehicle wouldn't take any damage due to vehicle armor rules (SR5#205)
+     * @param incomingDamage The incoming damage
+     * @param attackerHits The attackers hits. Should be a positive number.
+     * @param defenderHits The attackers hits. Should be a positive number.
+     * @param actor The active defender
+     */
+    static isBlockedByVehicleArmor(incomingDamage: DamageType, attackerHits: number, defenderHits: number, actor: SR5Actor): boolean {
+        if(!actor.isType('vehicle')) {
+            return false;
+        }
+
+        const armor = actor.getArmor(incomingDamage);
+        const modifiedAv = armor.rating.value + armor.hardened.value;
+        const modifiedDv = CombatRules.modifyDamageAfterHit(actor, attackerHits, defenderHits, incomingDamage).value;
+
+        return modifiedDv < modifiedAv;
+    }
+
+    /**
+     * Check if actor wouldn't take any damage due to hardened armor rules (SR5#397)
+     * @param incomingDamage The incoming damage
+     * @param attackerHits The attackers hits. Should be a positive number.
+     * @param defenderHits The attackers hits. Should be a positive number.
+     * @param actor The active defender
+     */
+    static isBlockedByHardenedArmor(incomingDamage: DamageType, attackerHits = 0, defenderHits = 0, actor: SR5Actor): boolean {
+        const armor = actor.getArmor(incomingDamage);
+        const hardenedRating = armor.hardened.value;
+
+        if(hardenedRating <= 0) {
+            return false;
+        }
+
+        const modifiedDv = CombatRules.modifyDamageAfterHit(actor, attackerHits, defenderHits, incomingDamage).value;
+        return modifiedDv < hardenedRating;
+    }
+
+    static hardenedAutoHits(actor: SR5Actor, damage: DamageType): number {
+        const hardenedRating = actor.getArmor(damage).hardened.value;
+        return hardenedRating > 0 ? Math.ceil(hardenedRating / 2) : 0;
+    }
+
+    /**
+     * Check if vehicle wouldn't take any damage due to non-electric stun damage
+     * @param incomingDamage The incoming damage
+     * @param actor The active defender
+     */
+    static doesNoPhysicalDamageToVehicle(incomingDamage: DamageType, actor: SR5Actor): boolean {
+        return actor.isType('vehicle') && incomingDamage.type.value === 'stun' && incomingDamage.element.value !== "electricity";
+    }
+
+    /**
+     * Modify damage according to suppression defense (SR5#179). Successful attack.
+     * 
+     * In case of suppression a successful attack just does weapon damage (base + ammunition)
+     * 
+     * @param damage The incoming weapon damage of the attack, unaltered.
+     */
+    static modifyDamageAfterSuppressionHit(damage: DamageType): DamageType {
+        return foundry.utils.duplicate(damage) as DamageType;
+    }
+
+    /**
+     * Modify damage according to combat sequence SR5#173 part defend. Missing attack.
+     * @param damage Incoming damage to be modified
+     * @param isHitWithNoDamage Optional parameter used for physical defense tests when attack hits but will deal no damage
+     * @return A new damage object for modified damage.
+     */
+    static modifyDamageAfterMiss(damage: DamageType, isHitWithNoDamage?: boolean): DamageType {
+        const modifiedDamage = foundry.utils.duplicate(damage) as DamageType;
+
+        // Keep base and modification intact, only overwriting the result.
+        ModifiableValue.add(
+            modifiedDamage, 'SR5.TestResults.Success', 0, { type: 'override', priority: ModifiableValue.TOP_PRIORITY }
+        );
+        ModifiableValue.calcTotal(modifiedDamage, { min: 0 });
+        ModifiableValue.add(
+            modifiedDamage.ap, 'SR5.TestResults.Success', 0, { type: 'override', priority: ModifiableValue.TOP_PRIORITY }
+        );
+        ModifiableValue.calcTotal(modifiedDamage.ap);
+        modifiedDamage.type.value = 'physical';
+
+        // If attack hits but deals no damage, keep the element of the attack for any side effects.
+        if(!isHitWithNoDamage) {
+            modifiedDamage.element.value = '';
+        }
+
+        return modifiedDamage;
+    }
+
+    /**
+     * Modify damage according to combat sequence (SR5#173 part defend B). Damage resistance.
+     *
+     * @param actor The actor resisting the damage
+     * @param damage Incoming damage to be modified.
+     * @param hits The resisting tests hits
+     * @return A new damage object for modified damage.
+     */
+    static modifyDamageAfterResist(actor: SR5Actor, damage: DamageType, hits: number): DamageType {
+        if (hits < 0) hits = 0;
+
+        const { modified } = SoakRules.reduceDamage(actor, damage, hits);
+        ModifiableValue.calcTotal(modified, { min: 0 });
+
+        return modified;
+    }
+
+    /**
+     * Modify amor according to combat sequence (SR5#173) part defend.
+     *
+     * @param armor An armor value to be modified.
+     * @param damage The damage containing the armor penetration to be applied.
+     * @returns A new armor value for modified armor
+     */
+    static modifyArmorAfterHit(armor: ValueFieldType, damage: DamageType): ValueFieldType {
+        const modifiedArmor = foundry.utils.duplicate(armor) as ValueFieldType;
+
+        // ignore ap without effect
+        if (damage.ap.value <= 0) return modifiedArmor;
+
+        console.error('Check if ap is a negative value or positive value during weapon item configuration');
+        ModifiableValue.addUnique(modifiedArmor, 'SR5.AP', damage.ap.value);
+        modifiedArmor.value = ModifiableValue.calcTotal(modifiedArmor, {min: 0});
+
+        return modifiedArmor;
+    }
+
+    /**
+     * Changes the damage type based on the incoming damage type and the actor state (armor, matrix perception..)
+     * @param damage The incoming damage
+     * @param actor The actor affected by the damage
+     * @returns The updated damage data
+     */
+    static modifyDamageTypeAfterHit(damage: DamageType, actor : SR5Actor) : DamageType {
+        // Careful, order of damage conversion is very important
+        // Electricity stun damage is considered physical for vehicles
+        let updatedDamage = foundry.utils.duplicate(damage) as DamageType;
+        if (actor.isType('vehicle') && updatedDamage.element.value === 'electricity' && updatedDamage.type.value === 'stun') {
+            updatedDamage.type.value = 'physical';
+        }
+
+        const damageSourceItem = Helpers.findDamageSource(damage);
+        if (damageSourceItem && damageSourceItem.isCombatSpell() && damageSourceItem.system.combat.type === 'direct') {
+            // Damage from direct combat spells is never converted
+            return updatedDamage;
+        }
+
+        updatedDamage = SoakRules.modifyPhysicalDamageForArmor(updatedDamage, actor);
+        return SoakRules.modifyMatrixDamageForBiofeedback(updatedDamage, actor);
+    }
+
+    /**
+     * Can a defense mode be used with a specific initiative score
+     * 
+     * @param iniScore The combatants ini score
+     * @param defenseIniScoreMod  The defense modes ini score modifier
+     */
+    static canUseActiveDefense(iniScore: number, defenseIniScoreMod: number): boolean {
+        // Validate input values against valid value range.
+        return (Math.max(iniScore, 0) + Math.min(defenseIniScoreMod, 0)) < 0
+    }
+
+    /**
+     * Calculate defense modifier for multiple previous attacks in a combat turn. 
+     * 
+     * See SR5#189 'Defense Modifiers Table'.
+     * 
+     * @param attacks Amount of attacks within the current combat turn
+     * @returns A negative modifier or zero to be applied on physical defense tests.
+     */
+    static defenseModifierForPreviousAttacks(attacks: number): number {
+        return Math.max(attacks, 0) * -1;
+    }
+
+    /**
+     * Calculate the initiative score adjustment to be made for damage taken during active combat
+     * 
+    * See SR5#160 'Changing Initiative'
+     * 
+     * @param woundsBefore Wound modifier (-2) before damage has been taken
+     * @param woundsAfter Wound modifier (-3) after damage has been taken
+     */
+    static initiativeScoreWoundAdjustment(woundsBefore: number, woundsAfter: number) {
+        return woundsAfter - woundsBefore;
+    }
+}

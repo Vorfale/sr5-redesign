@@ -54,8 +54,6 @@
             {{> 'systems/shadowrun5e/dist/templates/v2/item-properties/weapon.hbs' item=item }}
             {{> 'systems/shadowrun5e/dist/templates/v2/list-items/matrix-condition-monitor.hbs' item=item }}
         </div>
-        <div class="description-body">
-            {{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}
-        </div>
+        <div class="description-body">{{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}</div>
     </div>
 </div>

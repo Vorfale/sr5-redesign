@@ -5,7 +5,7 @@
 {{#if (or @root.isEditMode (isVisible item))}}
 <div class="list-item-container {{#if (hasKey @root.expandedUuids item.uuid)}} expanded {{/if}}">
     <div class="list-item {{#if (isOwner item owner=@root.actor)}} draggable {{/if}}"
-         data-source="{{item.system.description.source}}"
+         data-source="{{#if item.system.description.source}}{{item.system.description.source}}{{else}}{{lookup @root.actionSources item.uuid}}{{/if}}"
          data-item-id="{{item.id}}"
          data-context-menu="item"
          data-uuid="{{item.uuid}}">
@@ -21,12 +21,13 @@
             {{/if}}
         </div>
 
-        <div class="list-item-col">
+        {{!-- sorts by the type alone (data-sort-text), the initiative cost of an interrupt beside it does not count --}}
+        <div class="list-item-col" data-sort-text="{{localizeOb item.system.action.type @root.config.actionTypes}}">
             {{!-- resistance and other tests that take no action of their own: a dash, the type in the tooltip --}}
             {{#if (eq item.system.action.type 'none')}}
                 <label data-tooltip="SR5.ActionType.NoAction">&ndash;</label>
             {{else}}
-                <label>{{localizeOb item.system.action.type @root.config.actionTypes}}</label>
+                <label>{{localizeOb item.system.action.type @root.config.actionTypes}}{{> 'systems/shadowrun5e/dist/templates/v2/list-items/action/initiative-cost.hbs' action=item.system.action short=(lookup @root.actionShort item.uuid) }}</label>
             {{/if}}
         </div>
 
@@ -43,10 +44,9 @@
     <div class="list-item-desc">
         <div class="list-item-properties">
             {{> 'systems/shadowrun5e/dist/templates/v2/item-properties/action.hbs' item=item }}
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/action/details.hbs' item=item }}
         </div>
-        <div class="description-body">
-            {{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}
-        </div>
+        <div class="description-body">{{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}</div>
     </div>
 </div>
 {{/if}}

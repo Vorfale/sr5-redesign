@@ -2,11 +2,11 @@
     {{#if action.type}}
         {{#unless (eq ../item.type 'weapon')}}
             {{#unless (or (eq action.type 'varies') (eq action.type 'none'))}}
-                <label class="prop-action-type" data-prop="time"><i class="prop-icon fas fa-clock" aria-hidden="true"></i>{{localizeOb action.type @root.config.actionTypes}}</label>
+                <label class="prop-action-type" data-prop="time"><i class="prop-icon fas fa-clock" aria-hidden="true"></i>{{localizeOb action.type @root.config.actionTypes}}{{> 'systems/shadowrun5e/dist/templates/v2/list-items/action/initiative-cost.hbs' action=action short=(lookup @root.actionShort ../item.uuid) }}</label>
             {{/unless}}
         {{/unless}}
     {{/if}}
-    {{#if (or action.skill action.attribute action.attribute2 action.mod action.threshold.base action.limit.value action.limit.attribute)}}
+    {{#if (or action.skill action.attribute action.attribute2 action.armor action.mod action.threshold.base action.limit.value action.limit.attribute)}}
         <label data-prop="roll"><i class="prop-icon fas fa-dice-six" aria-hidden="true"></i>
             {{#if action.skill}}
                 {{localizeActionSkill action.skill}}&nbsp;+&nbsp;{{localizeOb action.attribute @root.config.attributes}}
@@ -15,6 +15,8 @@
             {{else if action.attribute}}
                 {{localizeOb action.attribute @root.config.attributes}}
             {{/if}}
+            {{!-- armor in the pool (damage resistance: Body + Armor; the Armor test alone) --}}
+            {{#if action.armor}}{{#if (or action.skill action.attribute)}}&nbsp;+&nbsp;{{/if}}{{localize "SR5.Armor.label"}}{{/if}}
             {{#if action.mod}}
                 <span data-tooltip="SR5.ItemMod">{{numberFormat action.mod sign=true}}</span>
             {{/if}}

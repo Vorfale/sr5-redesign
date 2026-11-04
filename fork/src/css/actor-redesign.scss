@@ -511,6 +511,8 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
     .prop-icon { display: inline-block; }
     // while a render's patches run (SR5CharacterSheetRedesign#_onRender): state set on fresh parts applies at once
     &.sr-patching :is(*, *::before, *::after) { transition: none !important; }
+    // opening: laid out but not shown until the render has placed the window (SR5RedesignActorSheet#_insertElement)
+    &.sr-opening { visibility: hidden; }
 
     // edit mode: one icon column width for title and rows (rows carry more buttons than the title's Add, and the
     // value columns of the title slid 18px off the rows); skill tables and the matrix keep their own narrow layout
@@ -1451,6 +1453,20 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
     // the scroll area starts below the plates and the limit row (they reach ~58px into this row),
     // so rows never scroll underneath them
     > .window-content > section.tab.sr-details { margin-top: 72px; padding-top: 10px; } // room for the attribute plates and limits
+    // an IC's plates sit over its IC tab: no limit row under them, so 31px less (the tab starts 21px under the plates,
+    // as the vehicle's under its limits)
+    &.sr5-redesign-ic > .window-content > section.tab.sr-matrix { margin-top: 41px; padding-top: 10px; }
+    // its plates coloured by what they are, as the matrix attribute plates of a character's Matrix tab: the host's
+    // rating as the special attributes (purple), Attack red, Sleaze blue, Data Processing olive, Firewall orange
+    &.sr5-redesign-ic > .window-content > .sr-abilities.ic {
+        .ic-rating { .label { color: var(--sr-purple-tint); } &::before { background: var(--sr-purple); } }
+        .ic-attack { .label { color: var(--sr-plate-phys); } &::before { background: var(--sr-line); } }
+        .ic-sleaze { .label { color: var(--sr-plate-mental); } &::before { background: var(--sr-line-mental); } }
+        .ic-data_processing { .label { color: var(--sr-plate-olive); } &::before { background: var(--sr-olive-frame); } }
+        .ic-firewall { .label { color: var(--sr-plate-orange); } &::before { background: var(--sr-ochre); } }
+    }
+    // no actions column (an IC with nothing to roll): the network card takes the tab's width
+    &.sr5-redesign-ic .sr-matrix .matrix-columns:not(:has(> .matrix-right)) { grid-template-columns: minmax(0, 1fr); }
 
     // skill tables: no icons column in play mode, so the pool is the last column at the row's edge
     &:not(.sr-edit-mode) .skill-table .list-item > .list-item-icons { display: none; } // the system shows them as flex
@@ -1489,6 +1505,10 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
             // trimmed to the cap height like the captions, so Orbitron digits centre on them (untrimmed they hung ~1px low)
             .value { @include heading(13px, 700); @include caps-centered; letter-spacing: calc(.02em + var(--sr-tracking, 0em)); color: var(--sr-text); margin-right: 4px; }
             .muted { color: var(--sr-text-muted); }
+            // a name (an IC's host): the captions' face in the text colour, not the digits' Orbitron; a long one ends in
+            // an ellipsis
+            .name { @include label(13px, 600); @include caps-centered; color: var(--sr-text); max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 4px; }
+            &.host { min-width: 0; }
             input { width: 4.5rem; height: 22px; }
             input.short { width: 3rem; }
         }
@@ -1567,6 +1587,24 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
     .tab {
         // prose fields read like the rulebooks
         .editor-content, .description-body, prose-mirror { font-family: var(--sr-font-prose); font-size: 14px; line-height: 1.45; }
+        // the user's rulebook in an opened row (RedesignRulebook): alone the row's text, after a description of the
+        // row's own under a label of where it is from (its page is the row's source link). The label goes with the
+        // passage: a group's step above it (10px, as the property lines to the description), the paragraphs' 6px under it
+        .description-body .sr-rich-book {
+            // its paragraphs (an action's Marks Required and Test lines, then its text) 6px apart, as a description's
+            > p { margin: 0 0 6px; &:last-child { margin-bottom: 0; } }
+        }
+        .description-body .sr-rich-book-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 10px 0 6px;
+            @include label(12px);
+            line-height: 16px;
+            color: var(--sr-text-muted);
+            // the icon on the capitals' middle, as the property icons (.5px down)
+            > i { flex: none; width: 14px; text-align: center; font-size: 12px; transform: translateY(.5px); }
+        }
         // property chips of an expanded row (Combat | Indirect | Physical ...): label font, light text, quiet dividers
         // an expanded row's properties (#arrangeProperties): one line (what it is, its numbers, how it is used, the
         // source on the right), a device's matrix monitor under it. Each property an icon and its text, split by dividers
@@ -1580,6 +1618,21 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
         }
         // nothing left to show (an action of varying type, all its values in the row's columns): no empty band
         .list-item-desc .list-item-properties:empty { display: none; }
+        // An opened row, by proximity: the property lines one group (6px apart), the description another, 10px below
+        // them; its paragraphs closer (6px) than the groups; 8px of the row's padding round it all. The row templates
+        // write the body without spaces around its text, so an empty one is :empty and takes no step
+        .list-item-desc .list-item-properties:not(:empty) + .description-body:not(:empty) { margin-top: 10px; }
+        .list-item-desc .description-body {
+            // the text starts where the property icons and the monitor do (the lines' 4px, on the row's 8px padding)
+            padding-left: 4px;
+            p { margin: 0 0 6px; &:last-child { margin-bottom: 0; } }
+            // the text's own first and last margins would add to the steps above and the row's padding
+            > :first-child { margin-top: 0; }
+            > :last-child { margin-bottom: 0; }
+        }
+        // an initiative cost the Initiative Score left does not pay for (SR5#167; RedesignActionDetails): muted, as the
+        // defense dialog greys out such a choice
+        .initiative-cost.short, .list-item-desc .prop-dim { opacity: .45; }
         // the lines themselves carry no divider: the system's list-item.scss gives every child of the properties
         // but the last a right groove, which put one after the source link of a main line with a monitor line under it
         .list-item-desc .list-item-properties > * { border-right: none; }
@@ -1604,6 +1657,10 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
                 // .5px down: measured, the glyphs sat .3-.5px above the capitals' middle (one device pixel on a 2x screen)
                 > i, > a > i { flex: none; width: 14px; text-align: center; font-size: 12px; color: var(--sr-text-muted); transform: translateY(.5px); }
                 > img { display: block; flex: none; width: 14px; height: 14px; border: none; } // weapon mods' small images
+                // a modification the item holds but has not installed (item-properties/mods.hbs): there, without effect
+                &.prop-mod-off { color: var(--sr-text-muted); opacity: .6; }
+                // an implant's modifications take more capacity than it has
+                &.prop-over, &.prop-over > i { color: var(--sr-pool-reduced); }
             }
             // the book page (#addSourceLinks) ends the first line on the right, the same spot for every item type
             > .source-link {
@@ -1898,7 +1955,7 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
             > button.unbutton { margin-bottom: 4px; }
             > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
             > .plaque-select { order: 10; }
-            > [data-action="createInventory"] { order: 11; }
+            > [data-context-menu="tab-add"] { order: 11; }
             > [data-action="renameInventory"] { order: 12; }
             > [data-action="removeInventory"] { order: 13; }
         }
@@ -2213,31 +2270,55 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
     // bio: the positive / negative quality cards already say the type, so the upstream type column (+ / − icon) goes
     .sr-bio [data-type="quality"] .list-item > .list-item-col.skinny-col { display: none; }
 
-    // social: SIN + lifestyles | contacts. Two columns while each card keeps 316px: the tables' 120px name minimum
-    // (as on the magic tab) beside the 80px value lane, 80px of icons and the card's padding. The widest sheet
-    // Foundry's smallest window (1024px) holds, 1024 - 2 x 12 margin - 47 rail = 953px, gives 327px cards, the
-    // default 940px sheet 320px; narrower (down to the 820px minimum) the cards stack. A wrapping flex row, so the
-    // columns share wide sheets (a grid's auto-fit kept an empty third track under the full-width title)
+    // social: contacts | SIN + lifestyles (contacts are the list that grows). Two columns while each card keeps 316px:
+    // the tables' 120px name minimum (as on the magic tab) beside the 80px value lane, 80px of icons and the card's
+    // padding. The widest sheet Foundry's smallest window (1024px) holds, 1024 - 2 x 12 margin - 47 rail = 953px, gives
+    // 327px cards, the default 940px sheet 320px; narrower (down to the 820px minimum) the cards stack, SIN and
+    // lifestyles on top: the columns are grid areas, the layout picked by the tab's own width (a wrapping flex row
+    // would drop the right column under the left one)
     .sr-social {
         --tbl-icons: 80px; // play mode: up to three row icons here (SIN: wireless, equipped, the menu)
+        container: sr-social / inline-size;
         display: flex;
         flex-wrap: wrap;
         align-items: flex-start;
         align-content: flex-start; // the tab is full height: without this the free space stretched the title row
         gap: var(--sp-m);
-        > :not(.column) { flex: 1 0 100%; } // the title, the empty note: full width
+        > * { flex: 1 0 100%; } // the title, the empty note, the columns: full width
         > h2.plaque.tab-title { margin-bottom: 0; } // the row gap already separates it from the cards
-        > .column {
-            flex: 1 1 316px;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
+        > .social-columns {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-areas: "sin" "contacts";
+            align-items: start;
             gap: var(--sp-m);
-            > .card { margin: 0; } // the column's gap only: stacked, the cards kept 16px under them plus the row gap
+            > .column {
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                gap: var(--sp-m);
+                > .card { margin: 0; } // the column's gap only: stacked, the cards kept 16px under them plus the row gap
+            }
+            > .column-sin { grid-area: sin; }
+            > .column-contacts { grid-area: contacts; }
+            // a column with no card (play mode, that list empty) takes no room, and stacked no row either: an empty
+            // grid row would keep its gap above the contacts
+            > .column:not(:has(> *)) { display: none; }
+            &:not(:has(> .column-sin > *)) { grid-template-areas: "contacts"; }
         }
     }
-    // edit mode: 136px of row icons instead of 80, so the same 120px name needs 372px cards (stacked at 940px)
-    &.sr-edit-mode .sr-social > .column { flex-basis: 372px; }
+    // two 316px columns and the gap between them; edit mode: 136px of row icons instead of 80, so the same 120px name
+    // needs 372px cards (stacked at 940px)
+    @container sr-social (min-width: 648px) {
+        .sr-social > .social-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "contacts sin"; }
+        // no contacts card (play mode, none yet): SIN and lifestyles take the left column, as the first cards of a tab do
+        // (a :has inside a :has is not allowed: the browser drops the whole rule)
+        .sr-social > .social-columns:not(:has(> .column-contacts > *)) { grid-template-areas: "sin ."; }
+        &.sr-edit-mode .sr-social > .social-columns { grid-template-columns: minmax(0, 1fr); grid-template-areas: "sin" "contacts"; }
+    }
+    @container sr-social (min-width: 760px) {
+        &.sr-edit-mode .sr-social > .social-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "contacts sin"; }
+    }
 
     // matrix: two columns. Left: the device card (header with device, rating, reboot; the four matrix attributes;
     // the condition monitor with a caption like the sidebar tracks) above the network card. Right: matrix actions.
@@ -2428,6 +2509,13 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
             .cell-container { flex: 1; }
         }
         .matrix-network > .list-item-header .card-title { margin-right: 8px; }
+        // a narrow column (an IC's, a long host name): the title and "Connected to" keep their line, the network's name
+        // takes what is left and ends in an ellipsis
+        .matrix-network > .list-item-header > .list-item-start {
+            min-width: 0;
+            > label { white-space: nowrap; flex: 0 0 auto; }
+            > .basic-row { min-width: 0; a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+        }
         // sub-tabs sit inside the card, under its header
         // icon lists (network / marked / owned): the name gets the room (two lines at most), type and network take
         // compact lanes (a long network name ends in an ellipsis), and the row icons start at the same spot, so a
@@ -3001,6 +3089,18 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
         .sr-rich-tag { padding: 1px 6px; border: 1px solid var(--tt-chip-line); background: var(--tt-chip-bg); @include label(12px, 600); color: var(--tt-text); }
     }
 
+    // the passage of the user's own rulebook on a card (RedesignRulebook): alone the card's text, after the card's own
+    // text under a label as an opened row's (its page is the card's source link), in the card's small label face
+    .sr-rich-desc .sr-rich-book > p { margin: 0 0 6px; &:last-child { margin-bottom: 0; } }
+    .sr-rich-desc .sr-rich-book-label {
+        margin: 10px 0 6px;
+        @include label(11px, 700);
+        line-height: 14px;
+        color: var(--tt-muted);
+        // the icon in the text's own line, on its baseline, as the footer's: a box of its own (a flex item) was set to
+        // the pixel apart from the text and sat a pixel low at the card's 11px
+        > i { margin-right: 6px; font-size: 11px; }
+    }
     .sr-rich-desc + .sr-rich-tags { padding-top: 0; } // the text above already leaves the gap
     // modifier breakdown of an attribute, limit, armor or movement (the system's rows, styled by .sr5-redesign-tooltip)
     .sr-rich-breakdown {
@@ -3009,6 +3109,8 @@ $sr-cyrillic: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
         .value-modifiers-container { margin: 0; }
         .list-item { @include label(13px, 600); text-transform: none; letter-spacing: calc(.01em + var(--sr-tracking, 0em)); }
     }
+    // the initiative card's two blocks: the attribute's sources, then the dice's (SR5RichTooltip#initiativeContext)
+    .sr-rich-breakdown-head { margin: 6px 0 2px; @include label(12px); color: var(--tt-muted); &:first-child { margin-top: 0; } }
     // an effect's changes come right after its stats, without a description in between
     .sr-rich-stats + .sr-rich-breakdown { padding-top: 8px; }
     .sr-rich-foot {
@@ -3165,6 +3267,13 @@ body.sr5-redesign-readable :is(.sr5v2.sr5-redesign, .application.sr5v2.sr5-redes
 }
 
 // ---------- the Actions tab's groups (redesign/actions.hbs) ----------
+// the card a dragged action row would go to (SR5RedesignActorSheet#wireActionGroupDrops): dashed, like the favorites'
+// drop zone (list-item.scss, .favorite-drop-target)
+// the item tabs' own groups the same (SR5RedesignActorSheet#wireOwnGroupDrops, RedesignOwnGroups)
+.sr5v2.sr5-redesign :is(.action-group.action-group-drop-target, .own-group.own-group-drop-target) {
+    outline: 1px dashed var(--sr5v2-control-border-hover);
+    outline-offset: -1px;
+}
 // an empty group in edit mode: one quiet row that says where Add puts a new action, as tall as an action row
 .sr5v2.sr5-redesign .action-group-empty {
     display: flex;

@@ -1,0 +1,3 @@
+{{!-- the initiative an interrupt (or an action of varying type) costs, after its type: "Interrupt −5" (SR5#166);
+      dimmed in combat when the Initiative Score left does not pay for it (short, SR5#167) --}}
+{{#if (and action.initiative_mod (or (eq action.type 'interrupt') (eq action.type 'varies')))}}&nbsp;<span class="initiative-cost{{#if short}} short{{/if}}" data-tooltip="{{#if short}}SR5.Redesign.ActionRow.InitiativeShort{{else}}SR5.InitiativeMod{{/if}}">{{numberFormat action.initiative_mod sign=true}}</span>{{/if}}

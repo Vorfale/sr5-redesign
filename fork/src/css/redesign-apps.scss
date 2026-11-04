@@ -389,6 +389,191 @@
         i { color: var(--sr-label-phys); }
     }
 
+    // ---------- the rulebook import (RedesignRulebook): its settings window in the sheet's look ----------
+    // As the network manager: the window's background, tables on it with a black head, 12px inside the window, 16px
+    // between the groups (the intro, what to import, the books with their note, the progress); a row's name over its
+    // state 2px apart (one item), a table and its note 8px. The footer's buttons as the managers'.
+    &.sr5-rulebook-import > .window-content { background: var(--sr-app-bg); }
+    .sr5-rulebook-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-m);
+        padding: 12px 12px 0;
+        // a short screen scrolls the window's inside, not the window: its frame's bevel reaches 1px past it, which
+        // made a scroll bar of its own on the window
+        max-height: calc(100vh - 80px);
+        overflow: hidden auto;
+        > .sheet-footer { margin: 0 -12px; } // the window's width, as the managers'
+    }
+    .sr5-rulebook-intro { margin: 0; font: 400 14px/1.45 var(--sr-font-prose); color: var(--sr-text); }
+    .sr5-rulebook-group { display: flex; flex-direction: column; gap: var(--sp-s); }
+    .sr5-rulebook-note { margin: 0; font-size: 13px; color: var(--sr-text-muted); }
+    .sr5-rulebook-table {
+        background: var(--sr-card-bg);
+        @include sheet.chamfer-frame(8px, var(--sr-line));
+    }
+    .sr5-rulebook-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: var(--tbl-head-h);
+        padding: 0 var(--tbl-pad-x);
+        background: var(--sr-table-head-bg);
+        color: var(--sr-table-head-fg);
+        @include sheet.label(12px);
+    }
+    // over the switches: their right edge, past the remove buttons' column (24px) and the row's gap
+    .sr5-rulebook-head-show { margin-right: 32px; }
+    .sr5-rulebook-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 52px;
+        padding: 6px var(--tbl-pad-x);
+        border-bottom: 1px solid var(--sr-row-border);
+        &:last-child { border-bottom: none; }
+    }
+    // a category: its box and text one click target; a book: its text, then its file or the button to pick one
+    .sr5-rulebook-check {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0;
+        cursor: pointer;
+    }
+    .sr5-rulebook-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .sr5-rulebook-name { font-size: 15px; font-weight: 600; line-height: 1.2; color: var(--sr-text); }
+    .sr5-rulebook-code { margin-left: 4px; font-size: 12px; font-weight: 500; color: var(--sr-text-muted); }
+    .sr5-rulebook-state { font-size: 13px; line-height: 1.3; color: var(--sr-text-muted); }
+    // the box: a square in the muted line, filled with the accent and ticked when chosen (Foundry's own glyphs off)
+    .sr5-rulebook-check input[type="checkbox"] {
+        appearance: none;
+        flex: 0 0 auto;
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--sr-text-muted);
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        cursor: pointer;
+        &::before {
+            content: '';
+            width: 9px;
+            height: 5px;
+            border-left: 2px solid transparent;
+            border-bottom: 2px solid transparent;
+            font: inherit;
+            transform: translateY(-1px) rotate(-45deg);
+        }
+        &::after { content: none; }
+        &:checked { border-color: var(--sr-accent); background: var(--sr-accent); &::before { border-color: var(--sr-card-bg); } }
+        &:focus-visible { outline: 2px solid var(--sr-focus); outline-offset: 2px; }
+    }
+    .sr5-rulebook-check:hover input[type="checkbox"]:not(:checked) { border-color: var(--sr-text); }
+    // show on the sheet: the sheet's switch (Blitz), the accent while on
+    button.sr5-rulebook-switch {
+        flex: 0 0 auto;
+        width: 36px;
+        height: 28px;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        background: none;
+        color: var(--sr-text-muted);
+        font-size: 18px;
+        i { margin: 0; }
+        &[aria-pressed="true"] { color: var(--sr-accent); }
+        &:hover:not(:disabled) { color: var(--sr-text); &[aria-pressed="true"] { color: var(--sr-accent-hover); } }
+        &:disabled { opacity: .45; cursor: default; }
+    }
+    // remove, leave the file out: the row icons of the sheet (no red; gold on dark, a faint fill on light)
+    button.sr5-rulebook-icon {
+        flex: 0 0 auto;
+        width: 24px;
+        height: 24px;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        background: none;
+        color: var(--sr-text);
+        font-size: 13px;
+        i { margin: 0; }
+        &:hover:not(:disabled) { color: var(--sr-accent-hover); }
+        &:disabled { opacity: .45; cursor: default; }
+    }
+    &.theme-light, body.theme-light &:not(.theme-dark) { button.sr5-rulebook-icon:hover:not(:disabled) { color: var(--sr-text); background: color-mix(in srgb, var(--sr-text) 10%, transparent); } }
+    // pick the PDF: a quiet button like the network card's Disconnect (the field itself stays for the keyboard)
+    .sr5-rulebook-pick {
+        flex: 0 0 auto;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        padding: 0 12px;
+        @include sheet.chamfer(5px, (tl, br));
+        @include sheet.label(12px);
+        background: var(--sr-graphite-700);
+        color: #fff;
+        white-space: nowrap;
+        cursor: pointer;
+        i { font-size: 12px; }
+        &:hover { background: var(--sr-graphite-600); }
+        &:has(input:focus-visible) { outline: 2px solid var(--sr-focus); outline-offset: 2px; }
+    }
+    // the file picked: its name (cut short, whole on the tooltip) and a cross to leave it out
+    .sr5-rulebook-file {
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 45%;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--sr-text);
+        > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        i { color: var(--sr-accent); }
+    }
+    // a book no chosen category is in: left out (the row's flex would show it through `hidden`)
+    .sr5-rulebook-row.book[hidden] { display: none; }
+    // the reading: a bar in the accent, the book and section under it; then per book what it found
+    .sr5-rulebook-progress { display: flex; flex-direction: column; gap: var(--sp-s); &[hidden] { display: none; } }
+    .sr5-rulebook-bar {
+        height: 4px;
+        background: var(--sr-line-soft);
+        &[hidden] { display: none; }
+        > span { display: block; width: var(--done, 0%); height: 100%; background: var(--sr-accent); transition: width .2s; }
+    }
+    .sr5-rulebook-report {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-xs);
+        font-size: 13px;
+        line-height: 1.35;
+        color: var(--sr-text);
+        &:empty { display: none; }
+        > span { display: flex; align-items: baseline; gap: 8px; }
+        i { flex: 0 0 14px; text-align: center; color: var(--sr-positive-text); }
+        .warn i { color: var(--sr-label-phys); }
+    }
+
     // ---------- the sheet's prompt and confirm dialogs (Foundry's DialogV2: a group's name, removing a group) ----------
     // the text or field 16px / 12px in, the footer's buttons as the managers': the main one crimson, the other
     // graphite (the default, safe answer of a removal gets the focus ring, not the crimson)

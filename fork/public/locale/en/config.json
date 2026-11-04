@@ -3691,6 +3691,16 @@
             "Tabs": { "Details": "Details", "Augmentations": "Augmentations", "Vehicles": "Vehicles & Drones", "Misc": "Configuration" },
             "Archetype": "Archetype",
             "Tooltip": {
+                "WoundModifier": "Wound modifier",
+                "Recovery": "Natural recovery",
+                "RecoveryPerHour": "{dice} dice an hour",
+                "RecoveryPerDay": "{dice} dice a day",
+                "HalfAttribute": "Half {attribute}, rounded up",
+                "TrackModifier": "Track modifiers",
+                "ConditionMonitor": "Condition monitor",
+                "InitiativeScore": "Initiative Score",
+                "InitiativeAttribute": "Initiative attribute",
+                "InitiativeKind": "Combat",
                 "Acc": "Acc", "DV": "DV", "AP": "AP", "Mode": "Mode", "RC": "RC", "Ammo": "Ammo", "Reach": "Reach",
                 "Armor": "Armor", "Essence": "Ess", "Grade": "Grade", "Rating": "Rtg", "Qty": "Qty",
                 "Type": "Type", "Range": "Range", "Duration": "Duration", "Drain": "Drain", "Target": "Target", "Fade": "Fade",
@@ -3710,6 +3720,11 @@
                 }
             },
             "StatInfo": {
+                "track_stun": "Stun damage: bruises, exhaustion, Drain. Every full row of three boxes is −1 to all tests, initiative included. A full track knocks the character out, and more Stun carries over to the Physical track, one box for every two. It heals with rest: Body + Willpower once an hour, a box per hit. A click on the name rolls it.",
+                "track_physical": "Physical damage: wounds. Every full row of three boxes is −1 to all tests, initiative included. A full track leaves the character dying: more damage fills the overflow. It heals with rest: Body × 2 once a day, a box per hit, and only once the Stun damage is healed. A click on the name rolls it.",
+                "track_grunt": "A grunt's one Condition Monitor, for Stun and Physical damage alike: 8 + half the higher of Willpower and Body. Every full row of three boxes is −1 to all tests.",
+                "track_overflow": "Damage beyond the Physical track, as many boxes as Body. The character is dying: without medical help another box fills every (Body) minutes, and when the overflow is full the character dies.",
+                "initiative": "Who acts first in a Combat Turn: the Initiative attribute plus the Initiative Dice, five at most. Wound modifiers lower it. The mode (meatspace, astral, cold or hot sim) picks the attribute and the dice; Blitz rolls five dice for a point of Edge.",
                 "body": "Physical toughness. Resists damage and toxins, and sets the size of the Physical condition monitor.",
                 "agility": "Coordination and fine motor control. Linked to most combat, firearms and stealth skills.",
                 "reaction": "Reflexes and response speed. Adds to initiative and to defending against attacks.",
@@ -3861,6 +3876,9 @@
                 "sensor": "SEN",
                 "seats": "SEAT"
             },
+            "ModNotInstalled": "Not installed: it takes no capacity and changes nothing until it is equipped on the item's Mods tab.",
+            "CapacityOver": "Capacity: its modifications take more than the item has.",
+            "ModInstalled": "{mod} installed in {item}.",
             "Vehicles": {
                 "Vehicles": "Vehicles",
                 "Drones": "Drones",
@@ -3925,12 +3943,65 @@
                 "None": "No device",
                 "RatingShort": "DR"
             },
+            "Rulebook": {
+                "MenuName": "Text from your rulebook",
+                "MenuLabel": "Import from PDF",
+                "MenuHint": "Adds passages of your own rulebooks to the hover cards and opened rows of attributes, skills, actions, spells, qualities, adept powers, complex forms, metamagics and echoes. The PDFs are read in your browser and are not uploaded.",
+                "Title": "Text from your rulebook",
+                "Intro": "Choose what to take and your PDFs of the books it is in. The sheet finds the sections its cards and rows point to and keeps their text in this world, for everyone who plays in it. The files stay on your computer.",
+                "WhatToImport": "What to import",
+                "Category": {
+                    "Attributes": "Attributes",
+                    "Skills": "Skills",
+                    "Actions": "Actions",
+                    "Spells": "Spells & Rituals",
+                    "Qualities": "Qualities",
+                    "Powers": "Adept Powers",
+                    "ComplexForms": "Complex Forms",
+                    "Metamagics": "Metamagics",
+                    "Echoes": "Echoes"
+                },
+                "Show": "Show on the sheet",
+                "ShowHint": "Off: cards and rows leave this text out. It stays in the world until you remove it.",
+                "Books": "Your books",
+                "BookFor": "For {categories}",
+                "InWorld": "{count} sections in this world",
+                "NotInWorld": "nothing imported yet",
+                "ChoosePdf": "Choose PDF",
+                "ClearFile": "Leave this file out",
+                "KeepNote": "A book without a file keeps what it gave before.",
+                "Import": "Import",
+                "Remove": "Remove the imported text",
+                "RemoveConfirm": "Remove the {category} text from this world? It comes back only by importing your PDFs again.",
+                "RemoveYes": "Remove",
+                "Status": "{count} of {total} sections ({books}), {date}.",
+                "StatusOne": "{count} of {total} sections, {date}.",
+                "None": "Not imported.",
+                "Reading": "Reading {book}: section {done} of {total}…",
+                "Found": "{book}: {count} of {total} sections.",
+                "Missing": "Not found: {names}.",
+                "NotThisBook": "Nothing found in {file}. Is it {book}?",
+                "NotPdf": "This file could not be read as a PDF.",
+                "PackLabel": "SR5 Redesign: rulebook text",
+                "FromBook": "From {book}"
+            },
+            "ActionRow": {
+                "Versus": "vs",
+                "MeleeOnly": "Against melee attacks",
+                "InitiativeShort": "Not enough Initiative Score left this Combat Turn (SR5 167)"
+            },
             "Settings": {
                 "Title": "{system} Redesign",
                 "Category": {
                     "Sidebar": "Sidebar",
                     "Details": "Details tab",
-                    "Accessibility": "Accessibility"
+                    "Accessibility": "Accessibility",
+                    "Performance": "Performance"
+                },
+                "LazyTokenSync": {
+                    "Name": "Faster updates of token copies",
+                    "Hint": "Copies of a character on scenes nobody is viewing are updated when they are needed, not at every change. With many copies it saves seconds on each change.",
+                    "Tooltip": "Foundry rebuilds every unlinked copy of a character on every scene at each change of it: a damage box, a shot, an item. Each copy costs about 0.1 s on a full character, on every client at once, so the game freezes for everyone. A character with 36 copies over 12 scenes: a damage box 3.8 s, a shot 7.8 s. On: the copies on the viewed scene update as before, the others when a sheet, a combat or their scene needs them; the same character takes 0.3 s and 0.6 s. Off: every copy at once, as Foundry does. It turns itself off when Foundry or the system changes this part."
                 },
                 "ReadableText": {
                     "Name": "Readable text",
@@ -3948,6 +4019,9 @@
                     "Tooltip": "A click on a lozenge spends an action, a right click gets it back. In combat every initiative pass gives the actions back; with Initiative 0 or less only a Free Action is left. The number of Free Actions is set per character in edit mode."
                 }
             },
+            "AddMenu": { "Title": "New group or inventory", "Inventory": "New inventory" },
+            "IC": { "Short": { "rating": "RTG", "attack": "ATK", "sleaze": "SLZ", "data_processing": "DP", "firewall": "FWL" }, "FromHost": "From the host it runs on", "NoHost": "No host: drop a host on the sheet", "NoHostShort": "No host", "Kind": "IC attribute", "Host": "Host", "OpenHost": "Open the host", "OrderShort": "Order", "OrderHint": "Its place in the order the host launches its IC", "MaxShort": "Max", "MaxHint": "How many IC the host may run at once: its rating", "MarksHint": "Icons the host holds marks on: its IC share them", "Info": { "rating": "The rating of the host the IC runs on, 1 to 12. The IC rolls Host Rating × 2 for its attacks, limited by the host's Attack; its initiative is Host Rating × 2 + 4D6, and its device rating follows it.", "attack": "The host's Attack, which its IC share: the limit of the IC's attacks.", "sleaze": "The host's Sleaze, which its IC share.", "data_processing": "The host's Data Processing, which its IC share.", "firewall": "The host's Firewall, which its IC share.", "initiative": "An IC acts as if it were in hot sim: Host Rating × 2 + 4D6.", "track": "The IC's matrix damage. When it is full the IC is bricked: it crashes and leaves the host, which may run a new copy at the start of the next Combat Turn." } },
+            "OwnGroups": { "AddTitle": "New group", "AddTo": "New in {group}", "Empty": "Nothing in this group yet: Add puts a new one here, or drag one in.", "RemoveText": "Remove the group \"{group}\"? What is in it goes back to its own cards; nothing is deleted." },
             "ActionGroups": {
                 "Label": "Group",
                 "None": "View: one table",
@@ -3958,11 +4032,13 @@
                 "Remove": "Remove",
                 "Keep": "Keep",
                 "RenameTitle": "Rename group",
+                "Move": "Move to group",
+                "MoveTitle": "Move to group",
                 "RemoveTitle": "Remove group",
                 "Name": "Group name",
                 "NameTaken": "There is a group called \"{name}\" already.",
                 "AddAction": "New action in {group}",
-                "Empty": "No actions in this group yet: Add puts a new one here.",
+                "Empty": "No actions in this group yet: Add puts a new one here, or drag one in.",
                 "RemoveWithActions": "Remove the group \"{group}\"? Its {count} action(s) of this character are deleted with it; the system's general actions in it go back to their kind.",
                 "RemoveEmpty": "Remove the group \"{group}\"? The system's general actions in it, if any, go back to their kind.",
                 "Kinds": {

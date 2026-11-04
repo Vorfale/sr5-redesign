@@ -14,9 +14,10 @@
     {{#if actionGroups}}
         {{!-- a card per group: the kinds, then the player's own groups; collapsible from the header like the
               inventory's cards (the same toggleExpanded state). Edit mode: every card, empty ones too, each with Add
-              (a new action in that group); an own group also renames and removes --}}
+              (a new action in that group); an own group also renames and removes. A row dragged onto another card,
+              or "Move to group" in its menu, puts the action there (SR5RedesignActorSheet#wireActionGroupDrops) --}}
         {{#each actionGroups as |group|}}
-        <div class="items-section card action-group{{#if group.own}} own-group{{/if}}{{#unless (or group.isOpen @root.isEditMode)}} collapsed{{/unless}}" data-type="{{group.type}}">
+        <div class="items-section card action-group{{#if group.own}} own-group{{/if}}{{#unless (or group.isOpen @root.isEditMode)}} collapsed{{/unless}}" data-type="{{group.type}}" data-group-key="{{group.key}}">
             <div class="list-item list-item-header{{#if @root.isPlayMode}} collapsible-header{{/if}}"
                  data-item-type="{{group.type}}"{{#if @root.isPlayMode}} data-action="toggleExpanded"{{/if}}>
                 <div class="list-item-start"><label>{{group.label}}</label></div>

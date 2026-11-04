@@ -11,7 +11,6 @@ import { SYSTEM_NAME } from '@/module/constants';
 import { Helpers } from '@/module/helpers';
 import { MatrixRules } from '@/module/rules/MatrixRules';
 import { MonitorRules } from '@/module/rules/MonitorRules';
-import { PackItemFlow } from '@/module/item/flows/PackItemFlow';
 import { MatrixNetworkFlow } from '@/module/item/flows/MatrixNetworkFlow';
 import { SkillRules } from '@/module/rules/SkillRules';
 import { TestCreator } from '@/module/tests/TestCreator';
@@ -165,7 +164,7 @@ export class SR5VehicleSheetRedesign extends SR5RedesignActorSheet {
 
     /** As the upstream vehicle sheet: a vehicle has no attack or sleaze, so the actions using them stay out. */
     protected override async _getMatrixPackActions() {
-        return (await PackItemFlow.getMatrixPackActions()).filter(action =>
+        return (await super._getMatrixPackActions()).filter(action =>
             !MatrixRules.isIllegalAction(action.getAction()?.attribute as Shadowrun.ActorAttribute, action.getAction()?.attribute2 as Shadowrun.ActorAttribute, action.getAction()?.limit?.attribute as Shadowrun.ActorAttribute));
     }
 
@@ -315,8 +314,9 @@ export class SR5VehicleSheetRedesign extends SR5RedesignActorSheet {
         const fields = data.systemFields as PlateFields | undefined;
         const stats = system.vehicle_stats as Record<string, PreparedStat | undefined>;
         const i18n = (key?: string) => key ? game.i18n.localize(key) : '';
-        // edit mode edits the on-road stats in the plates (the off-road bases are on the Configuration tab)
-        const offRoad = !!system.isOffRoad && this.isPlayMode;
+        // edit mode edits the on-road stats in the plates (the off-road bases are on the Configuration tab); a vehicle
+        // with no off-road values of its own shows its stats as they are (#hasOffRoad)
+        const offRoad = !!system.isOffRoad && this.isPlayMode && SR5VehicleSheetRedesign.#hasOffRoad(system);
         const statField = (id: string) => fields?.vehicle_stats?.fields?.[id]?.fields?.base;
         return VEHICLE_PLATES.flatMap(plate => {
             const stat: PreparedStat | undefined = plate.id === 'body' ? system.attributes?.body : plate.id === 'armor' ? system.armor?.rating : stats[plate.id];
@@ -359,9 +359,21 @@ export class SR5VehicleSheetRedesign extends SR5RedesignActorSheet {
         return [...vehicle, ...others];
     }
 
+    /**
+     * Whether the vehicle has off-road values of its own: the books give Handling and Speed as on road / off road
+     * ("4/3") for cars, bikes, trucks and some boats and ground drones only (SR5#463); aircraft, submarines and most
+     * drones have one value, which the import writes into both. The road changes nothing for those, so it is not
+     * offered (the chase environment is, in the air too: "clear skies", "flying at street level", SR5#204).
+     */
+    static #hasOffRoad(system: VehicleSystem): boolean {
+        const stats = system.vehicle_stats as Record<string, { base?: number } | undefined>;
+        return (['handling', 'speed', 'acceleration'] as const).some(id => (stats[id]?.base ?? 0) !== (stats[`off_road_${id}`]?.base ?? 0));
+    }
+
     /** The control group of the sidebar: the control mode (a menu), the chase environment, the road, the driver. */
     #rigging(context: VehicleSheetContext) {
         const system = vehicleSystem(context);
+        const offRoad = !!system.isOffRoad && SR5VehicleSheetRedesign.#hasOffRoad(system);
         const i18n = (key?: string) => key ? game.i18n.localize(key) : '';
         const modes = Object.entries(SR5.vehicle.control_modes as Record<string, string>).map(([value, label]) => ({
             value, label: i18n(label), icon: VEHICLE_CONTROL_ICONS[value] ?? 'fa-question', active: value === system.controlMode,
@@ -372,22 +384,22 @@ export class SR5VehicleSheetRedesign extends SR5RedesignActorSheet {
             modes,
             mode: modes.find(mode => mode.active) ?? modes[0],
             environment: { value: system.environment, label: i18n(environments[system.environment]), icon: ENVIRONMENT_ICONS[system.environment] ?? 'fa-gauge-high' },
-            offRoad: !!system.isOffRoad,
-            // the sidebar's two segmented switches: the chase environment (SR5#203) and the road
+            offRoad,
+            // the sidebar's two segmented switches: the chase environment (SR5#203) and the road, when it has one
             switches: [
                 {
                     label: i18n('SR5.Vehicle.ChaseEnvironment'), hint: 'SR5.Redesign.Rigging.EnvironmentHint', action: 'setEnvironment',
                     options: (['speed', 'handling'] as const).map(value => ({ value, label: i18n(environments[value]), icon: ENVIRONMENT_ICONS[value], active: system.environment === value })),
                 },
-                {
+                ...SR5VehicleSheetRedesign.#hasOffRoad(system) ? [{
                     label: i18n('SR5.Vehicle.IsOffRoad'), hint: 'SR5.Redesign.Rigging.RoadHint', action: 'setRoad',
                     options: [
-                        { value: 'on', label: i18n('SR5.Vehicle.OnRoad'), icon: 'fa-road', active: !system.isOffRoad },
-                        { value: 'off', label: i18n('SR5.Vehicle.OffRoad'), icon: 'fa-truck-monster', active: !!system.isOffRoad },
+                        { value: 'on', label: i18n('SR5.Vehicle.OnRoad'), icon: 'fa-road', active: !offRoad },
+                        { value: 'off', label: i18n('SR5.Vehicle.OffRoad'), icon: 'fa-truck-monster', active: offRoad },
                     ],
-                },
+                }] : [],
             ],
-            road: { label: i18n(system.isOffRoad ? 'SR5.Vehicle.OffRoad' : 'SR5.Vehicle.OnRoad'), icon: system.isOffRoad ? 'fa-truck-monster' : 'fa-road' },
+            road: { label: i18n(offRoad ? 'SR5.Vehicle.OffRoad' : 'SR5.Vehicle.OnRoad'), icon: offRoad ? 'fa-truck-monster' : 'fa-road' },
             driver: driver ? { name: driver.name, uuid: driver.uuid, img: driver.img } : null,
             // "jumped in": a rigger at the controls (SR5#265)
             jumpedIn: system.controlMode === 'rigger' && !!driver,

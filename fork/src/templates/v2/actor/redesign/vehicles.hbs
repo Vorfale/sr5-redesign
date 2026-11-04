@@ -28,8 +28,71 @@
     </div>
     {{/if}}
 {{/inline}}
+{{!-- one vehicle's row and its expanded part (the tab's cards and its own groups); param: row --}}
+{{#*inline "vehicleRow"}}
+<div class="list-item-container{{#if (hasKey @root.expandedUuids row.uuid)}} expanded{{/if}}">
+    <div class="list-item vehicle-row" data-uuid="{{row.uuid}}" data-vehicle-uuid="{{row.uuid}}" data-source="{{row.source}}"
+         data-context-menu="vehicle" draggable="true">
+        <div class="list-item-start">
+            {{!-- as an item's picture (item-roll-image.hbs): a click opens it, here its sheet --}}
+            {{#if row.canView}}
+                <button type="button" class="list-item-image-container icon sr5-icon" data-action="openUuid" data-tooltip="SR5.Redesign.Vehicles.Open">
+                    <img src="{{row.img}}" class="list-item-image-info" alt="">
+                </button>
+            {{else}}
+                <span class="list-item-image-container"><img src="{{row.img}}" alt=""></span>
+            {{/if}}
+            <span class="vehicle-name">
+                {{!-- the description needs Limited (as the vehicle's own sheet) --}}
+                {{#if row.canView}}
+                    <a class="item-name-link" data-action="showItemDescription">{{row.name}}</a>
+                {{else}}
+                    <span class="item-name-link">{{row.name}}</span>
+                {{/if}}
+                {{#if row.kind}}<span class="vehicle-kind">{{row.kind}}</span>{{/if}}
+            </span>
+        </div>
+        {{#each row.stats}}<div class="list-item-col vehicle-stat-col"><label>{{this}}</label></div>{{/each}}
+        {{!-- as an item row's icons: edit mode the edit (its sheet) and delete buttons; the ⋮ menu (RowMenu)
+              closes the lane in both modes --}}
+        <div class="list-item-icons">
+            {{#unless row.canView}}
+                <span class="vehicle-locked" data-tooltip="SR5.Redesign.Vehicles.NoPermission"><i class="fas fa-lock"></i></span>
+            {{/unless}}
+            {{#if @root.isEditMode}}
+                {{#if row.canView}}<a data-action="openUuid" data-tooltip="SR5.Redesign.Vehicles.Open"><i class="fas fa-pen-to-square"></i></a>{{/if}}
+                {{#if row.canEdit}}
+                    <a data-action="unlinkVehicle" data-tooltip="SR5.Redesign.Vehicles.Unlink"><i class="fas fa-link-slash"></i></a>
+                    <a data-action="deleteVehicle" data-tooltip="SR5.Redesign.Vehicles.Delete"><i class="fas fa-trash"></i></a>
+                {{/if}}
+            {{/if}}
+        </div>
+    </div>
+    <div class="list-item-desc">
+        <div class="list-item-properties">
+            {{#each row.props as |prop|}}
+                <label class="{{#if prop.dup}}prop-dup{{/if}}" data-prop="{{prop.prop}}"{{#if prop.tooltip}} data-tooltip="{{prop.tooltip}}"{{/if}}><i class="prop-icon fas {{prop.icon}}" aria-hidden="true"></i>{{prop.text}}</label>
+            {{/each}}
+            {{#each row.monitors as |monitor|}}
+                <div class="condition-monitor-container matrix-condition-monitor-property vehicle-monitor-property" data-vehicle-uuid="{{row.uuid}}">
+                    {{> vehicleMonitor id=monitor.id label=monitor.label icon=monitor.icon value=monitor.value max=monitor.max editable=row.canEdit }}
+                </div>
+            {{/each}}
+        </div>
+        <div class="description-body">{{{objValue (objValue @root.expandedUuids row.uuid) 'html'}}}</div>
+    </div>
+</div>
+{{/inline}}
 <section class="tab sr-vehicles{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{!-- edit mode: a new group of the player's own (RedesignOwnGroups), by the title as on the Actions tab --}}
+    {{#if @root.isEditMode}}
+    {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+        <button type="button" class="unbutton" data-action="addOwnGroup" data-tooltip="SR5.Redesign.OwnGroups.AddTitle"
+                aria-label="{{localize 'SR5.Redesign.OwnGroups.AddTitle'}}"><i class="fas fa-plus" aria-hidden="true"></i></button>
+    {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs'}}
+    {{else}}
     {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+    {{/if}}
 {{#if tabEmpty}}
     {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-tab.hbs' text='SR5.Redesign.Vehicles.EmptyTab' }}
 {{else}}
@@ -55,65 +118,20 @@
                 </div>
             </div>
             {{#each section.rows as |row|}}
-            <div class="list-item-container{{#if (hasKey @root.expandedUuids row.uuid)}} expanded{{/if}}">
-                <div class="list-item vehicle-row" data-uuid="{{row.uuid}}" data-vehicle-uuid="{{row.uuid}}" data-source="{{row.source}}"
-                     data-context-menu="vehicle" draggable="true">
-                    <div class="list-item-start">
-                        {{!-- as an item's picture (item-roll-image.hbs): a click opens it, here its sheet --}}
-                        {{#if row.canView}}
-                            <button type="button" class="list-item-image-container icon sr5-icon" data-action="openUuid" data-tooltip="SR5.Redesign.Vehicles.Open">
-                                <img src="{{row.img}}" class="list-item-image-info" alt="">
-                            </button>
-                        {{else}}
-                            <span class="list-item-image-container"><img src="{{row.img}}" alt=""></span>
-                        {{/if}}
-                        <span class="vehicle-name">
-                            {{!-- the description needs Limited (as the vehicle's own sheet) --}}
-                            {{#if row.canView}}
-                                <a class="item-name-link" data-action="showItemDescription">{{row.name}}</a>
-                            {{else}}
-                                <span class="item-name-link">{{row.name}}</span>
-                            {{/if}}
-                            {{#if row.kind}}<span class="vehicle-kind">{{row.kind}}</span>{{/if}}
-                        </span>
-                    </div>
-                    {{#each row.stats}}<div class="list-item-col vehicle-stat-col"><label>{{this}}</label></div>{{/each}}
-                    {{!-- as an item row's icons: edit mode the edit (its sheet) and delete buttons; the ⋮ menu (RowMenu)
-                          closes the lane in both modes --}}
-                    <div class="list-item-icons">
-                        {{#unless row.canView}}
-                            <span class="vehicle-locked" data-tooltip="SR5.Redesign.Vehicles.NoPermission"><i class="fas fa-lock"></i></span>
-                        {{/unless}}
-                        {{#if @root.isEditMode}}
-                            {{#if row.canView}}<a data-action="openUuid" data-tooltip="SR5.Redesign.Vehicles.Open"><i class="fas fa-pen-to-square"></i></a>{{/if}}
-                            {{#if row.canEdit}}
-                                <a data-action="unlinkVehicle" data-tooltip="SR5.Redesign.Vehicles.Unlink"><i class="fas fa-link-slash"></i></a>
-                                <a data-action="deleteVehicle" data-tooltip="SR5.Redesign.Vehicles.Delete"><i class="fas fa-trash"></i></a>
-                            {{/if}}
-                        {{/if}}
-                    </div>
-                </div>
-                <div class="list-item-desc">
-                    <div class="list-item-properties">
-                        {{#each row.props as |prop|}}
-                            <label class="{{#if prop.dup}}prop-dup{{/if}}" data-prop="{{prop.prop}}"{{#if prop.tooltip}} data-tooltip="{{prop.tooltip}}"{{/if}}><i class="prop-icon fas {{prop.icon}}" aria-hidden="true"></i>{{prop.text}}</label>
-                        {{/each}}
-                        {{#each row.monitors as |monitor|}}
-                            <div class="condition-monitor-container matrix-condition-monitor-property vehicle-monitor-property" data-vehicle-uuid="{{row.uuid}}">
-                                {{> vehicleMonitor id=monitor.id label=monitor.label icon=monitor.icon value=monitor.value max=monitor.max editable=row.canEdit }}
-                            </div>
-                        {{/each}}
-                    </div>
-                    <div class="description-body">
-                        {{{objValue (objValue @root.expandedUuids row.uuid) 'html'}}}
-                    </div>
-                </div>
-            </div>
+                {{> vehicleRow row=row }}
             {{else}}
                 {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-row.hbs' }}
             {{/each}}
         </div>
         {{/if}}
+    {{/each}}
+    {{!-- the player's own groups, after the tab's cards (not in one list): the same columns and rows --}}
+    {{#each ownGroups as |group|}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/own-group.hbs' group=group }}
+            {{#each @root.vehicleColumns as |column|}}
+                <div class="list-item-col vehicle-stat-col"><label data-tooltip="{{column.tooltip}}">{{localize column.label}}</label></div>
+            {{/each}}
+        {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/own-group.hbs'}}
     {{/each}}
 {{/if}}
 </section>

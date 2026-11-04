@@ -5,7 +5,7 @@
 <div class="list-item-container {{#if (hasKey @root.expandedUuids item.uuid)}} expanded {{/if}}"
      data-sort-name="{{name}}" data-sort-marks="{{sortMarks}}" data-sort-type="{{sortType}}">
     <div class="list-item {{#if (isOwner item owner=@root.actor)}} draggable {{/if}}"
-         data-source="{{item.system.description.source}}"
+         data-source="{{#if item.system.description.source}}{{item.system.description.source}}{{else}}{{lookup @root.actionSources item.uuid}}{{/if}}"
          data-item-id="{{item.id}}"
          data-context-menu="item"
          data-uuid="{{item.uuid}}">
@@ -38,10 +38,9 @@
             {{!-- the Marks column again, for an action whose line would hold only its source (#arrangeProperties) --}}
             <label class="prop-dup" data-prop="stat"><i class="prop-icon fas fa-tag" aria-hidden="true"></i>{{localize "SR5.Marks"}}&nbsp;{{marksRequired item}}</label>
             {{> 'systems/shadowrun5e/dist/templates/v2/item-properties/action.hbs' item=item }}
+            {{> 'systems/shadowrun5e/dist/templates/v2/list-items/action/details.hbs' item=item }}
         </div>
-        <div class="description-body">
-            {{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}
-        </div>
+        <div class="description-body">{{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}</div>
     </div>
 </div>
 {{/if}}

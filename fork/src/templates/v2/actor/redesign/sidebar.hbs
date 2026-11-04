@@ -182,8 +182,8 @@
                         </button>
                     {{/each}}
                 </div>
-                {{!-- Blitz spends Edge: nothing to spend on a vehicle --}}
-                {{#unless @root.isVehicle}}
+                {{!-- Blitz spends Edge: nothing to spend on a vehicle or an IC --}}
+                {{#unless (or @root.isVehicle @root.isIC)}}
                 <button type="button" class="init-blitz" data-action="toggleInitiativeBlitz"
                         aria-pressed="{{#if @root.system.initiative.blitz}}true{{else}}false{{/if}}"
                         {{#unless @root.blitzAvailable}}disabled{{/unless}} data-tooltip="SR5.Tooltips.Actor.Blitz">
@@ -287,6 +287,8 @@
             {{/if}}
             </div>
 
+            {{!-- an IC has no body: no armor, no movement --}}
+            {{#unless isIC}}
             <div class="lozenges">
                 <div class="lozenge small">
                     <div class="value" data-tooltip="{{localize 'SR5.Redesign.ArmorRating'}}" data-modifier-tooltip-path="system.armor.rating">{{system.armor.rating.value}}</div>
@@ -302,6 +304,7 @@
                     <div class="label">{{#if isVehicle}}{{localize "SR5.Redesign.Rigging.Move.runShort"}}{{else}}{{localize "SR5.Redesign.Run"}}{{/if}}</div>
                 </div>
             </div>
+            {{/unless}}
 
 
             {{/unless}}
@@ -375,7 +378,8 @@
     {{!-- persona: a section of its own at the bottom, two separate tiles like the quick rolls. The mode tile switches
           running silent (the system takes -2 off every Matrix test while it is on, MatrixTestDataFlow); the network
           tile names the network the persona is on and opens it, or opens the network manager while it is on none. --}}
-    {{#if (and system.matrix actor.hasPersona)}}
+    {{!-- an IC is a program of its host: no persona of its own to show or hide (its host is in the header) --}}
+    {{#if (and system.matrix actor.hasPersona (not isIC))}}
     <section class="persona-section" aria-labelledby="{{rootId}}-persona">
         {{!-- a vehicle or drone is no persona but a device icon (SR5#219); a rigger jumping in merges with it (SR5#266) --}}
         <h3 class="plaque" id="{{rootId}}-persona"><span class="plaque-tab"><i class="fas {{#if isVehicle}}fa-tower-broadcast{{else}}fa-user-astronaut{{/if}}" aria-hidden="true"></i><span>{{#if isVehicle}}{{localize "SR5.Redesign.Rigging.MatrixIcon"}}{{else}}{{localize "SR5.Redesign.Persona"}}{{/if}}</span></span></h3>
