@@ -25,27 +25,12 @@
 {{/if}}
 
 {{#if (and (usesAmmo item) (hasAmmo item) (equippedAmmo item))}}
+    {{!-- which ammunition is loaded: the count alone (the row's Ammo column) does not say --}}
+    <label data-prop="stat" data-tooltip="SR5.Loaded"><i class="prop-icon fas fa-box-archive" aria-hidden="true"></i>{{lookup (equippedAmmo item) 'name'}}</label>
     <label data-prop="stat" class="prop-ammo-count"><i class="prop-icon fas fa-box-archive" aria-hidden="true"></i>{{localize "SR5.Weapon.AmmoCount"}}&nbsp;{{item.system.ammo.current.value}}/{{item.system.ammo.current.max}}</label>
     {{#if item.system.ammo.spare_clips.max}}
         <label data-prop="stat"><i class="prop-icon fas fa-boxes-stacked" aria-hidden="true"></i>{{localize "SR5.Weapon.SpareReloads"}}&nbsp;{{item.system.ammo.spare_clips.value}}/{{item.system.ammo.spare_clips.max}}</label>
     {{/if}}
 {{/if}}
 
-{{#each (equippedMods item)}}
-    <label data-prop="mod">
-        {{#if (canBeWireless this)}}
-            {{#if (isBroken this)}}
-                <i class="fas fa-link-slash"></i>
-            {{else if (isRunningSilent this)}}
-                <i class="fas fa-wifi sr5-icon-dim"></i>
-            {{else if (isWireless this)}}
-                <i class="fas fa-wifi"></i>
-            {{else}}
-                <i class="fas fa-wifi sr5-icon-strike"></i>
-            {{/if}}
-        {{else}}
-            <img src="{{this.img}}" width="12px" height="12px">
-        {{/if}}
-        {{this.name}}
-    </label>
-{{/each}}
+{{> 'systems/shadowrun5e/dist/templates/v2/item-properties/mods.hbs' item=item }}

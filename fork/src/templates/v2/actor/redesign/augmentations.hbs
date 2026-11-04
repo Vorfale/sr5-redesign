@@ -24,8 +24,10 @@
                     <button type="button" class="unbutton" data-action="removeInventory" data-inventory="{{implantInventory}}"
                             data-tooltip="SR5.Redesign.RemoveInventory" aria-label="{{localize 'SR5.Redesign.RemoveInventory'}}"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 {{/if}}
-                <button type="button" class="unbutton" data-action="createInventory" data-tooltip="SR5.Labels.ActorSheet.CreateInventory"
-                        aria-label="{{localize 'SR5.Labels.ActorSheet.CreateInventory'}}"><i class="fas fa-plus" aria-hidden="true"></i></button>
+                {{!-- one + for what can be made here: a new group of the player's own (RedesignOwnGroups) or a new
+                      inventory, from its menu (SR5RedesignActorSheet#tabAddOptions) --}}
+                <button type="button" class="unbutton" data-context-menu="tab-add" data-tooltip="SR5.Redesign.AddMenu.Title"
+                        aria-label="{{localize 'SR5.Redesign.AddMenu.Title'}}" aria-haspopup="menu"><i class="fas fa-plus" aria-hidden="true"></i></button>
             {{/if}}
         </div>
     {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs'}}
@@ -45,6 +47,10 @@
             {{/each}}
         </div>
         {{/if}}
+    {{/each}}
+    {{!-- the player's own groups, after the cyberware and bioware cards (RedesignOwnGroups) --}}
+    {{#each ownGroups as |group|}}
+        {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/own-group.hbs' group=group }}
     {{/each}}
 {{/if}}
 </section>

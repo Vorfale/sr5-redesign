@@ -1,14 +1,18 @@
 import { LinksHelpers } from '@/module/utils/links';
+import { RedesignRulebook } from '@/module/actor/sheets/redesign/RedesignRulebook';
 import { SR5 } from '@/module/config';
 import { SR5Item } from '@/module/item/SR5Item';
 import { SR5Actor } from '@/module/actor/SR5Actor';
+import { InitiativeRules } from '@/module/rules/InitiativeRules';
 import { SheetFlow } from '@/module/flows/SheetFlow';
 import { SkillRules } from '@/module/rules/SkillRules';
 import { Helpers } from '@/module/helpers';
 import { ModifierFlow } from '@/module/actor/flows/ModifierFlow';
 import { RedesignPool } from '@/module/actor/sheets/RedesignPool';
+import { RedesignActionDetails } from '@/module/actor/sheets/redesign/RedesignActionDetails';
 import { SR5ActiveEffect } from '@/module/effect/SR5ActiveEffect';
 import { prepareEffectDurationStatus } from '@/module/effect/EffectDurationStatus';
+import { icHost } from '@/module/actor/sheets/redesign/RedesignIC';
 
 /**
  * Font Awesome icons (Foundry ships the Pro set) standing in for a picture on the cards of attributes, limits, armor and
@@ -122,6 +126,13 @@ const STAT_SOURCES: Record<string, string> = {
     limit_handling: 'SR5 199', limit_speed: 'SR5 199', limit_sensor: 'SR5 199',
     vehicle_walk: 'SR5 202', vehicle_run: 'SR5 202',
 };
+/**
+ * An IC's plates (the IC sheet): the host and the matrix attributes by what they do: Attack strikes, Sleaze hides,
+ * Data Processing computes, Firewall defends.
+ */
+const IC_STAT_ICONS: Record<string, string> = {
+    rating: 'fa-server', attack: 'fa-burst', sleaze: 'fa-user-secret', data_processing: 'fa-microchip', firewall: 'fa-shield-halved',
+};
 /** Icons of the modification slot categories, as on the vehicle sheet's slot card. */
 const MOD_SLOT_ICONS: Record<string, string> = {
     powertrain: 'fa-gears', protection: 'fa-shield', weapons: 'fa-gun', body: 'fa-truck',
@@ -163,7 +174,7 @@ export class RichTooltip {
     }
 
     /** Marks an element as the hover target of an actor value's card: an attribute, a limit, armor or movement. */
-    static attachStat(element: HTMLElement, actor: SR5Actor, kind: 'attribute' | 'limit' | 'armor' | 'movement' | 'vehicle' | 'modslots', id: string) {
+    static attachStat(element: HTMLElement, actor: SR5Actor, kind: 'attribute' | 'limit' | 'armor' | 'movement' | 'vehicle' | 'ic' | 'modslots' | 'track' | 'initiative', id: string) {
         element.dataset.richActor = actor.uuid ?? '';
         element.dataset.richStat = `${kind}:${id}`;
         RichTooltip.#mark(element);
@@ -417,7 +428,11 @@ export class RichTooltip {
         const tags: string[] = [];
         // a vehicle's stat (vehicle sheet plates): the stat of the road the vehicle is on, the other road's beside it
         if (kind === 'vehicle') return RichTooltip.#vehicleStatContext(actor, id);
+        // an IC's plates, initiative and matrix track follow the IC rules (SR5#247), not a character's
+        if (actor.type === 'ic' && (kind === 'ic' || kind === 'initiative' || kind === 'track')) return RichTooltip.#icContext(actor, kind, id);
         if (kind === 'modslots') return RichTooltip.#modSlotsContext(actor, id);
+        if (kind === 'track') return RichTooltip.#trackContext(actor, id);
+        if (kind === 'initiative') return RichTooltip.#initiativeContext(actor);
         switch (kind) {
             case 'attribute':
                 value = actor.getAttribute(id);
@@ -470,11 +485,180 @@ export class RichTooltip {
             kind: label,
             detail,
             stats,
-            description: `<p>${i18n(`SR5.Redesign.StatInfo.${key}`)}</p>`,
+            // then the passage of the user's own rulebook, when it was imported (RedesignRulebook)
+            description: RedesignRulebook.withPassage(`<p>${i18n(`SR5.Redesign.StatInfo.${key}`)}</p>`, 'attributes', key),
             breakdown,
             tags,
             source: STAT_SOURCES[key] ?? '',
         };
+    }
+
+    /**
+     * A condition monitor's card (the sidebar's stun, physical and overflow tracks): the damage on it, the wound
+     * modifier it gives (-1 per full row of three boxes, SR5#52, SR5#169), the natural recovery pool (stun: Body +
+     * Willpower an hour, physical: Body × 2 a day, SR5#207), and where its boxes come from: 8 + half Willpower / Body
+     * rounded up and the track modifiers (SR5#52), the overflow Body (SR5#170). A grunt's one track counts the higher
+     * of the two (SR5#378).
+     */
+    static async #trackContext(actor: SR5Actor, id: string) {
+        const i18n = (key?: string) => key ? game.i18n.localize(key) : '';
+        type Track = { value: number; max: number; wounds?: number; disabled?: boolean; overflow?: { value: number; max: number } };
+        const system = actor.system as unknown as {
+            track?: Record<string, Track | undefined>;
+            attributes?: Record<string, { value?: number } | undefined>;
+            modifiers?: Record<string, number | undefined>;
+        };
+        const attribute = (name: string) => Number(system.attributes?.[name]?.value) || 0;
+        const modifier = (name: string) => Number(system.modifiers?.[name]) || 0;
+        const physical = system.track?.physical;
+        const grunt = actor.isGrunt();
+        const stats: { label: string, value: string | number }[] = [];
+        const change = (name: string, value: number) => ({ name, value, type: 'add', enabled: true, priority: 0, source: '' });
+        let base: { base: number, value: number, changes: ReturnType<typeof change>[] };
+        let name: string;
+        let icon: string;
+        let source = 'SR5 169';
+        if (id === 'overflow') {
+            const overflow = physical?.overflow;
+            if (!overflow) return null;
+            name = i18n('SR5.Overflow');
+            icon = 'fa-droplet';
+            source = 'SR5 170';
+            stats.push({ label: i18n('SR5.Redesign.Tooltip.Damage'), value: `${overflow.value} / ${overflow.max}` });
+            const mod = modifier('physical_overflow_track');
+            base = { base: attribute('body'), value: overflow.max, changes: mod ? [change('SR5.Redesign.Tooltip.TrackModifier', mod)] : [] };
+        } else {
+            const track = system.track?.[id];
+            if (!track || track.disabled || (id !== 'stun' && id !== 'physical')) return null;
+            const stun = id === 'stun';
+            name = i18n(grunt && !stun ? 'SR5.Redesign.GruntMonitor' : `SR5.Labels.ActorSheet.${stun ? 'StunTrack' : 'PhysicalTrack'}`);
+            icon = stun ? 'fa-kit-medical' : 'fa-heart-pulse';
+            if (grunt) source = 'SR5 378';
+            stats.push({ label: i18n('SR5.Redesign.Tooltip.Damage'), value: `${track.value} / ${track.max}` });
+            stats.push({ label: i18n('SR5.Redesign.Tooltip.WoundModifier'), value: track.wounds ? `−${track.wounds}` : '0' });
+            if (!stun && physical?.overflow?.max) stats.push({ label: i18n('SR5.Overflow'), value: `${physical.overflow.value} / ${physical.overflow.max}` });
+            const body = attribute('body');
+            const willpower = attribute('willpower');
+            stats.push({
+                label: i18n('SR5.Redesign.Tooltip.Recovery'),
+                value: game.i18n.format(stun ? 'SR5.Redesign.Tooltip.RecoveryPerHour' : 'SR5.Redesign.Tooltip.RecoveryPerDay', { dice: stun ? body + willpower : body * 2 }),
+            });
+            // the boxes: 8 + half the attribute, rounded up (a grunt: the higher of Willpower and Body)
+            const attributeId = grunt ? (willpower > body ? 'willpower' : 'body') : stun ? 'willpower' : 'body';
+            const label = i18n(attributeId === 'willpower' ? 'SR5.AttrWillpower' : 'SR5.AttrBody');
+            const mod = modifier(stun ? 'stun_track' : 'physical_track');
+            base = {
+                base: 8,
+                value: track.max,
+                changes: [
+                    change(game.i18n.format('SR5.Redesign.Tooltip.HalfAttribute', { attribute: label }), Math.ceil(attribute(attributeId) / 2)),
+                    ...(mod ? [change('SR5.Redesign.Tooltip.TrackModifier', mod)] : []),
+                ],
+            };
+        }
+        const breakdown = (await foundry.applications.handlebars.renderTemplate(SheetFlow.templateBase('common/modifiers-tooltip'), { value: base })).trim();
+        const key = id === 'overflow' ? 'track_overflow' : grunt && id === 'physical' ? 'track_grunt' : `track_${id}`;
+        return {
+            icon,
+            name,
+            kind: i18n('SR5.Redesign.Tooltip.ConditionMonitor'),
+            detail: '',
+            stats,
+            description: `<p>${i18n(`SR5.Redesign.StatInfo.${key}`)}</p>`,
+            breakdown,
+            tags: [],
+            source,
+        };
+    }
+
+    /**
+     * The initiative card (the sidebar's initiative row): the mode in use, what it rolls (InitiativeRules, Blitz
+     * included), the Initiative Score in the current combat, and where it comes from: the Initiative attribute
+     * (Reaction + Intuition in meatspace, SR5#52) and the Initiative Dice, up to five (SR5#161), each with its
+     * sources as the system prepared them.
+     */
+    static async #initiativeContext(actor: SR5Actor) {
+        const i18n = (key?: string) => key ? game.i18n.localize(key) : '';
+        type Mode = { constant?: CardValue; dice?: CardValue };
+        const initiative = (actor.system as unknown as { initiative?: Record<string, unknown> & { perception?: string, blitz?: boolean } }).initiative;
+        if (!initiative?.perception) return null;
+        const option = initiative.perception === 'matrix' ? (actor.isUsingHotSim ? 'hot_sim' : 'cold_sim') : initiative.perception;
+        const mode = initiative[InitiativeRules.modeOf(option)] as Mode | undefined;
+        if (!mode) return null;
+        const labels: Record<string, string> = { meatspace: 'SR5.InitCatMeatspace', astral: 'SR5.InitCatAstral', cold_sim: 'SR5.Labels.ActorSheet.ColdSim', hot_sim: 'SR5.HotSim' };
+        const stats: { label: string, value: string | number }[] = [
+            { label: i18n('SR5.Redesign.Tooltip.Mode'), value: i18n(labels[option]) },
+            { label: i18n('SR5.Initiative'), value: InitiativeRules.formula(initiative as never, option, true).replace('+', ' + ') },
+        ];
+        const score = game.combat?.combatants.find(combatant => combatant.actor?.uuid === actor.uuid)?.initiative;
+        if (score !== undefined && score !== null) stats.push({ label: i18n('SR5.Redesign.Tooltip.InitiativeScore'), value: score });
+        // two blocks of the system's rows, each under its caption: the attribute (no base: it is all sources) and the
+        // dice. A die's rows read as dice ('1D6', '+2D6'), so what adds to the score and what adds a die stay apart
+        const block = async (caption: string, value: CardValue | undefined, dice: boolean) => {
+            const changes = (value?.changes ?? []).filter(entry => Number(entry.value) !== 0);
+            if (!value || (!changes.length && !value.base)) return '';
+            const template = document.createElement('template');
+            template.innerHTML = (await foundry.applications.handlebars.renderTemplate(SheetFlow.templateBase('common/modifiers-tooltip'), { value: { ...value, changes }, card: true })).trim();
+            if (dice) {
+                for (const label of template.content.querySelectorAll(':is(.value-modifiers-base, .value-modifiers-modifier) > label')) {
+                    if (/\d$/.test(label.textContent?.trim() ?? '')) label.textContent = `${label.textContent!.trim()}D6`;
+                }
+            }
+            return `<p class="sr-rich-breakdown-head">${i18n(caption)}</p>${template.innerHTML}`;
+        };
+        const breakdown = `${await block('SR5.Redesign.Tooltip.InitiativeAttribute', mode.constant, false)}${await block('SR5.Redesign.Tooltip.InitiativeDice', mode.dice, true)}`;
+        return {
+            icon: 'fa-forward-fast',
+            name: i18n('SR5.Initiative'),
+            kind: i18n('SR5.Redesign.Tooltip.InitiativeKind'),
+            detail: '',
+            stats,
+            description: `<p>${i18n('SR5.Redesign.StatInfo.initiative')}</p>`,
+            breakdown,
+            tags: initiative.blitz ? [i18n('SR5.Blitz')] : [],
+            source: 'SR5 159',
+        };
+    }
+
+    /**
+     * An IC's cards (the IC sheet's plates and sidebar, SR5#247): the host's rating and the four matrix attributes it
+     * shares with the host (the host's name a tag), the initiative of an IC (as if in hot sim: Host Rating × 2 + 4D6)
+     * and its matrix track (bricked, it crashes and leaves the host). The system's modifier rows as everywhere.
+     */
+    static async #icContext(actor: SR5Actor, kind: string, id: string) {
+        const i18n = (key?: string) => key ? game.i18n.localize(key) : '';
+        const system = (actor as SR5Actor<'ic'>).system;
+        const host = icHost(actor)?.host ?? null;
+        const tags = host ? [host.name] : [i18n('SR5.Redesign.IC.NoHostShort')];
+        const rows = async (value: CardValue | undefined) => {
+            const changes = (value?.changes ?? []).filter(change => Number(change.value) !== 0);
+            return changes.length ? (await foundry.applications.handlebars.renderTemplate(SheetFlow.templateBase('common/modifiers-tooltip'), { value: { ...value, changes } })).trim() : '';
+        };
+        const card = (icon: string, name: string, kindLabel: string, stats: { label: string, value: string | number }[], info: string, breakdown = '') =>
+            ({ icon, name, kind: i18n(kindLabel), detail: '', stats, description: `<p>${i18n(info)}</p>`, breakdown, tags, source: 'SR5 247' });
+        if (kind === 'initiative') {
+            const current = system.initiative.current as { base?: number, constant?: CardValue, dice?: CardValue & { text?: string } } | undefined;
+            const stats: { label: string, value: string | number }[] = [
+                { label: i18n('SR5.Initiative'), value: `${current?.constant?.value ?? 0} + ${current?.dice?.value ?? 4}D6` },
+            ];
+            const score = game.combat?.combatants.find(combatant => combatant.actor?.uuid === actor.uuid)?.initiative;
+            if (score !== undefined && score !== null) stats.push({ label: i18n('SR5.Redesign.Tooltip.InitiativeScore'), value: score });
+            return card('fa-forward-fast', i18n('SR5.Initiative'), 'SR5.Redesign.Tooltip.InitiativeKind', stats, 'SR5.Redesign.IC.Info.initiative', await rows(current?.constant));
+        }
+        if (kind === 'track') {
+            const track = system.track.matrix as unknown as CardValue & { max?: number };
+            const stats = [{ label: i18n('SR5.Redesign.Tooltip.Value'), value: `${track.value ?? 0} / ${track.max ?? 0}` }];
+            return card('fa-microchip', i18n('SR5.Redesign.MatrixMonitor'), 'SR5.Redesign.Tooltip.ConditionMonitor', stats, 'SR5.Redesign.IC.Info.track', await rows(track));
+        }
+        if (kind !== 'ic') return null;
+        if (id === 'rating') {
+            return card(IC_STAT_ICONS.rating, i18n('SR5.Host.Rating'), 'SR5.Redesign.IC.Kind', [{ label: i18n('SR5.Redesign.Tooltip.Value'), value: system.host.rating }], 'SR5.Redesign.IC.Info.rating');
+        }
+        const value = (system.matrix as unknown as Record<string, CardValue | undefined>)[id];
+        if (!value) return null;
+        const stats: { label: string, value: string | number }[] = [{ label: i18n('SR5.Redesign.Tooltip.Value'), value: value.value ?? 0 }];
+        if (value.base !== undefined && value.base !== value.value) stats.push({ label: i18n('SR5.Redesign.Tooltip.Base'), value: value.base });
+        return card(IC_STAT_ICONS[id] ?? 'fa-circle-info', i18n(SR5.matrixAttributes[id as keyof typeof SR5.matrixAttributes]), 'SR5.Redesign.IC.Kind', stats, `SR5.Redesign.IC.Info.${id}`, await rows(value));
     }
 
     /**
@@ -705,8 +889,10 @@ export class RichTooltip {
             detail: detail && detail !== kind ? detail : '',
             stats,
             tags,
-            description: await RichTooltip.#description(item),
-            source: system.description?.source ?? '',
+            // an action or spell: then its entry in the user's rulebooks when imported (RedesignRulebook)
+            description: RedesignRulebook.itemPassage(item, await RichTooltip.#description(item)),
+            // an action: also the page of a general pack action, as its row's source link (RedesignActionDetails)
+            source: item.type === 'action' ? RedesignActionDetails.source(item) : system.description?.source ?? '',
         };
     }
 
@@ -862,8 +1048,10 @@ export class RichTooltip {
             stats,
             tags: specs.map(spec => typeof spec === 'string' ? spec : (spec as { name?: string }).name ?? ''),
             tagsLabel: specs.length ? i18n('SR5.Redesign.Tooltip.Specializations') : '',
-            description: await RichTooltip.#description(item),
-            source: (item.system as { description?: { source?: string } }).description?.source ?? '',
+            // the skill's own description, then its entry in the user's rulebook when imported (RedesignRulebook)
+            description: RedesignRulebook.withPassage(await RichTooltip.#description(item), 'skills', item.name),
+            // the skill's own page, else its entry's in the user's rulebook when imported
+            source: (item.system as { description?: { source?: string } }).description?.source || RedesignRulebook.source('skills', item.name),
         };
     }
 

@@ -58,8 +58,6 @@
         <div class="list-item-properties">
             <label class="prop-dup sr-redesign-only" data-prop="stat"><i class="prop-icon fas fa-signal" aria-hidden="true"></i>{{localize "SR5.Rating"}}&nbsp;{{group.displayRating}}</label>
         </div>
-        <div class="description-body">
-            {{{objValue (objValue @root.expandedSkills group.item.id) 'html'}}}
-        </div>
+        <div class="description-body">{{{objValue (objValue @root.expandedSkills group.item.id) 'html'}}}</div>
     </div>
 </div>

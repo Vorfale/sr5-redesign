@@ -1,4 +1,7 @@
 import { SR5CharacterSheet } from '@/module/actor/sheets/SR5CharacterSheet';
+import { RedesignRulebook } from '@/module/actor/sheets/redesign/RedesignRulebook';
+import { RedesignActionDetails } from '@/module/actor/sheets/redesign/RedesignActionDetails';
+import type { PreparedActionTest } from '@/module/actor/sheets/redesign/RedesignActionDetails';
 import type { CharacterSheetData } from '@/module/actor/sheets/SR5CharacterSheet';
 import { SheetFlow } from '@/module/flows/SheetFlow';
 import { SR5Item } from '@/module/item/SR5Item';
@@ -10,7 +13,6 @@ import { MonitorRules } from '@/module/rules/MonitorRules';
 import { SYSTEM_NAME } from '@/module/constants';
 import { SR5 } from '@/module/config';
 import { isElementInstance } from '@/module/utils/dom';
-import { InventoryRenameApp } from '@/module/apps/actor/InventoryRenameApp';
 import { KarmaManager } from '@/module/apps/actor/KarmaManager';
 import { NuyenManager } from '@/module/apps/actor/NuyenManager';
 import { ReputationManager } from '@/module/apps/actor/ReputationManager';
@@ -34,13 +36,14 @@ import { ListFilterChip, VEHICLE_CONTROL_ICONS, LIST_FILTER_GROUPS, LIST_FILTERS
 import { onIdle, SHOWN_PARTS, NESTED_PARTS, PARENT_PART, SHOWN_ONLY_PARTS, UPDATE_PARTS, COUNT_KEYS, ITEM_PARTS } from '@/module/actor/sheets/redesign/RedesignRenderMap';
 import { NATIVE_CONTROLS, enhanceAccessibility } from '@/module/actor/sheets/redesign/RedesignAccessibility';
 import { ACTION_TYPE_ORDER, ASCENDING_SORT_KEYS, NUMERIC_SORT_KEYS, SkillSortKey, SkillTable, TableSort, cardRows, compareSortValues, sortCell, sortValue } from '@/module/actor/sheets/redesign/RedesignTableSort';
-import { showMatrixLoader, warmMatrixNetworks } from '@/module/actor/sheets/redesign/RedesignMatrixLoader';
+import { hasColdMatrixDevices, showMatrixLoader, warmMatrixNetworks } from '@/module/actor/sheets/redesign/RedesignMatrixLoader';
 import { SHEET_FONTS, rememberImages, warmUp } from '@/module/actor/sheets/redesign/RedesignWarmUp';
 import { SheetArt } from '@/module/actor/sheets/redesign/RedesignSheetArt';
 import { ActionTracker } from '@/module/actor/sheets/redesign/RedesignActionTracker';
 import { measureSidebarBar, wireCollapserTooltip, wireSidebarScrollLane } from '@/module/actor/sheets/redesign/RedesignSidebar';
 import { wireInitiativeMenu } from '@/module/actor/sheets/redesign/RedesignBarMenus';
 import { InitiativeRules } from '@/module/rules/InitiativeRules';
+import { OWN_GROUP_OF_FLAG, OWN_GROUPS_FLAG, OwnGroup, OwnGroupTab, isOwnGroupTab, ownGroupOf, ownGroupOfRow, ownGroups, splitOwnGroups, vehicleRowKey } from '@/module/actor/sheets/redesign/RedesignOwnGroups';
 import type { SkillFieldType } from '@/module/types/template/Skills';
 import HandlebarsApplicationMixin = foundry.applications.api.HandlebarsApplicationMixin;
 
@@ -194,6 +197,21 @@ const BIO_CARD_TYPES = ['quality_positive', 'quality_negative', 'metamagic', 'ec
 const CARD_TABLE_TYPES = ['adept_power', 'spell', 'spell_all', 'combatspells', 'detectionspells', 'healthspells', 'illusionspells',
     'manipulationspells', 'ritual', 'call_in_action', 'sin', 'lifestyle', 'contact'];
 
+/** A card of an item tab by item type (the inventory's, the augmentations'), as the templates read it. */
+type OwnGroupSection = { type?: string; label: string; items: SR5Item[]; isOpen?: boolean };
+
+/** The magic tab's spell cards by spell category (SR5BaseActorSheet#_prepareSortedCategorizedSpells): [card type, label]. */
+const SPELL_CARDS: Record<string, [string, string]> = {
+    combat: ['combatspells', 'SR5.Spell.CatCombat'],
+    detection: ['detectionspells', 'SR5.Spell.CatDetection'],
+    health: ['healthspells', 'SR5.Spell.CatHealth'],
+    illusion: ['illusionspells', 'SR5.Spell.CatIllusion'],
+    manipulation: ['manipulationspells', 'SR5.Spell.CatManipulation'],
+    notfound: ['spell', 'SR5.Spell.Spells'],
+};
+/** A spell's row (the spell cards' and the own groups' of the magic tab). */
+const SPELL_ROW = 'systems/shadowrun5e/dist/templates/v2/list-items/spell/item.hbs';
+
 /** Matrix action tables, one per limit, in this order; actions without a limit go last. */
 const MATRIX_ACTION_LIMITS = ['attack', 'sleaze', 'data_processing', 'firewall'] as const;
 /**
@@ -270,6 +288,8 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         actions: {
             ...SR5CharacterSheet.DEFAULT_OPTIONS.actions,
             toggleSidebar: SR5RedesignActorSheet.#toggleSidebar,
+            openSkillDescription: SR5RedesignActorSheet.#toggleSkillDescription,
+            showItemDescription: SR5RedesignActorSheet.#toggleItemDescription,
             sortSkills: SR5RedesignActorSheet.#sortSkills,
             cycleSkillSort: SR5RedesignActorSheet.#cycleSkillSort,
             sortTable: SR5RedesignActorSheet.#sortTable,
@@ -304,6 +324,11 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
             renameActionGroup: SR5RedesignActorSheet.#renameActionGroup,
             removeActionGroup: SR5RedesignActorSheet.#removeActionGroup,
             addGroupAction: SR5RedesignActorSheet.#addGroupAction,
+            // the item tabs' own groups (RedesignOwnGroups)
+            addOwnGroup: SR5RedesignActorSheet.#addOwnGroup,
+            renameOwnGroup: SR5RedesignActorSheet.#renameOwnGroup,
+            removeOwnGroup: SR5RedesignActorSheet.#removeOwnGroup,
+            addOwnGroupRow: SR5RedesignActorSheet.#addOwnGroupRow,
             // the matrix popups, in the sheet's look
             openNetworkManager: SR5RedesignActorSheet.#openNetworkManager,
             rebootPersona: SR5RedesignActorSheet.#rebootPersona,
@@ -407,7 +432,7 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         },
         inventory: {
             template: sheetTemplate('inventory'),
-            templates: [sheetTemplate('tab-title'), sheetTemplate('list-controls'), sheetTemplate('empty-row'), sheetTemplate('empty-tab')],
+            templates: [sheetTemplate('tab-title'), sheetTemplate('list-controls'), sheetTemplate('empty-row'), sheetTemplate('empty-tab'), sheetTemplate('own-group')],
             scrollable: [''],
         },
         // the regular SR5 tabs mark an inner .scrollable, but in this sheet the tab section itself scrolls
@@ -416,7 +441,7 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         // magic and social as separate cards (one per spell category / list), like the inventory
         magic: {
             template: sheetTemplate('magic'),
-            templates: [sheetTemplate('tab-title'), sheetTemplate('list-controls'), sheetTemplate('empty-row'), sheetTemplate('empty-tab'), sheetTemplate('card-table'), ...SheetFlow.templateListItem('adept_power', 'spell', 'ritual', 'call_in_action')],
+            templates: [sheetTemplate('tab-title'), sheetTemplate('list-controls'), sheetTemplate('empty-row'), sheetTemplate('empty-tab'), sheetTemplate('own-group'), sheetTemplate('card-table'), ...SheetFlow.templateListItem('adept_power', 'spell', 'ritual', 'call_in_action')],
             scrollable: [''],
         },
         social: {
@@ -427,7 +452,7 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         // cyberware and bioware, moved out of the inventory
         augmentations: {
             template: sheetTemplate('augmentations'),
-            templates: [sheetTemplate('tab-title'), sheetTemplate('list-controls'), sheetTemplate('empty-row'), sheetTemplate('empty-tab'), ...SheetFlow.templateListItem('cyberware', 'bioware')],
+            templates: [sheetTemplate('tab-title'), sheetTemplate('list-controls'), sheetTemplate('empty-row'), sheetTemplate('empty-tab'), sheetTemplate('own-group'), ...SheetFlow.templateListItem('cyberware', 'bioware')],
             scrollable: [''],
         },
         // actions, bio, effects, description: the upstream lists / text wrapped in cards
@@ -499,7 +524,20 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         await fontsReady;
         // implant lists are not inventories of the inventory tab
         if (this.#isImplantInventory(this.selectedInventory)) this.selectedInventory = this.actor.defaultInventory.name;
+        // the text of the user's rulebooks, read from the world's compendium on the first sheet (RedesignRulebook)
+        await RedesignRulebook.load();
         const data = await super._prepareContext(options) as Awaited<ReturnType<SR5CharacterSheet['_prepareContext']>> & RedesignSheetData;
+        // an expanded skill row shows the skill's own description (the system's), then its entry in the user's rulebook
+        // when imported (RedesignRulebook), as an item's row shows its description
+        for (const [id, expanded] of Object.entries(data.expandedSkills ?? {})) {
+            const name = this.actor.items.get(id)?.name;
+            if (name) expanded.html = RedesignRulebook.withPassage(expanded.html, 'skills', name);
+        }
+        // and an opened action or spell row its entry (the mixin drew the item's own description)
+        for (const [uuid, expanded] of Object.entries(data.expandedUuids ?? {})) {
+            const item = await fromUuid(uuid) as SR5Item | null;
+            if (item instanceof SR5Item) expanded.html = RedesignRulebook.itemPassage(item, expanded.html);
+        }
         const system = data.system as PreparedSheetSystem;
         const fields = data.systemFields?.attributes?.fields ?? {};
 
@@ -522,10 +560,11 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         data.attributePlates = CORE_ATTRIBUTES.map(id => toAttribute(id)).filter(a => a !== null);
         const physical = data.attributePlates.filter(a => a.physical);
         const mental = data.attributePlates.filter(a => a.mental);
-        const special: (PlateAttributeData | null)[] = [toAttribute('edge')];
+        // in the books' order: Edge, Essence, then Magic or Resonance (spirits SR5#303, critters SR5#402; the
+        // archetypes swap Edge and Essence, SR5#112)
+        const special: (PlateAttributeData | null)[] = [toAttribute('edge'), toAttribute('essence', false)];
         if (data.awakened) special.push(toAttribute('magic'));
         if (data.emerged) special.push(toAttribute('resonance'));
-        special.push(toAttribute('essence', false));
         data.specialAttributePlates = special.filter(a => a !== null);
         // Edge still available this session (rating minus spent); shown by the sidebar pips and under the EDG plate
         const edge = this.actor.system.attributes.edge;
@@ -587,9 +626,14 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
             }
         }
         // book page of each skill for its source button: the skill field's link, else the skill item's source (since
-        // 0.38 skills are items and imported ones carry their page there, while the field's link stays empty)
+        // 0.38 skills are items and imported ones carry their page there, while the field's link stays empty), else
+        // the page of its entry when the user's rulebook was imported (RedesignRulebook)
         data.skillSources = Object.fromEntries(allSkills
-            .map((skill): [string, string] => [skill.id, skill.link || (this.actor.items.get(skill.id)?.system as { description?: { source?: string } } | undefined)?.description?.source || ''])
+            .map((skill): [string, string] => {
+                const item = this.actor.items.get(skill.id);
+                const own = skill.link || (item?.system as { description?: { source?: string } } | undefined)?.description?.source;
+                return [skill.id, own || RedesignRulebook.source('skills', item?.name ?? skill.name)];
+            })
             .filter(([id, source]) => id && source));
 
         return data;
@@ -599,6 +643,8 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         const partContext = await super._preparePartContext(partId, context, options) as RedesignPartContext;
         // set on every part: the parts share one context object, so a value left by the inventory would leak on
         partContext.listFilter = LIST_SEARCH_TABS.has(partId) ? { groups: this.#listFilterGroups(partId) } : null;
+        // the item tabs' own groups (set on every part, as listFilter)
+        partContext.ownGroups = null;
 
         if (partId === 'sidebar') {
             // entries (the item, its title and subtitle) where the system keeps the items: the sidebar reads these
@@ -654,6 +700,15 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
             partContext.hasInventoryItems = Object.values(inventories).some(inventory =>
                 Object.entries(inventory.types ?? {})
                     .some(([type, section]) => !['container', 'cyberware', 'bioware'].includes(type) && section.items?.length));
+            // the rows put in own groups go to those groups' cards, the rest stay in their type's
+            const inventory = partContext.inventory as { types: Record<string, OwnGroupSection> } | undefined;
+            if (inventory) {
+                const entries = Object.entries(inventory.types);
+                const split = this.#ownGroupTypedCards('inventory', entries.filter(([type]) => this.#isInventoryCard(type)));
+                const kept = new Map(split.sections);
+                partContext.inventory = { ...inventory, types: Object.fromEntries(entries.map(([type, section]) => [type, kept.get(type) ?? section])) } as typeof partContext.inventory;
+                partContext.ownGroups = split.groups;
+            }
         }
 
         // configuration: in play mode the modifier card lists only modifiers that are set
@@ -663,7 +718,9 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         if (partId === 'augmentations') {
             partContext.implantInventory = this.#implantInventoryName();
             partContext.implantInventories = this.#implantInventoryChoices();
-            partContext.implantSections = this.#implantSections(partContext.implantInventory);
+            const split = this.#ownGroupTypedCards('augmentations', this.#implantSections(partContext.implantInventory).map(section => [section.type, section] as [string, OwnGroupSection]));
+            partContext.implantSections = split.sections.map(([, section]) => section);
+            partContext.ownGroups = split.groups;
             partContext.hasImplants = this.#hasImplants();
         }
 
@@ -693,7 +750,17 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         // the magic tab's view (play mode; edit mode by category, where each card adds its own spells)
         const spellGrouping = this.isPlayMode ? this.#spellGrouping() : SPELL_GROUPINGS[0];
         partContext.spellsOneList = partId === 'magic' && spellGrouping.mode === 'none';
+        // by category, the spells put in own groups go to those groups' cards (one list shows them all)
+        if (partId === 'magic' && !partContext.spellsOneList && partContext.spells) {
+            const split = this.#ownGroupSpellCards(partContext.spells);
+            partContext.spells = split.spells;
+            partContext.ownGroups = split.groups;
+        }
 
+        // the action rows of the actions and Matrix tabs: their book pages (general pack actions), whether an
+        // interrupt can be paid now, and the details of the opened ones (RedesignActionDetails)
+        if (partId === 'actions' || partId === 'matrixActions') Object.assign(partContext, await this.#actionRowData(
+            ((partId === 'actions' ? partContext.actions : partContext.matrixActions) ?? []) as { action: SR5Item<'action'> }[]));
         // the system lists action items there (SR5MatrixActorSheet), typed as any item
         if (partId === 'matrixActions') partContext.matrixActionGroups = this.#matrixActionGroups((partContext.matrixActions ?? []) as { name: string; action: SR5Item<'action'> }[]);
         // the Actions tab by groups (the grouping button by its search), or one table; set on every part, as
@@ -775,23 +842,172 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
      * Each collapses like the inventory's cards (the same toggleExpanded state, keyed action_group_<key>).
      */
     #actionGroups(actions: { name: string; action: SR5Item }[]) {
-        const own = this.#ownActionGroups();
         const placed = this.#actionGroupOf();
-        const keys = new Set<string>([...ACTION_KINDS, ...own.map(group => group.id)]);
-        const keyOf = (item: SR5Item) => {
-            const key = item.id ? placed[item.id] : undefined;
-            return key && keys.has(key) ? key : SR5RedesignActorSheet.actionKind((item.system as { action?: ActionKindSource }).action);
-        };
-        const groups = [
-            ...ACTION_KINDS.map(kind => ({ key: kind as string, own: false, label: game.i18n.localize(`SR5.Redesign.ActionGroups.Kinds.${kind}`) })),
-            ...own.map(group => ({ key: group.id, own: true, label: group.label })),
-        ];
-        return groups.map(group => {
+        const keys = this.#actionGroupKeys();
+        // the rows a drag or the row menu can move (#wireActionGroupDrops, #moveActionToGroup): general ones too
+        this.#listedActions = new Map(actions.flatMap(entry => entry.action.id ? [[entry.action.id, entry.action] as const] : []));
+        return this.#actionGroupChoices().map(group => {
             const type = `action_group_${group.key}`;
-            const rows = actions.filter(entry => keyOf(entry.action) === group.key);
+            const rows = actions.filter(entry => this.#actionGroupKeyOf(entry.action, placed, keys) === group.key);
             return { ...group, type, actions: rows, isOpen: this._inventoryOpenClose[type] ?? true };
         // edit mode shows every group, empty ones too, so each has its Add button (as the matrix action tables)
         }).filter(group => group.actions.length || this.isEditMode);
+    }
+
+    /** The Actions tab's groups in their order: the kinds, then the player's own groups. */
+    #actionGroupChoices(): { key: string, own: boolean, label: string }[] {
+        return [
+            ...ACTION_KINDS.map(kind => ({ key: kind as string, own: false, label: game.i18n.localize(`SR5.Redesign.ActionGroups.Kinds.${kind}`) })),
+            ...this.#ownActionGroups().map(group => ({ key: group.id, own: true, label: group.label })),
+        ];
+    }
+
+    #actionGroupKeys(): Set<string> {
+        return new Set<string>([...ACTION_KINDS, ...this.#ownActionGroups().map(group => group.id)]);
+    }
+
+    /** The group an action sits in: the one it was put in, while that group exists, else its kind. */
+    #actionGroupKeyOf(item: SR5Item, placed = this.#actionGroupOf(), keys = this.#actionGroupKeys()): string {
+        const key = item.id ? placed[item.id] : undefined;
+        return key && keys.has(key) ? key : SR5RedesignActorSheet.actionKind((item.system as { action?: ActionKindSource }).action);
+    }
+
+    /** The Actions tab's rows by item id, the actor's actions and the system's general ones (#actionGroups). */
+    #listedActions = new Map<string, SR5Item>();
+
+    /**
+     * Puts an action in another group, a kind or an own group: dropped on that group's card, or "Move to group" in
+     * its row menu. The general actions of the system move the same way (only the actor's flag changes). Its own
+     * kind clears the entry (actionGroupOf): the action follows its kind again.
+     */
+    async #moveActionToGroup(item: SR5Item, key: string) {
+        if (!item.id || !this.isEditable || !this.#actionGroupKeys().has(key) || this.#actionGroupKeyOf(item) === key) return;
+        const path = `flags.${SYSTEM_NAME}.${SR5RedesignActorSheet.ACTION_GROUP_OF_FLAG}`;
+        const kind = SR5RedesignActorSheet.actionKind((item.system as { action?: ActionKindSource }).action);
+        await this.actor.update(key === kind ? { [`${path}.-=${item.id}`]: null } : { [`${path}.${item.id}`]: key });
+    }
+
+    /** The action row of this sheet being dragged, see #wireActionGroupDrops. */
+    #draggedAction: { item: SR5Item, general: boolean } | null = null;
+
+    /**
+     * Drag and drop between the Actions tab's groups: an action row dropped on another group's card goes into that
+     * group, and that card is marked while the row is over it. Dropped on its own group, the sheet sorts the
+     * actor's action there as before. An action from elsewhere (sidebar, compendium, another sheet) dropped on a
+     * card is added to the actor and goes into that group. The system's general actions drag too: the sheet's drop
+     * would copy them into the actor, so on this sheet they go into a group or nowhere. On the window, in the
+     * capture phase: before the sheet's own drop handling (sorting, adding) and the favorites'.
+     */
+    #wireActionGroupDrops() {
+        const root = this.element;
+        const cardAt = (event: DragEvent) => event.target instanceof Element
+            ? event.target.closest<HTMLElement>('.sr-actions .action-group[data-group-key]') : null;
+        const unmark = (except?: Element | null) => {
+            for (const card of root.querySelectorAll('.action-group-drop-target')) if (card !== except) card.classList.remove('action-group-drop-target');
+        };
+        root.addEventListener('dragstart', event => {
+            this.#draggedAction = null;
+            const row = event.target instanceof Element ? event.target.closest<HTMLElement>('.sr-actions .list-item[data-item-id]') : null;
+            const item = row?.dataset.itemId ? this.#listedActions.get(row.dataset.itemId) : undefined;
+            if (!item || !this.isEditable) return;
+            const general = item.parent !== this.actor;
+            // the sheet's drag data covers the actor's own items only
+            if (general) event.dataTransfer?.setData('text/plain', JSON.stringify(item.toDragData()));
+            this.#draggedAction = { item, general };
+        }, { capture: true });
+        root.addEventListener('dragover', event => {
+            const card = cardAt(event);
+            const dragged = this.#draggedAction;
+            const target = card && dragged && card.dataset.groupKey !== this.#actionGroupKeyOf(dragged.item) ? card : null;
+            unmark(target);
+            if (!target) return;
+            target.classList.add('action-group-drop-target');
+            event.preventDefault();
+        });
+        root.addEventListener('dragleave', event => {
+            if (!(event.relatedTarget instanceof Node) || !root.contains(event.relatedTarget)) unmark();
+        });
+        root.addEventListener('dragend', () => {
+            this.#draggedAction = null;
+            unmark();
+        }, { capture: true });
+        root.addEventListener('drop', event => {
+            unmark();
+            const dragged = this.#draggedAction;
+            this.#draggedAction = null;
+            const key = cardAt(event)?.dataset.groupKey;
+            if (dragged) {
+                const moves = !!key && key !== this.#actionGroupKeyOf(dragged.item);
+                if (!moves && !dragged.general) return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (moves) void this.#moveActionToGroup(dragged.item, key);
+                return;
+            }
+            if (key && this.isEditable) void this.#dropActionOnGroup(event, key);
+        }, { capture: true });
+    }
+
+    /** An action from elsewhere dropped on a group's card: added to the actor as any drop would, then put there. */
+    async #dropActionOnGroup(event: DragEvent, key: string) {
+        const data = foundry.applications.ux.TextEditor.getDragEventData(event) as { type?: string, uuid?: string };
+        if (data.type !== 'Item' || !data.uuid) return;
+        const source = fromUuidSync(data.uuid) as { type?: string, parent?: unknown, id?: string } | null;
+        if (source?.type !== 'action') return;
+        event.preventDefault();
+        event.stopPropagation();
+        // this actor's (from another window) or a general one listed here: only its group changes
+        const listed = source.id ? this.#listedActions.get(source.id) : undefined;
+        if (listed && (listed.parent === this.actor || listed.uuid === data.uuid)) return this.#moveActionToGroup(listed, key);
+        if (source.parent === this.actor) return;
+        if (Hooks.call('dropActorSheetData', this.actor, this as never, data as never) === false) return;
+        const item = await SR5Item.fromDropData(data as never);
+        const created = item ? await this._onDropItem(event, item) : null;
+        if (created instanceof SR5Item && created.parent === this.actor) await this.#moveActionToGroup(created, key);
+    }
+
+    /** The row menu's "Move to group" (edit mode, the Actions tab): a group other than the action's own, from a list. */
+    async #pickActionGroup(item: SR5Item) {
+        const current = this.#actionGroupKeyOf(item);
+        const key = await this.#pickFrom(this.#actionGroupChoices().filter(choice => choice.key !== current), 'SR5.Redesign.ActionGroups.MoveTitle');
+        if (key) await this.#moveActionToGroup(item, key);
+    }
+
+    /** One of a list of choices, as radio buttons in the sheet's look (the group a row goes to); null when cancelled. */
+    async #pickFrom(choices: { key: string, label: string }[], title: string, okLabel = 'SR5.MoveInventoryDialog.Move'): Promise<string | null> {
+        const esc = Handlebars.escapeExpression;
+        const key = await foundry.applications.api.DialogV2.prompt({
+            classes: this.#dialogClasses(),
+            position: { width: 360 },
+            window: { title },
+            content: `<fieldset>${choices.map((choice, index) => `<label class="checkbox"><input type="radio" name="group"
+                value="${esc(choice.key)}"${index ? '' : ' checked'}> ${esc(choice.label)}</label>`).join('')}</fieldset>`,
+            ok: { label: okLabel, callback: (_event: Event, button: HTMLButtonElement) =>
+                button.form?.querySelector<HTMLInputElement>('input[name="group"]:checked')?.value ?? '' },
+            rejectClose: false,
+        }) as string | null;
+        return key || null;
+    }
+
+    override _getItemListContextOptions() {
+        const options = super._getItemListContextOptions();
+        // edit mode, the Actions tab's groups: an action of the actor's or a general one into another group. Foundry
+        // 14's entry fields (label, visible, onClick): the 0.37.8 release still names its entries (name, condition)
+        const move = {
+            label: 'SR5.Redesign.ActionGroups.Move',
+            icon: "<i class='fas fa-folder-open'></i>",
+            visible: (target: HTMLElement) => this.isEditMode && this.isEditable && !!target.closest('.sr-actions .action-group')
+                && this.#listedActions.has(SheetFlow.closestItemId(target)),
+            onClick: async (_event: Event, target: HTMLElement) => {
+                const item = this.#listedActions.get(SheetFlow.closestItemId(target));
+                if (item) await this.#pickActionGroup(item);
+            },
+        };
+        const after = options.findIndex(option => ((option as { label?: string }).label ?? (option as { name?: string }).name) === 'SR5.ContextOptions.MoveItem');
+        // the item tabs' rows into their own groups and back (RedesignOwnGroups)
+        options.splice(after < 0 ? options.length : after + 1, 0, move as unknown as typeof options[number],
+            this._ownGroupMoveOption() as unknown as typeof options[number]);
+        return options;
     }
 
     static #actionDeletesWatched = false;
@@ -931,11 +1147,12 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
      * A group name from a prompt: trimmed and at most 40 characters; none when empty or unchanged, nor when another
      * group has it already (own or a kind's, in any case: two cards of one name could not be told apart).
      */
-    async #promptGroupName(current?: string): Promise<string | null> {
-        const name = (await this.#askGroupName(current))?.slice(0, 40).trim();
+    async #promptGroupName(current?: string, names?: string[], addTitle?: string): Promise<string | null> {
+        const name = (await this.#askGroupName(current, addTitle))?.slice(0, 40).trim();
         if (!name || name === current) return null;
-        const taken = [...ACTION_KINDS.map(kind => game.i18n.localize(`SR5.Redesign.ActionGroups.Kinds.${kind}`)),
-            ...this.#ownActionGroups().map(group => group.label)].filter(label => label !== current);
+        // the Actions tab's: the kinds' and its own groups'
+        const taken = (names ?? [...ACTION_KINDS.map(kind => game.i18n.localize(`SR5.Redesign.ActionGroups.Kinds.${kind}`)),
+            ...this.#ownActionGroups().map(group => group.label)]).filter(label => label !== current);
         if (taken.some(label => label.toLocaleLowerCase() === name.toLocaleLowerCase())) {
             ui.notifications?.warn(game.i18n.format('SR5.Redesign.ActionGroups.NameTaken', { name }));
             return null;
@@ -948,11 +1165,11 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         return ['sr5v2', ...this.#appOptions().classes, 'redesign-dialog', ...this.#themeClasses()];
     }
 
-    async #askGroupName(current?: string): Promise<string | null> {
+    async #askGroupName(current?: string, addTitle = 'SR5.Redesign.ActionGroups.AddTitle'): Promise<string | null> {
         const name = await foundry.applications.api.DialogV2.prompt({
             classes: this.#dialogClasses(),
             position: { width: 360 },
-            window: { title: current ? 'SR5.Redesign.ActionGroups.RenameTitle' : 'SR5.Redesign.ActionGroups.AddTitle' },
+            window: { title: current ? 'SR5.Redesign.ActionGroups.RenameTitle' : addTitle },
             content: `<input type="text" name="name" maxlength="40" value="${Handlebars.escapeExpression(current ?? '')}"
                 aria-label="${Handlebars.escapeExpression(game.i18n.localize('SR5.Redesign.ActionGroups.Name'))}" autofocus>`,
             ok: { label: current ? 'SR5.Redesign.ActionGroups.Rename' : 'SR5.Redesign.ActionGroups.Create', callback: (_event: Event, button: HTMLButtonElement) =>
@@ -960,6 +1177,386 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
             rejectClose: false,
         }) as string | null;
         return name || null;
+    }
+
+    // ---------- the item tabs' own groups (RedesignOwnGroups): inventory, augmentations, magic, vehicles ----------
+
+    /**
+     * The rows the item tabs listed at their last render, by row key (an item's id, a vehicle's actor id): their tab
+     * and their own card (its data-type: an item type, a spell category's card, a vehicles card) with its name. Only
+     * these move between the cards (#wireOwnGroupDrops, the row menu's "Move to group").
+     */
+    protected _ownGroupRows = new Map<string, { tab: OwnGroupTab, card: string, label: string }>();
+
+    /** A tab's listed rows: [row key, own card, its name]; the ones that tab listed before are forgotten. */
+    protected _listOwnGroupRows(tab: OwnGroupTab, rows: [string, string, string][]) {
+        for (const [key, row] of this._ownGroupRows) if (row.tab === tab) this._ownGroupRows.delete(key);
+        for (const [key, card, label] of rows) this._ownGroupRows.set(key, { tab, card, label });
+    }
+
+    /** The inventory tab's cards: every type but containers and, on a character, the implants (their own tab). */
+    #isInventoryCard(type: string) {
+        return type !== 'container' && (this.actor.type === 'vehicle' || !SR5RedesignActorSheet.IMPLANT_TYPES.includes(type as never));
+    }
+
+    /**
+     * Cards by item type (the inventory's, the augmentations'), the rows put in own groups taken out, and those
+     * groups' cards: a section per item type in each, under that type's columns (redesign/own-group.hbs).
+     */
+    #ownGroupTypedCards(tab: OwnGroupTab, sections: [string, OwnGroupSection][]) {
+        const groups = ownGroups(this.#sheetFlags, tab);
+        const placed = ownGroupOf(this.#sheetFlags);
+        const inGroups = new Map<string, OwnGroupSection[]>();
+        const listed: [string, string, string][] = [];
+        const kept = sections.map(([type, section]) => {
+            for (const item of section.items) if (item.id) listed.push([item.id, type, game.i18n.localize(section.label)]);
+            const split = splitOwnGroups(section.items, item => item.id, groups, placed);
+            for (const [id, items] of split.byGroup) inGroups.set(id, [...inGroups.get(id) ?? [], { ...section, type, items }]);
+            return [type, { ...section, items: split.rest }] as [string, OwnGroupSection];
+        });
+        this._listOwnGroupRows(tab, listed);
+        return { sections: kept, groups: this._ownGroupCards(groups, id => ({ sections: inGroups.get(id) ?? [] })) };
+    }
+
+    /** The spells by category, the ones put in own groups taken out, and those groups' cards (one table each, A-Z). */
+    #ownGroupSpellCards(spells: Record<string, SR5Item[]>) {
+        const groups = ownGroups(this.#sheetFlags, 'magic');
+        const placed = ownGroupOf(this.#sheetFlags);
+        const inGroups = new Map<string, SR5Item[]>();
+        const listed: [string, string, string][] = [];
+        const kept = Object.fromEntries(Object.entries(spells).map(([category, list]) => {
+            const [card, label] = SPELL_CARDS[category] ?? SPELL_CARDS.notfound;
+            for (const spell of list) if (spell.id) listed.push([spell.id, card, game.i18n.localize(label)]);
+            const split = splitOwnGroups(list, spell => spell.id, groups, placed);
+            for (const [id, rows] of split.byGroup) inGroups.set(id, [...inGroups.get(id) ?? [], ...rows]);
+            return [category, split.rest];
+        }));
+        this._listOwnGroupRows('magic', listed);
+        return {
+            spells: kept,
+            groups: this._ownGroupCards(groups, id => ({ rows: (inGroups.get(id) ?? []).sort((a, b) => a.name.localeCompare(b.name)), rowPartial: SPELL_ROW })),
+        };
+    }
+
+    /**
+     * Own groups' cards (redesign/own-group.hbs), in order: a section per item type, or the rows of one table and the
+     * partial that draws them. Play mode leaves out empty ones, as the tabs' own cards; each collapses like them.
+     * canAdd: edit mode offers Add (the vehicles tab only to users who may create actors).
+     */
+    protected _ownGroupCards(groups: OwnGroup[], content: (id: string) => { sections?: OwnGroupSection[], rows?: unknown[], rowPartial?: string }, canAdd = true) {
+        return groups.map(group => {
+            const type = `own_group_${group.id}`;
+            const body = content(group.id);
+            const count = body.rows?.length ?? body.sections?.reduce((sum, section) => sum + section.items.length, 0) ?? 0;
+            return { key: group.id, label: group.label, type, isOpen: this._inventoryOpenClose[type] ?? true, count, canAdd, ...body };
+        }).filter(card => card.count || this.isEditMode);
+    }
+
+    /**
+     * The item type headers inside own groups (redesign/own-group.hbs) are column captions only: such a header
+     * collapses its type's card and adds to it, which in a group would act on the tab's own card of that type.
+     */
+    #stripOwnGroupHeaders(roots: HTMLElement[]) {
+        for (const header of roots.flatMap(root => [...root.querySelectorAll<HTMLElement>('.own-group-section > .list-item-header')])) {
+            header.classList.remove('collapsible-header');
+            header.removeAttribute('data-action');
+            header.removeAttribute('data-item-type');
+            header.querySelector('.label-collapsed')?.classList.remove('label-collapsed');
+            header.querySelector(':scope > .list-item-icons')?.replaceChildren();
+        }
+    }
+
+    /** The row key a row, or a control in it, stands for: a vehicle's actor id, an item's id. */
+    #ownGroupRowKey(target: Element): string | null {
+        const vehicle = target.closest<HTMLElement>('[data-vehicle-uuid]');
+        if (vehicle) return vehicleRowKey(vehicle.dataset.vehicleUuid);
+        return target.closest<HTMLElement>('[data-item-id]')?.dataset.itemId ?? null;
+    }
+
+    /** The row of an item tab being dragged, see #wireOwnGroupDrops. */
+    #draggedRow: { key: string, tab: OwnGroupTab } | null = null;
+
+    /** The group a card stands for if the row may go there (its own card, an own group of its tab, not the one it is in). */
+    #ownGroupTarget(card: HTMLElement | null, row: { key: string, tab: OwnGroupTab }): string | null {
+        const listed = this._ownGroupRows.get(row.key);
+        if (!card || !listed || card.closest<HTMLElement>('section.tab')?.dataset.tab !== row.tab) return null;
+        const key = card.dataset.ownGroup ?? card.dataset.type;
+        const groups = ownGroups(this.#sheetFlags, row.tab);
+        if (!key || (key !== listed.card && !groups.some(group => group.id === key))) return null;
+        return key === (ownGroupOfRow(row.key, groups, ownGroupOf(this.#sheetFlags)) ?? listed.card) ? null : key;
+    }
+
+    /**
+     * Drag and drop between an item tab's cards, as the Actions tab's groups: a row dropped on an own group of its tab
+     * goes in, dropped on its own card it comes back, and that card is marked while the row is over it. Any other drop
+     * stays the system's (sorting). From elsewhere, an item of the tab's (a vehicle on the vehicles tab) dropped on an
+     * own group is added as any drop would add it, then put there.
+     */
+    #wireOwnGroupDrops() {
+        const root = this.element;
+        const cardAt = (event: DragEvent) => event.target instanceof Element
+            ? event.target.closest<HTMLElement>('section.tab .items-section.card') : null;
+        const unmark = (except?: Element | null) => {
+            for (const card of root.querySelectorAll('.own-group-drop-target')) if (card !== except) card.classList.remove('own-group-drop-target');
+        };
+        root.addEventListener('dragstart', event => {
+            this.#draggedRow = null;
+            const target = event.target instanceof Element ? event.target : null;
+            const tab = target?.closest<HTMLElement>('section.tab')?.dataset.tab;
+            if (!target || !isOwnGroupTab(tab) || !this.isEditable) return;
+            const key = this.#ownGroupRowKey(target);
+            if (key && this._ownGroupRows.get(key)?.tab === tab) this.#draggedRow = { key, tab };
+        }, { capture: true });
+        root.addEventListener('dragover', event => {
+            const card = cardAt(event);
+            const target = this.#draggedRow && this.#ownGroupTarget(card, this.#draggedRow) ? card : null;
+            unmark(target);
+            if (!target) return;
+            target.classList.add('own-group-drop-target');
+            event.preventDefault();
+        });
+        root.addEventListener('dragleave', event => {
+            if (!(event.relatedTarget instanceof Node) || !root.contains(event.relatedTarget)) unmark();
+        });
+        root.addEventListener('dragend', () => {
+            this.#draggedRow = null;
+            unmark();
+        }, { capture: true });
+        root.addEventListener('drop', event => {
+            unmark();
+            const dragged = this.#draggedRow;
+            this.#draggedRow = null;
+            const card = cardAt(event);
+            if (dragged) {
+                const key = this.#ownGroupTarget(card, dragged);
+                if (!key) return;
+                event.preventDefault();
+                event.stopPropagation();
+                void this.#moveToOwnGroup(dragged.key, key);
+                return;
+            }
+            const tab = card?.closest<HTMLElement>('section.tab')?.dataset.tab;
+            if (card?.dataset.ownGroup && isOwnGroupTab(tab) && this.isEditable) void this.#dropOnOwnGroup(event, tab, card.dataset.ownGroup);
+        }, { capture: true });
+    }
+
+    /** Something from elsewhere dropped on an own group: added as any drop would add it (#_dropOwnGroupRow), then put there. */
+    async #dropOnOwnGroup(event: DragEvent, tab: OwnGroupTab, group: string) {
+        const data = foundry.applications.ux.TextEditor.getDragEventData(event) as { type?: string, uuid?: string };
+        if (!data.uuid || (data.type !== 'Item' && data.type !== 'Actor')) return;
+        const source = fromUuidSync(data.uuid) as { type?: string, parent?: unknown, id?: string } | null;
+        if (!source?.type || !this._ownGroupAccepts(tab, data.type, source.type)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        // a row of this actor's from another window of it: only its group changes
+        if (source.parent === this.actor && source.id) return this.#moveToOwnGroup(source.id, group);
+        if (Hooks.call('dropActorSheetData', this.actor, this as never, data as never) === false) return;
+        const key = await this._dropOwnGroupRow(event, data);
+        if (key) await this._placeInOwnGroup(key, group);
+    }
+
+    /** Whether an own group of the tab takes a dropped document: an item of the tab's types (the vehicles tab: its sheet's). */
+    protected _ownGroupAccepts(tab: OwnGroupTab, documentName: string, type: string): boolean {
+        if (documentName !== 'Item') return false;
+        if (tab === 'inventory') return this.#isInventoryCard(type) && this.getInventoryItemTypes().includes(type as never);
+        if (tab === 'augmentations') return SR5RedesignActorSheet.IMPLANT_TYPES.includes(type as never);
+        return tab === 'magic' && type === 'spell';
+    }
+
+    /** A dropped document added as any drop would add it; the new row's key, or null when nothing came. */
+    protected async _dropOwnGroupRow(event: DragEvent, data: { type?: string, uuid?: string }): Promise<string | null> {
+        const item = await SR5Item.fromDropData(data as never);
+        const created = item ? await this._onDropItem(event, item) as unknown : null;
+        const added = [created].flat().find(doc => doc instanceof SR5Item && doc.parent === this.actor) as SR5Item | undefined;
+        return added?.id ?? null;
+    }
+
+    /** Puts a listed row in an own group of its tab, or back in its own card. */
+    async #moveToOwnGroup(key: string, target: string) {
+        const row = this._ownGroupRows.get(key);
+        if (!row || !this.isEditable) return;
+        if (target !== row.card && !ownGroups(this.#sheetFlags, row.tab).some(group => group.id === target)) return;
+        await this._placeInOwnGroup(key, target === row.card ? null : target);
+    }
+
+    /** A row's entry in the actor's flag (OWN_GROUP_OF_FLAG): its group, or none for its own card. */
+    protected async _placeInOwnGroup(key: string, group: string | null) {
+        const path = `flags.${SYSTEM_NAME}.${OWN_GROUP_OF_FLAG}`;
+        if (!group && !(key in ownGroupOf(this.#sheetFlags))) return;
+        await this.actor.update(group ? { [`${path}.${key}`]: group } : { [`${path}.-=${key}`]: null });
+    }
+
+    /** "Move to group" for a row of an item tab: its own card and the tab's own groups, but the one it is in. */
+    #ownGroupMoveChoices(target: HTMLElement): { key: string, label: string }[] {
+        const key = this.#ownGroupRowKey(target);
+        const row = key ? this._ownGroupRows.get(key) : undefined;
+        if (!key || !row || target.closest<HTMLElement>('section.tab')?.dataset.tab !== row.tab) return [];
+        const groups = ownGroups(this.#sheetFlags, row.tab);
+        if (!groups.length) return [];
+        const current = ownGroupOfRow(key, groups, ownGroupOf(this.#sheetFlags)) ?? row.card;
+        return [{ key: row.card, label: row.label }, ...groups.map(group => ({ key: group.id, label: group.label }))]
+            .filter(choice => choice.key !== current);
+    }
+
+    /**
+     * The row menu's "Move to group" on the item tabs (edit mode, a tab with own groups): the item rows' menu and the
+     * vehicle rows' (SR5CharacterSheetRedesign). Foundry 14's entry fields (label, visible, onClick).
+     */
+    protected _ownGroupMoveOption() {
+        return {
+            label: 'SR5.Redesign.ActionGroups.Move',
+            icon: "<i class='fas fa-folder-open'></i>",
+            visible: (target: HTMLElement) => this.isEditMode && this.isEditable && this.#ownGroupMoveChoices(target).length > 0,
+            onClick: async (_event: Event | null, target: HTMLElement) => {
+                const key = this.#ownGroupRowKey(target);
+                const choices = this.#ownGroupMoveChoices(target);
+                const group = key && choices.length ? await this.#pickFrom(choices, 'SR5.Redesign.ActionGroups.MoveTitle') : null;
+                if (key && group) await this.#moveToOwnGroup(key, group);
+            },
+        };
+    }
+
+    /** The tab an own group's control is on. */
+    static #ownGroupTab(target: HTMLElement): OwnGroupTab | null {
+        const tab = target.closest<HTMLElement>('section.tab')?.dataset.tab;
+        return isOwnGroupTab(tab) ? tab : null;
+    }
+
+    #saveOwnGroups(tab: OwnGroupTab, groups: OwnGroup[]) {
+        return this.actor.update({ [`flags.${SYSTEM_NAME}.${OWN_GROUPS_FLAG}.${tab}`]: groups });
+    }
+
+    /** Names an own group of the tab cannot take: its cards' and its other own groups' (two cards of one name). */
+    #ownGroupTakenNames(tab: OwnGroupTab): string[] {
+        return [...this._ownGroupAddChoices(tab).map(choice => choice.card), ...ownGroups(this.#sheetFlags, tab).map(group => group.label)];
+    }
+
+    /** Edit mode, an item tab's title button (magic, vehicles): a new own group on that tab. */
+    static async #addOwnGroup(this: SR5RedesignActorSheet, event: Event, target: HTMLElement) {
+        const tab = SR5RedesignActorSheet.#ownGroupTab(target);
+        if (tab) await this.#newOwnGroup(tab);
+    }
+
+    /** A new own group on the tab, named in a prompt. */
+    async #newOwnGroup(tab: OwnGroupTab) {
+        const label = await this.#promptGroupName(undefined, this.#ownGroupTakenNames(tab), 'SR5.Redesign.OwnGroups.AddTitle');
+        if (label) await this.#saveOwnGroups(tab, [...ownGroups(this.#sheetFlags, tab), { id: foundry.utils.randomID(), label }]);
+    }
+
+    /**
+     * Edit mode, the + by the title of the inventory and augmentations tabs: one button, a menu of what it makes there,
+     * a new own group or a new inventory (an implant list), in the row menus' look.
+     */
+    #tabAddOptions() {
+        const tab = (target: HTMLElement) => SR5RedesignActorSheet.#ownGroupTab(target);
+        return [
+            {
+                label: 'SR5.Redesign.OwnGroups.AddTitle',
+                icon: "<i class='fas fa-folder-plus'></i>",
+                callback: async (target: HTMLElement) => { const id = tab(target); if (id) await this.#newOwnGroup(id); },
+            },
+            {
+                label: 'SR5.Redesign.AddMenu.Inventory',
+                icon: "<i class='fas fa-box-archive'></i>",
+                callback: async (target: HTMLElement) => this.#promptInventory(tab(target) === 'augmentations'),
+            },
+        ];
+    }
+
+    /** Edit mode, an own group's pen: renames it. */
+    static async #renameOwnGroup(this: SR5RedesignActorSheet, event: Event, target: HTMLElement) {
+        const tab = SR5RedesignActorSheet.#ownGroupTab(target);
+        const groups = tab ? ownGroups(this.#sheetFlags, tab) : [];
+        const group = groups.find(entry => entry.id === target.dataset.group);
+        if (!tab || !group) return;
+        const label = await this.#promptGroupName(group.label, this.#ownGroupTakenNames(tab));
+        if (!label) return;
+        group.label = label;
+        await this.#saveOwnGroups(tab, groups);
+    }
+
+    /**
+     * Edit mode, an own group's trash: removes it after a question. Unlike an action group, nothing is deleted with it:
+     * the items (vehicles) in it go back to their own cards.
+     */
+    static async #removeOwnGroup(this: SR5RedesignActorSheet, event: Event, target: HTMLElement) {
+        const tab = SR5RedesignActorSheet.#ownGroupTab(target);
+        const groups = tab ? ownGroups(this.#sheetFlags, tab) : [];
+        const group = groups.find(entry => entry.id === target.dataset.group);
+        if (!tab || !group) return;
+        const confirmed = await foundry.applications.api.DialogV2.confirm({
+            classes: this.#dialogClasses(),
+            position: { width: 400 },
+            window: { title: 'SR5.Redesign.ActionGroups.RemoveTitle' },
+            content: `<p>${game.i18n.format('SR5.Redesign.OwnGroups.RemoveText', { group: Handlebars.escapeExpression(group.label) })}</p>`,
+            yes: { label: 'SR5.Redesign.ActionGroups.Remove' },
+            no: { label: 'SR5.Redesign.ActionGroups.Keep', default: true },
+            rejectClose: false,
+        });
+        if (!confirmed) return;
+        const update: Record<string, unknown> = { [`flags.${SYSTEM_NAME}.${OWN_GROUPS_FLAG}.${tab}`]: groups.filter(entry => entry !== group) };
+        for (const [key, id] of Object.entries(ownGroupOf(this.#sheetFlags))) {
+            if (id === group.id) update[`flags.${SYSTEM_NAME}.${OWN_GROUP_OF_FLAG}.-=${key}`] = null;
+        }
+        await this.actor.update(update);
+    }
+
+    /** What an own group's Add makes on the tab: [{value, label (in the picker), card (that card's name)}]. */
+    protected _ownGroupAddChoices(tab: OwnGroupTab): { value: string, label: string, card: string }[] {
+        const named = (value: string, label: string) => ({ value, label: game.i18n.localize(label), card: game.i18n.localize(label) });
+        if (tab === 'inventory') return this.getInventoryItemTypes().filter(type => this.#isInventoryCard(type))
+            .map(type => named(type, SR5.itemTypes[type as keyof typeof SR5.itemTypes]));
+        if (tab === 'augmentations') return SR5RedesignActorSheet.IMPLANT_TYPES.map(type => named(type, `TYPES.Item.${type}`));
+        if (tab === 'magic') return Object.entries(SPELL_CARDS).filter(([category]) => category !== 'notfound')
+            .map(([category, [, label]]) => named(category, label));
+        return [];
+    }
+
+    /**
+     * Edit mode, an own group's Add: a new row in that group, of the kind picked when the tab makes several (an item
+     * type, a spell category, a vehicle or a drone), its sheet open to fill in.
+     */
+    static async #addOwnGroupRow(this: SR5RedesignActorSheet, event: Event, target: HTMLElement) {
+        const tab = SR5RedesignActorSheet.#ownGroupTab(target);
+        const group = ownGroups(this.#sheetFlags, tab ?? 'inventory').find(entry => entry.id === target.dataset.group);
+        if (!tab || !group) return;
+        const choices = this._ownGroupAddChoices(tab);
+        const choice = choices.length > 1
+            ? await this.#pickFrom(choices.map(entry => ({ key: entry.value, label: entry.label })),
+                game.i18n.format('SR5.Redesign.OwnGroups.AddTo', { group: group.label }), 'SR5.Redesign.ActionGroups.Create')
+            : choices[0]?.value;
+        if (choice) await this._createOwnGroupRow(tab, choice, group.id);
+    }
+
+    /**
+     * A new item in an own group (#addOwnGroupRow): of the picked type (a spell of the picked category), in the list
+     * the tab shows (as the cards' own Add, #_handleCreateItem), its sheet open.
+     */
+    protected async _createOwnGroupRow(tab: OwnGroupTab, choice: string, group: string) {
+        const type = tab === 'magic' ? 'spell' : choice;
+        // flat keys, which Foundry expands on create
+        const itemData: Record<string, unknown> = { type, name: `${game.i18n.localize('SR5.New')} ${game.i18n.localize(SR5.itemTypes[type as keyof typeof SR5.itemTypes])}` };
+        if (tab === 'magic') itemData['system.category'] = choice;
+        const [item] = await this.actor.createEmbeddedDocuments('Item', [itemData as unknown as Item.CreateData]) as SR5Item[];
+        if (!item?.id) return;
+        const inventory = tab === 'augmentations' ? this.#implantInventoryName() : tab === 'inventory' ? this.selectedInventory : null;
+        if (inventory && inventory !== this.actor.defaultInventory.name) await this.actor.inventory.addItems(inventory, [item]);
+        await this._placeInOwnGroup(item.id, group);
+        await item.sheet?.render(true, OPEN_IN_EDIT_MODE);
+    }
+
+    static #ownGroupDeletesWatched = false;
+
+    /** An item deleted that was put in an own group: the client that deleted it removes its entry (OWN_GROUP_OF_FLAG). */
+    static #watchOwnGroupDeletes() {
+        if (SR5RedesignActorSheet.#ownGroupDeletesWatched) return;
+        SR5RedesignActorSheet.#ownGroupDeletesWatched = true;
+        (Hooks.on.bind(Hooks) as (hook: string, fn: (...args: never[]) => void) => number)('deleteItem', (item: SR5Item, _options: unknown, userId: string) => {
+            const actor = item?.parent as (SR5Actor & { getFlag?(scope: string, key: string): unknown }) | null;
+            if (userId !== game.user?.id || !actor?.isOwner || !item.id || !actor.getFlag) return;
+            if (!(item.id in ownGroupOf(actor as never))) return;
+            void actor.update({ [`flags.${SYSTEM_NAME}.${OWN_GROUP_OF_FLAG}.-=${item.id}`]: null });
+        });
     }
 
     /**
@@ -1026,8 +1623,7 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
 
     static async #createInventory(this: SR5RedesignActorSheet, event: Event) {
         event.preventDefault();
-        if ((event.target as HTMLElement | null)?.closest('.sr-augmentations')) return this.#promptImplantInventory();
-        await new InventoryRenameApp(this.actor, '', 'create').render({ force: true });
+        await this.#promptInventory(!!(event.target as HTMLElement | null)?.closest('.sr-augmentations'));
     }
 
     static async #renameInventory(this: SR5RedesignActorSheet, event: Event) {
@@ -1037,8 +1633,7 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
             ui.notifications?.warn(game.i18n.localize('SR5.Warnings.CantEditDefaultInventory'));
             return;
         }
-        if (this.#isImplantInventory(inventory)) return this.#promptImplantInventory(inventory);
-        await new InventoryRenameApp(this.actor, inventory, 'edit').render({ force: true });
+        await this.#promptInventory(this.#isImplantInventory(inventory), inventory);
     }
 
     /** Removes the inventory of the button (the upstream handler removes the inventory tab's selection). */
@@ -1057,15 +1652,19 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         void this.render();
     }
 
-    /** Name a new implant list, or rename one (the upstream dialog would select it on the inventory tab). */
-    async #promptImplantInventory(current?: string) {
+    /**
+     * Name a new inventory, or rename one, in the sheet's look: the inventory tab's (the upstream InventoryRenameApp
+     * did this in the system's look), or an implant list of the augmentations tab (the upstream dialog would select
+     * it on the inventory tab). The new or renamed one is selected on its tab.
+     */
+    async #promptInventory(implant: boolean, current?: string) {
         const name = await foundry.applications.api.DialogV2.prompt({
             classes: this.#dialogClasses(),
             position: { width: 360 },
-            window: { title: current ? 'SR5.InventoryRename.Title' : 'SR5.Labels.ActorSheet.CreateInventory' },
+            window: { title: current ? 'SR5.Redesign.RenameInventory' : 'SR5.Redesign.AddMenu.Inventory' },
             content: `<input type="text" name="name" value="${Handlebars.escapeExpression(current ?? '')}"
-                aria-label="${Handlebars.escapeExpression(game.i18n.localize('SR5.Redesign.ImplantListName'))}" autofocus>`,
-            ok: { callback: (_event: Event, button: HTMLButtonElement) =>
+                aria-label="${Handlebars.escapeExpression(game.i18n.localize(implant ? 'SR5.Redesign.ImplantListName' : 'SR5.InventoryRename.NewName'))}" autofocus>`,
+            ok: { label: current ? 'SR5.Redesign.ActionGroups.Rename' : 'SR5.Redesign.ActionGroups.Create', callback: (_event: Event, button: HTMLButtonElement) =>
                 (button.form?.elements.namedItem('name') as HTMLInputElement | null)?.value.trim() ?? '' },
             rejectClose: false,
         }) as string | null;
@@ -1075,7 +1674,10 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
             ui.notifications?.warn('SR5.Warnings.AlreadyExistingInventory', { localize: true });
             return;
         }
-        if (current) {
+        if (!implant) {
+            const selected = current ? await this.actor.inventory.rename(current, name) : await this.actor.inventory.create(name);
+            if (selected) this.selectedInventory = selected;
+        } else if (current) {
             const renamed = await this.actor.inventory.rename(current, name);
             if (renamed) this.#implantInventory = renamed;
         } else {
@@ -1142,7 +1744,35 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         if (this.rendered && context?.renderContext && options !== true && !context.force) return this.#deferRender(context);
         // the parent's overloads (options, or the legacy force + options) in one signature, as this override's
         const render = super.render as (this: this, options?: boolean | object, legacy?: object) => Promise<this>;
-        return render.call(this, options, legacy);
+        const opening = !this.rendered;
+        const rendered = render.call(this, options, legacy);
+        // the window opens hidden (_insertElement) and shows once the render has placed it: in its place and size;
+        // then a matrix tab that opens first and was held back (#deferredAtOpen) is drawn under its loader
+        return opening ? rendered.finally(() => { this.#reveal(); this.#renderShownStale(); }) : rendered;
+    }
+
+    /**
+     * Shows the window hidden for its first render, with transitions off meanwhile: the system's buttons carry
+     * `transition: all .5s`, which faded their visibility in, so their labels were still hidden in the first frame.
+     */
+    #reveal() {
+        const element = this.element;
+        if (!element?.classList.contains('sr-opening')) return;
+        element.classList.add('sr-patching');
+        element.classList.remove('sr-opening');
+        void element.offsetHeight;
+        element.classList.remove('sr-patching');
+    }
+
+    /**
+     * The first render puts the window into the page before its own work is done and places it last: the parent's
+     * async render steps (_onFirstRender, _onRender) let the browser paint it in between, a frame at its natural size
+     * (1014 x 1194 on a full character, then 940 x 900), the "blink" of a sheet opened the first time after a reload.
+     * It waits hidden (laid out, so the patches can measure) until render() has placed it.
+     */
+    override async _insertElement(...args: Parameters<SR5CharacterSheet['_insertElement']>) {
+        args[0].classList.add('sr-opening');
+        return super._insertElement(...args);
     }
 
     /**
@@ -1239,24 +1869,35 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         const result: Record<string, HTMLElement> = {};
         for (const id of options.parts!) {
             if (rendered[id]) result[id] = rendered[id];
-            else if (deferred.includes(id) && !PARENT_PART[id]) result[id] = SR5RedesignActorSheet.#partPlaceholder(id);
+            else if (deferred.includes(id) && !PARENT_PART[id]) result[id] = SR5RedesignActorSheet.#partPlaceholder(id, id === this.#openTab());
         }
         for (const id of deferred) this.#staleParts.add(id);
         this.#refreshStaleWhenIdle();
         return result as Awaited<ReturnType<SR5CharacterSheet['_renderHTML']>>;
     }
 
-    /** The parts of the tabs that are not open, with the parts placed in them. */
+    /**
+     * The parts of the tabs that are not open, with the parts placed in them. A matrix tab that opens first (an IC's,
+     * a sheet left on it) is held back too while the grids hold devices not resolved yet this page: drawn at once it
+     * froze the page (70 tokens on a grid, a second), so it is drawn under its loader once the window shows (render).
+     */
     #deferredAtOpen(parts: string[]): string[] {
         const TABS = (this.constructor as typeof SR5RedesignActorSheet).TABS;
-        const open = this.tabGroups.primary ?? TABS.primary.initial;
+        const open = this.#openTab();
         const tabs = new Set(TABS.primary.tabs.map(tab => tab.id));
-        return parts.filter(id => (tabs.has(id) && id !== open) || (PARENT_PART[id] && tabs.has(PARENT_PART[id]) && PARENT_PART[id] !== open));
+        const held = (tab: string) => tab !== open || (tab === 'matrix' && hasColdMatrixDevices(this.actor));
+        return parts.filter(id => (tabs.has(id) && held(id)) || (PARENT_PART[id] && tabs.has(PARENT_PART[id]) && held(PARENT_PART[id])));
     }
 
-    static #partPlaceholder(id: string): HTMLElement {
+    /** The primary tab the sheet shows. */
+    #openTab(): string {
+        return this.tabGroups.primary ?? (this.constructor as typeof SR5RedesignActorSheet).TABS.primary.initial;
+    }
+
+    static #partPlaceholder(id: string, active = false): HTMLElement {
         const section = document.createElement('section');
-        section.className = 'tab';
+        // the open tab's placeholder shows (its loader goes in it)
+        section.className = active ? 'tab active' : 'tab';
         section.dataset.group = 'primary';
         section.dataset.tab = id;
         section.dataset.applicationPart = id;
@@ -1441,6 +2082,27 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         this.element.prepend(shadow);
         this.#rememberResize();
         this.#watchDrags();
+        this.#wireActionGroupDrops();
+        this.#wireOwnGroupDrops();
+        // the + of the inventory and augmentations titles opens its menu on a click (#tabAddOptions), under the button
+        // and ending at its right edge (Foundry starts it at the button's left, past the sheet's edge)
+        const addMenu = this._createContextMenu(() => this.#tabAddOptions(), "[data-context-menu='tab-add']", {
+            hookName: 'getTabAddContextOptions',
+            jQuery: false,
+            fixed: true,
+            relative: 'target',
+            eventName: 'click',
+        }) as unknown as { _setFixedPosition(menu: HTMLElement, target: HTMLElement, options?: object): void } | null;
+        if (addMenu) {
+            const place = addMenu._setFixedPosition.bind(addMenu);
+            addMenu._setFixedPosition = (menu, target, options) => {
+                place(menu, target, options);
+                // by its right edge: the menu's width changes once the sheet's menu look applies (sr5-redesign-menu)
+                menu.style.left = 'auto';
+                menu.style.right = `${Math.max(0, Math.round(target.ownerDocument.documentElement.clientWidth - target.getBoundingClientRect().right))}px`;
+            };
+        }
+        SR5RedesignActorSheet.#watchOwnGroupDeletes();
         wireSidebarScrollLane(this.element, () => this.#sidebarDrawnAt);
         SR5RedesignActorSheet.#watchDeletionConfirms();
         SR5RedesignActorSheet.#watchItemDeletes();
@@ -1549,9 +2211,13 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
                 // a re-render replaces the header: a reposition in progress on the old one is dropped
                 this.#art.endIfReplaced();
                 this.#addSpellCategoryColumn();
+                // the system's general actions on the group cards drag too (#wireActionGroupDrops): the row template
+                // makes only the actor's own items draggable
+                if (this.isEditable) for (const row of this.element.querySelectorAll<HTMLElement>('.sr-actions .action-group .list-item[data-item-id]:not([draggable])')) row.draggable = true;
                 // the patches below look in what this render drew (a whole tab for a part placed in one: the table
                 // sort counts a tab's cards), not the whole window every time
                 const roots = this.#patchRoots(args[1]);
+                this.#stripOwnGroupHeaders(roots);
                 this.#alignNumericColumns(roots);
                 this.#alignTableLanes(this.#renderedRoots(args[1]));
                 this.#applySkillSort();
@@ -1862,8 +2528,9 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         }
         // attributes, limits, armor and movement: icon, what it does and the modifier breakdown
         for (const el of root.querySelectorAll<HTMLElement>('.ability-score[data-attribute-id] > .label')) {
-            // a vehicle's plates are its vehicle stats (handling, speed, acceleration... on the road it is on)
-            const kind = el.closest('.vehicle-stat') ? 'vehicle' : 'attribute';
+            // a vehicle's plates are its vehicle stats (handling, speed, acceleration... on the road it is on); an IC's
+            // are its host's rating and its matrix attributes
+            const kind = el.closest('.ic-stat') ? 'ic' : el.closest('.vehicle-stat') ? 'vehicle' : 'attribute';
             RichTooltip.attachStat(el, this.actor, kind, el.closest<HTMLElement>('[data-attribute-id]')!.dataset.attributeId!);
         }
         for (const el of root.querySelectorAll<HTMLElement>('.limit-row .limit[data-limit-modifier-tooltip]')) {
@@ -1878,6 +2545,15 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         for (const [key, id] of [['SR5.WalkingSpeed', 'walk'], ['SR5.RunningSpeed', 'run']] as const) {
             const el = root.querySelector<HTMLElement>(`.sr-sidebar [data-tooltip="${key}"], [data-tooltip="${key}"]`);
             if (el) RichTooltip.attachStat(el, this.actor, 'movement', id);
+        }
+        // the condition monitors (their name and count) and the initiative row: a character's (a vehicle's damage and
+        // initiative follow other rules: its sidebar keeps its own tooltips)
+        if (this.actor.type !== 'vehicle') {
+            for (const el of root.querySelectorAll<HTMLElement>('.sr-sidebar .meter-group[data-id] > .meter-label > :is(.meter-roll, .meter-value)')) {
+                RichTooltip.attachStat(el, this.actor, 'track', el.closest<HTMLElement>('.meter-group')!.dataset.id!);
+            }
+            const initiative = root.querySelector<HTMLElement>('.sr-sidebar .initiative-bar .init-trigger');
+            if (initiative) RichTooltip.attachStat(initiative, this.actor, 'initiative', 'current');
         }
     }
 
@@ -1994,7 +2670,7 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         this.#skillGroupOf.clear();
         // a pack's skill group item (system.group.skills), or one of the actor's groups (group.skills)
         type SkillGroupSource = { name?: string; system?: { group?: { skills?: string[] } }; group?: { skills?: string[] } };
-        const groupItems: SkillGroupSource[] = [...await PackItemFlow.getPackSkillgroups() as SkillGroupSource[], ...(context.skillGroups ?? []) as SkillGroupSource[]];
+        const groupItems: SkillGroupSource[] = [...await SR5RedesignActorSheet.#packSkillGroups() as SkillGroupSource[], ...(context.skillGroups ?? []) as SkillGroupSource[]];
         for (const group of groupItems) {
             const skills = group?.system?.group?.skills ?? group?.group?.skills ?? [];
             for (const name of skills) if (group.name) this.#skillGroupOf.set(String(name).toLowerCase(), group.name);
@@ -2083,7 +2759,9 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
      */
     #addTableSortButtons(roots: HTMLElement[] = [this.element]) {
         const seen = new Map<string, number>();
-        for (const header of roots.flatMap(root => [...root.querySelectorAll<HTMLElement>('section.tab .items-section.card > .list-item.list-item-header')])) {
+        // an own group's item type sections sort each on their own (redesign/own-group.hbs)
+        const headers = 'section.tab :is(.items-section.card, .own-group-section) > .list-item.list-item-header';
+        for (const header of roots.flatMap(root => [...root.querySelectorAll<HTMLElement>(headers)])) {
             const card = header.parentElement!;
             const tab = header.closest<HTMLElement>('section.tab')?.dataset.tab;
             if (!tab || !card.querySelector(':scope > .list-item-container > .list-item')) continue;
@@ -2263,10 +2941,13 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
             // columns): then the row's values come again rather than an empty band beside the link
             const all = [...properties.children];
             const own = all.filter(el => !repeats(el));
-            const lonely = own.some(el => el.matches('.source-link')) && !own.some(el => !el.matches('.source-link, .condition-monitor-container'));
+            // (an implant's grade does not count: it stands before the rating and Essence, not instead of them)
+            const lonely = own.some(el => el.matches('.source-link')) && !own.some(el => !el.matches('.source-link, .condition-monitor-container, .prop-grade'));
             const children = lonely ? all : own;
             for (const el of all) if (!children.includes(el)) el.remove();
-            const state = children.filter(el => el.matches('.condition-monitor-container'));
+            // the second line: a device's matrix monitor, and properties that ask for a line of their own (an opened
+            // defense test's active defenses: RedesignActionDetails)
+            const state = children.filter(el => el.matches('.condition-monitor-container, .prop-own-line'));
             const main = children.filter(el => !state.includes(el))
                 // stable: the template order stays within a rank
                 .map((el, i) => [el, i] as const).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([el]) => el);
@@ -2456,7 +3137,8 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
      * class change inside it (5 ms a tab switch on a full character, growing with the chat log).
      */
     #markActiveTab() {
-        this.element.classList.toggle('sr-skills-tab', this.tabGroups.primary === 'skills');
+        // the plates belong to the sheet's first tab: the skills (a character, a vehicle), the IC tab of an IC
+        this.element.classList.toggle('sr-skills-tab', this.tabGroups.primary === (this.constructor as typeof SR5RedesignActorSheet).TABS.primary.initial);
     }
 
     /** When the sidebar was last drawn: the scroll position Foundry restores right after is not the user scrolling. */
@@ -2542,10 +3224,87 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
             label: `TYPES.Item.${type}`,
             isOpen: this._inventoryOpenClose[type] ?? true,
             items: this.actor.items
-                .filter(item => item.type === type && inList(item)
-                    && !this.actor.items.has((item.system as { parentId?: string | null }).parentId ?? ''))
+                .filter(item => item.type === type && inList(item) && !this._isAttached(item))
                 .sort((a, b) => a.name.localeCompare(b.name)),
         }));
+    }
+
+    /**
+     * Whether an item is listed by its parent row instead of a row of its own: linked below an item of this actor
+     * that can hold it (a weapon its ammo and mods, armor and implants their mods, a container anything, an implant
+     * another implant). The 0.38 system keeps attached items on the actor (system.parentId); its sheets hide every
+     * item whose parent is on the actor, so one linked below a skill, a quality or plain gear (b181: Chummer imports)
+     * was on no list at all. Those are listed as loose items. The 0.37 release keeps attached items inside their
+     * parent, never on the actor: nothing to do there.
+     */
+    protected _isAttached(item: SR5Item): boolean {
+        const parentId = (item.system as { parentId?: string | null }).parentId;
+        const parent = parentId ? this.actor.items.get(parentId) : undefined;
+        if (!parent) return false;
+        if (parent.type === 'container') return true;
+        if (SR5RedesignActorSheet.IMPLANT_TYPES.includes(parent.type as never) && SR5RedesignActorSheet.IMPLANT_TYPES.includes(item.type as never)) return true;
+        return SR5Item.isAttachment(parent.type, item.type);
+    }
+
+    /**
+     * A modification dropped on the row of an item that holds modifications (a weapon, armor, an implant) goes into
+     * it, the way that item's own Mods tab takes one, and is installed at once (the system attaches it switched off,
+     * so it would change nothing and take no capacity). Anything else, and a drop elsewhere, is the sheet's drop.
+     */
+    override async _onDropItem(event: DragEvent, item: SR5Item) {
+        const row = event.target instanceof Element ? event.target.closest<HTMLElement>('.list-item[data-item-id]') : null;
+        const parent = row?.dataset.itemId ? this.actor.items.get(row.dataset.itemId) : undefined;
+        if (parent && item?.type === 'modification' && parent.id !== item.id && this.isEditable && parent.modificationType?.()) {
+            return this.#installModification(parent, item);
+        }
+        return super._onDropItem(event, item);
+    }
+
+    /**
+     * A modification put in an item and installed. The 0.38 system keeps it on the actor below the item: the item
+     * sheet's own attach (a copy for a modification from elsewhere, the same one for a loose one of this actor). The 0.37
+     * release keeps it inside the item (createNestedItem): a copy, so a loose one of this actor is removed after.
+     */
+    async #installModification(parent: SR5Item, mod: SR5Item) {
+        const release = parent as unknown as { createNestedItem?: (data: object) => Promise<unknown> };
+        if (typeof release.createNestedItem === 'function') {
+            const data = mod.toObject() as object;
+            foundry.utils.setProperty(data, 'system.technology.equipped', true);
+            await release.createNestedItem(data);
+            if (mod.parent === this.actor) await mod.delete();
+        } else {
+            const sheet = parent.sheet as unknown as { _onDropAttachmentItem(item: SR5Item): Promise<unknown> };
+            const attached = await sheet._onDropAttachmentItem(mod);
+            if (!(attached instanceof SR5Item)) return null;
+            if (!attached.isEquipped()) await attached.update({ system: { technology: { equipped: true } } } as never);
+        }
+        ui.notifications?.info(game.i18n.format('SR5.Redesign.ModInstalled', { mod: mod.name, item: parent.name }));
+        return null;
+    }
+
+    /**
+     * The inventories as the system draws them, and the items it hid below a parent that cannot hold them (b181,
+     * _isAttached) back in their inventory, as any loose item: the system skips every item whose parent is on the actor.
+     */
+    override async _prepareItemsInventory() {
+        const inventories = await super._prepareItemsInventory();
+        const handled = this.getHandledItemTypes();
+        const strays = this.actor.items.filter(item => !handled.includes(item.type)
+            && this.actor.items.has((item.system as { parentId?: string | null }).parentId ?? '') && !this._isAttached(item));
+        if (!strays.length) return inventories;
+        const all = Object.values(this.actor.system.inventories ?? {});
+        for (const item of strays) {
+            const inventory = all.find(entry => entry.itemIds.includes(item.id!)) ?? this.actor.defaultInventory;
+            const names = inventory.showAll ? Object.keys(inventories) : [inventory.name];
+            for (const name of names) {
+                const sheet = inventories[name];
+                if (!sheet) continue;
+                sheet.types[item.type] ??= { type: item.type, label: SR5.itemTypes[item.type], isOpen: this._inventoryOpenClose[item.type], items: [] };
+                sheet.types[item.type].items.push(item);
+                sheet.types[item.type].items.sort((x, y) => x.name.localeCompare(y.name));
+            }
+        }
+        return inventories;
     }
 
     /**
@@ -2670,6 +3429,67 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
         const mode = target.dataset.mode as Parameters<SR5CharacterSheet['actor']['setInitiativeMode']>[0] | undefined;
         target.closest<HTMLElement>('[popover]')?.hidePopover();
         if (mode) await this.actor.setInitiativeMode(mode);
+    }
+
+    /**
+     * A skill row opens as the system's does (its own description, put in without a render), then with the skill's
+     * entry in the user's rulebook under it when imported (RedesignRulebook); a render brings both back
+     * (_prepareContext).
+     */
+    static async #toggleSkillDescription(this: SR5RedesignActorSheet, event: PointerEvent, target: HTMLElement) {
+        // the system's handler: the nearest sheet class up the chain that declares it (SR5BaseActorSheet)
+        type Toggle = (this: unknown, event: PointerEvent, target: HTMLElement) => unknown;
+        let sheetClass = Object.getPrototypeOf(SR5RedesignActorSheet) as { DEFAULT_OPTIONS?: { actions?: Record<string, unknown> } } | null;
+        while (sheetClass && !Object.hasOwn(sheetClass.DEFAULT_OPTIONS?.actions ?? {}, 'openSkillDescription')) sheetClass = Object.getPrototypeOf(sheetClass);
+        await (sheetClass?.DEFAULT_OPTIONS?.actions?.openSkillDescription as Toggle | undefined)?.call(this, event, target);
+        const container = target.closest<HTMLElement>('.list-item-container');
+        const body = container?.querySelector<HTMLElement>('.description-body');
+        const name = this.actor.items.get(container?.querySelector<HTMLElement>('[data-skill-id]')?.dataset.skillId ?? target.closest<HTMLElement>('[data-skill-id]')?.dataset.skillId ?? '')?.name;
+        if (!container?.classList.contains('expanded') || !body || !name || body.querySelector('.sr-rich-book')) return;
+        body.innerHTML = RedesignRulebook.withPassage(body.innerHTML, 'skills', name);
+    }
+
+    /**
+     * A row opens as the system's do (its description, put in without a render). An action row gets the pool,
+     * limit and defenses of its test too (RedesignActionDetails), prepared before it opens and put into its
+     * property line in the same step: only that row changes, the tab is not drawn again (a render of the tab
+     * replaced all its rows, the sheet jerked). Renders draw them from the context (#actionRowData). An action's or
+     * spell's entry in the user's rulebooks goes under its description (RedesignRulebook).
+     */
+    static async #toggleItemDescription(this: SR5RedesignActorSheet, event: PointerEvent, target: HTMLElement) {
+        const container = target.closest<HTMLElement>('.list-item-container');
+        const uuid = container?.querySelector<HTMLElement>(':scope > .list-item[data-uuid]')?.dataset.uuid;
+        const opening = !!container && !container.classList.contains('expanded');
+        // a pack action is not loaded: fromUuid, not fromUuidSync (an index entry)
+        const item = opening && uuid ? await fromUuid(uuid) as SR5Item | null : null;
+        const entry = item ? RedesignRulebook.itemEntry(item) : null;
+        const details = item?.type === 'action'
+            ? RedesignActionDetails.html(this.actor, item, await this._preparedTest(() => TestCreator.fromItem(item, this.actor, { showDialog: false, showMessage: false })))
+            : '';
+        // the system's handler: the nearest class up the chain that declares it (SR5ApplicationMixin)
+        type Toggle = (this: unknown, event: PointerEvent, target: HTMLElement) => unknown;
+        let sheetClass = Object.getPrototypeOf(SR5RedesignActorSheet) as { DEFAULT_OPTIONS?: { actions?: Record<string, unknown> } } | null;
+        while (sheetClass && !Object.hasOwn(sheetClass.DEFAULT_OPTIONS?.actions ?? {}, 'showItemDescription')) sheetClass = Object.getPrototypeOf(sheetClass);
+        await (sheetClass?.DEFAULT_OPTIONS?.actions?.showItemDescription as Toggle | undefined)?.call(this, event, target);
+        if (!container?.classList.contains('expanded')) return;
+        if (item?.type === 'action') this.#putRowDetails(container, details);
+        const body = container.querySelector<HTMLElement>(':scope > .list-item-desc > .description-body');
+        if (entry && body && !body.querySelector('.sr-rich-book')) body.innerHTML = RedesignRulebook.withPassage(body.innerHTML, entry.category, entry.key);
+    }
+
+    /**
+     * An opened row's own property line with these details instead of the ones it had (a row opened before keeps
+     * them in the page): back to the template's flat list of properties, the details added, arranged again.
+     */
+    #putRowDetails(container: HTMLElement, html: string) {
+        const properties = container.querySelector<HTMLElement>(':scope > .list-item-desc > .list-item-properties');
+        if (!properties) return;
+        const flat = [...properties.querySelectorAll<HTMLElement>(':scope > .prop-line > .prop-chips > *, :scope > .prop-line > :not(.prop-chips)')];
+        const template = document.createElement('template');
+        template.innerHTML = html;
+        properties.replaceChildren(...flat.filter(el => !el.classList.contains('prop-detail')), ...template.content.children);
+        properties.classList.remove('arranged');
+        this.#arrangeProperties([container]);
     }
 
     static async #toggleSidebar(this: SR5RedesignActorSheet, event: PointerEvent) {
@@ -2902,22 +3722,51 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
     }
 
     /**
-     * The general-actions pack, read once per session: the sidebar renders on every actor update, and each pack read
-     * is a server round-trip. Dropped when a compendium changes.
+     * An action pack's actions, read once per session: the sheet renders on every actor update, and each pack read
+     * is a server round-trip, from every client that shows the sheet (the matrix pack's 33 actions on each damage
+     * box). Dropped when a compendium changes.
      */
-    static #packActions: Promise<SR5Item<'action'>[]> | null = null;
+    static #packActions = new Map<string, Promise<SR5Item<'action'>[]>>();
     static #packActionsHook = false;
 
-    static async #generalPackActions(): Promise<SR5Item<'action'>[]> {
-        if (!SR5RedesignActorSheet.#packActionsHook) {
-            SR5RedesignActorSheet.#packActionsHook = true;
-            Hooks.on('updateCompendium', () => { SR5RedesignActorSheet.#packActions = null; });
+    /** The pack reads are dropped when a compendium changes. */
+    static #watchCompendiums() {
+        if (SR5RedesignActorSheet.#packActionsHook) return;
+        SR5RedesignActorSheet.#packActionsHook = true;
+        Hooks.on('updateCompendium', () => { SR5RedesignActorSheet.#packActions.clear(); SR5RedesignActorSheet.#skillGroups = null; });
+    }
+
+    protected static packActions(packName: string): Promise<SR5Item<'action'>[]> {
+        SR5RedesignActorSheet.#watchCompendiums();
+        let read = SR5RedesignActorSheet.#packActions.get(packName);
+        if (!read) {
+            read = PackItemFlow.getPackActions(packName);
+            SR5RedesignActorSheet.#packActions.set(packName, read);
+            // a failed read is not kept
+            read.catch(() => { SR5RedesignActorSheet.#packActions.delete(packName); });
         }
-        SR5RedesignActorSheet.#packActions ??= PackItemFlow.getPackActions(PackItemFlow.getGeneralActionsPackName());
-        const read = SR5RedesignActorSheet.#packActions;
-        // a failed read is not kept
-        read.catch(() => { SR5RedesignActorSheet.#packActions = null; });
         return read;
+    }
+
+    /** The skill groups pack, read once as the action packs (the skill filter's groups, on every render of the tab). */
+    static #skillGroups: Promise<SR5Item<'skill'>[]> | null = null;
+    static #packSkillGroups(): Promise<SR5Item<'skill'>[]> {
+        SR5RedesignActorSheet.#watchCompendiums();
+        if (!SR5RedesignActorSheet.#skillGroups) {
+            const read = PackItemFlow.getPackSkillgroups();
+            SR5RedesignActorSheet.#skillGroups = read;
+            read.catch(() => { SR5RedesignActorSheet.#skillGroups = null; });
+        }
+        return SR5RedesignActorSheet.#skillGroups;
+    }
+
+    static #generalPackActions(): Promise<SR5Item<'action'>[]> {
+        return SR5RedesignActorSheet.packActions(PackItemFlow.getGeneralActionsPackName());
+    }
+
+    /** The matrix pack's actions, as the system's sheet takes them (PackItemFlow.getMatrixPackActions), read once. */
+    protected override async _getMatrixPackActions() {
+        return (await SR5RedesignActorSheet.packActions(PackItemFlow.getMatrixActionsPackName())).filter(action => action.hasActionCategory('matrix'));
     }
 
     /**
@@ -2927,6 +3776,28 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
     /** The quick rolls of this kind of actor: pack action name -> short label key (QUICK_ROLLS for a character). */
     protected _quickRolls(): Record<string, string> {
         return QUICK_ROLLS;
+    }
+
+    /**
+     * What the action rows of a tab read besides the items: the page of each (actionSources), the interrupts that
+     * cost more Initiative Score than is left (actionShort), and the opened rows' pool, limit, opposed test and
+     * active defenses (actionDetails: a test is prepared for each opened row only).
+     */
+    async #actionRowData(entries: { action: SR5Item<'action'> }[]) {
+        const opened = (this as unknown as { expandedUuids?: Set<string> }).expandedUuids ?? new Set<string>();
+        const score = RedesignActionDetails.initiativeScore(this.actor);
+        const actionSources: Record<string, string> = {};
+        const actionShort: Record<string, boolean> = {};
+        const actionDetails: Record<string, string> = {};
+        for (const { action: item } of entries) {
+            if (!item?.uuid) continue;
+            actionSources[item.uuid] = RedesignActionDetails.source(item);
+            actionShort[item.uuid] = RedesignActionDetails.short(score, item.system.action?.initiative_mod);
+            if (!opened.has(item.uuid)) continue;
+            const test = await this._preparedTest(() => TestCreator.fromItem(item, this.actor, { showDialog: false, showMessage: false }));
+            actionDetails[item.uuid] = RedesignActionDetails.html(this.actor, item, test);
+        }
+        return { actionSources, actionShort, actionDetails };
     }
 
     async _prepareQuickRolls(): Promise<QuickRollData[]> {
@@ -2972,6 +3843,14 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
      * dialog or message. Null when the test cannot be built.
      */
     protected async _preparedPool(create: () => Promise<SuccessTest | undefined>) {
+        return (await this._preparedTest(create))?.pool ?? null;
+    }
+
+    /**
+     * A test as its dialog opens (_preparedPool): its class, pool, limit and opposed test, for an opened action
+     * row. Null when the test cannot be built (an attack action without a weapon).
+     */
+    protected async _preparedTest(create: () => Promise<SuccessTest | undefined>): Promise<PreparedActionTest | null> {
         // no notifications for a test that is only looked at (a skill the driver cannot default warns on creation);
         // the roll itself warns when it is made
         const notifications = ui.notifications as { warn: (...args: unknown[]) => unknown } | undefined;
@@ -2981,7 +3860,8 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
             const test = await create();
             if (!test) return null;
             await test._prepareExecution();
-            return test.data.pool as { value: number, changes: { name: string, value: number, enabled?: boolean }[] };
+            const data = test.data as unknown as Omit<PreparedActionTest, 'type'>;
+            return { type: test.constructor.name, pool: data.pool, limit: data.limit, opposed: data.opposed };
         } catch (error) {
             console.warn('Shadowrun 5e | SR5 Redesign could not prepare a test for its pool', error);
             return null;

@@ -8,7 +8,15 @@
     <div class="list-item-col"><label>{{localize "SR5.Drain"}}</label></div>
 {{/inline}}
 <section class="tab sr-magic{{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{!-- edit mode: a new group of the player's own (RedesignOwnGroups), by the title as on the Actions tab --}}
+    {{#if @root.isEditMode}}
+    {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+        <button type="button" class="unbutton" data-action="addOwnGroup" data-tooltip="SR5.Redesign.OwnGroups.AddTitle"
+                aria-label="{{localize 'SR5.Redesign.OwnGroups.AddTitle'}}"><i class="fas fa-plus" aria-hidden="true"></i></button>
+    {{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs'}}
+    {{else}}
     {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/tab-title.hbs' }}
+    {{/if}}
 {{#if tabEmpty}}
     {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/empty-tab.hbs' }}
 {{else}}
@@ -52,6 +60,10 @@
     {{#if (or @root.isEditMode spells.manipulation.length)}}
         {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs' partial='spell' type='manipulationspells' addType='manipulationspells' label='SR5.Spell.CatManipulation' list=spells.manipulation}}{{> spellColumns}}{{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/card-table.hbs'}}
     {{/if}}
+    {{!-- the player's own groups of spells, after the category cards (RedesignOwnGroups) --}}
+    {{#each ownGroups as |group|}}
+        {{#> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/own-group.hbs' group=group }}{{> spellColumns}}{{/'systems/shadowrun5e/dist/templates/v2/actor/redesign/own-group.hbs'}}
+    {{/each}}
     {{/if}}
 
     {{#if (or @root.isEditMode itemType.ritual.length)}}

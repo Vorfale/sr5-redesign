@@ -35,8 +35,6 @@
             {{> 'systems/shadowrun5e/dist/templates/v2/item-properties/adept_power.hbs' item=item }}
             {{> 'systems/shadowrun5e/dist/templates/v2/item-properties/armor.hbs' item=item }}
         </div>
-        <div class="description-body">
-            {{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}
-        </div>
+        <div class="description-body">{{{objValue (objValue @root.expandedUuids item.uuid) 'html'}}}</div>
     </div>
 </div>

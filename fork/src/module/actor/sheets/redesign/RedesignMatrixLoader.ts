@@ -13,11 +13,31 @@ const warmedSlaves = new Set<string>();
  * in one go was a second and more of a frozen page. Read from the system's network storage, nothing written.
  */
 export async function warmMatrixNetworks(actor: SR5Actor, alive: () => boolean) {
+    const pending = coldMatrixDevices(actor);
+    let slice = performance.now();
+    for (const uuid of pending) {
+        try { fromUuidSync(uuid); } catch { /* a stale entry: the system skips it too */ }
+        warmedSlaves.add(uuid);
+        if (performance.now() - slice > 8) {
+            await new Promise(resolve => { window.setTimeout(resolve, 0); });
+            if (!alive()) return;
+            slice = performance.now();
+        }
+    }
+}
+
+/** Whether the Matrix tab's first draw would resolve grid devices not resolved yet this page (warmMatrixNetworks). */
+export function hasColdMatrixDevices(actor: SR5Actor): boolean {
+    return coldMatrixDevices(actor).length > 0;
+}
+
+/** The token devices on the grids and on the actor's network not resolved yet this page. */
+function coldMatrixDevices(actor: SR5Actor): string[] {
     let networks: Record<string, string[]> = {};
     try {
         const storage = (game.settings as unknown as { get(scope: string, key: string): unknown }).get(SYSTEM_NAME, 'GlobalDataStorage') as { matrix?: { networks?: Record<string, string[]> } } | undefined;
         networks = storage?.matrix?.networks ?? {};
-    } catch { return; }
+    } catch { return []; }
     const masters = new Set<string>(game.items?.filter(item => item.type === 'grid').map(item => item.uuid) ?? []);
     const network = (actor as unknown as { network?: { uuid?: string } | null }).network;
     if (network?.uuid) masters.add(network.uuid);
@@ -29,16 +49,7 @@ export async function warmMatrixNetworks(actor: SR5Actor, alive: () => boolean) 
             if (uuid.startsWith('Scene.') && !warmedSlaves.has(uuid)) pending.push(uuid);
         }
     }
-    let slice = performance.now();
-    for (const uuid of pending) {
-        try { fromUuidSync(uuid); } catch { /* a stale entry: the system skips it too */ }
-        warmedSlaves.add(uuid);
-        if (performance.now() - slice > 8) {
-            await new Promise(resolve => { window.setTimeout(resolve, 0); });
-            if (!alive()) return;
-            slice = performance.now();
-        }
-    }
+    return pending;
 }
 
 /**

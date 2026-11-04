@@ -112,6 +112,7 @@ for (const [from] of fs.existsSync(stockTemplates) ? DATA_PATHS : []) {
 // ---------- script ----------
 const SHIMS = {
     'actor/sheets/SR5CharacterSheet': 'shims/sheet-base.ts',
+    'actor/sheets/SR5ICActorSheet': 'shims/ic-sheet.ts',
     'config': 'shims/config.ts',
     'item/SR5Item': 'shims/item.ts',
     'actor/SR5Actor': 'shims/actor.ts',
@@ -129,11 +130,14 @@ const SHIMS = {
 };
 // the fork's own files: the sheet, its helpers, and the small apps it opens (the fork changed them for the keyboard)
 const FROM_FORK = new Set([
-    'actor/sheets/SR5CharacterSheetRedesign', 'actor/sheets/SR5VehicleSheetRedesign', 'actor/sheets/SR5RichTooltip', 'actor/sheets/RedesignPool',
+    'actor/sheets/SR5CharacterSheetRedesign', 'actor/sheets/SR5VehicleSheetRedesign', 'actor/sheets/SR5ICSheetRedesign',
+    'actor/sheets/SR5RichTooltip', 'actor/sheets/RedesignPool',
     'actor/sheets/RedesignRowMenu', 'actor/sheets/RedesignMatrixApps', 'actor/sheets/RedesignListControls',
     'actor/sheets/RedesignSettings',
     // rules the fork added for the sheet (b066), not in the release yet
     'rules/InitiativeRules',
+    // the lazy rebuild of unseen unlinked token copies, installed on the release's token class (entry.ts)
+    'token/LazyBaseActorSync',
     'apps/actor/KarmaManager', 'apps/actor/NuyenManager', 'apps/actor/ReputationManager',
 ]);
 // and every module split out of the sheet (actor/sheets/redesign/*)
@@ -190,7 +194,7 @@ const result = await esbuild.build({
     metafile: true,
     tsconfig: path.join(FORK, 'tsconfig.json'),
     absWorkingDir: ROOT, // the source paths in the bundle's comments are relative to it
-    define: { MODULE_TEMPLATE_PATHS: JSON.stringify(templatePaths), SYSTEM_CHARACTER_SHEET: 'systemCharacterSheet' },
+    define: { MODULE_TEMPLATE_PATHS: JSON.stringify(templatePaths), SYSTEM_CHARACTER_SHEET: 'systemCharacterSheet', SYSTEM_IC_SHEET: 'systemICSheet' },
     plugins: [resolver],
     logLevel: 'warning',
 });
@@ -245,13 +249,15 @@ ${pkg.licenseText.trim()}
 `).join('\n')}`);
 write(path.join(MOD, 'scripts/sheet.mjs'), `${header}
 // Foundry queues sheet registrations made during 'init' and fills CONFIG.Actor.sheetClasses only just before 'ready',
-// and the system does not expose its character sheet class: catch the class when the system registers it (the system's
-// scripts load before this one, its 'init' runs before ours), then hand registerSheet back untouched.
+// and the system does not expose its character and IC sheet classes: catch them when the system registers them (the
+// system's scripts load before this one, its 'init' runs before ours), then hand registerSheet back untouched.
 const DocumentSheetConfig = foundry.applications.apps.DocumentSheetConfig;
 const registerSheet = DocumentSheetConfig.registerSheet;
 let systemCharacterSheet = null;
+let systemICSheet = null;
 DocumentSheetConfig.registerSheet = function (documentClass, scope, sheetClass, options) {
     if (scope === 'shadowrun5e' && sheetClass?.name === 'SR5CharacterSheet') systemCharacterSheet = sheetClass;
+    if (scope === 'shadowrun5e' && sheetClass?.name === 'SR5ICActorSheet') systemICSheet = sheetClass;
     return registerSheet.call(this, documentClass, scope, sheetClass, options);
 };
 
@@ -266,7 +272,8 @@ Hooks.once('init', () => {
         console.warn(\`${MODULE_ID} | built for Shadowrun 5e ${stockVersion}, running on \${game.system.version}.\`);
     }
     try {
-${bundle.split('\n').map(line => line ? `        ${line}` : line).join('\n')}
+// the bundle as esbuild wrote it: indenting its lines would add spaces inside multi-line template literals
+${bundle}
     } catch (error) {
         console.error('${MODULE_ID} | failed to set up the sheet', error);
     }
@@ -338,7 +345,7 @@ write(path.join(MOD, 'lang/en.json'), `${JSON.stringify(lang, null, 4)}\n`);
 const manifest = {
     id: MODULE_ID,
     title: 'SR5 Redesign',
-    description: 'Alternative Shadowrun 5e character sheet: limits in the header, a combat sidebar with condition monitors and quick rolls, skills with dice pools and filters, list search and filters, rich item and attribute cards, karma and nuyen in a footer; and a vehicle and drone sheet in the same look. Dark and light themes.',
+    description: 'Alternative Shadowrun 5e character sheet: limits in the header, a combat sidebar with condition monitors and quick rolls, skills with dice pools and filters, list search, filters and groups of your own, rich item and attribute cards, karma and nuyen in a footer; sheets for vehicles, drones and IC in the same look; text from your own rulebooks on the cards. Dark and light themes.',
     version,
     authors: [{ name: 'Ravefale' }],
     ...(REPO ? {

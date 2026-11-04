@@ -95,6 +95,8 @@ export function vehicleSections(character: SR5Actor, mode: string, open: Record<
             // under the name what its card does not say: by type the size or category, by category nothing,
             // in one list a drone says it is one
             kind: mode === 'category' ? '' : mode === 'none' && system.isDrone ? `${i18n('SR5.Vehicle.Drone')} · ${category.label}` : category.label,
+            // the same in an own group of the tab (RedesignOwnGroups), which may hold vehicles and drones
+            looseKind: system.isDrone ? `${i18n('SR5.Vehicle.Drone')} · ${category.label}` : category.label,
             stats: VEHICLE_COLUMNS.map(column => columns[column.key]),
             props,
             monitors,

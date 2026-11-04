@@ -39,6 +39,7 @@ export const LIST_FILTER_GROUPS: Record<string, string> = {
     vehicleKind: 'SR5.Redesign.Vehicles.Filter.Kind',
     spellCategory: 'SR5.Redesign.ListFilter.SpellCategory',
     controlMode: 'SR5.Vehicle.ControlMode',
+    grade: 'SR5.CyberwareGrade',
 };
 /** One option per value of a spell field (type, range, duration), labelled like the magic table's cells. */
 const spellOptions = (group: string, field: string, labels: Record<string, string>): ListFilterChip[] =>
@@ -52,6 +53,13 @@ const elementOptions = (): ListFilterChip[] =>
         id: `element-${value}`, label, icon: ELEMENT_ICONS[value], group: 'element', test: doc => hasElement(doc, value),
         offered: actor => actor.items.some(item => ELEMENTAL_MAGIC_TYPES.has(item.type) && hasElement(item as ListedDoc, value)),
     }));
+const WARE_TYPES = new Set(['cyberware', 'bioware']);
+/** One option per implant grade the actor's cyberware and bioware have (standard included); labels are the system's. */
+const gradeOptions = (): ListFilterChip[] =>
+    Object.entries(SR5.cyberwareGrades).map(([value, label]) => ({
+        id: `grade-${value}`, label, group: 'grade', test: doc => doc?.system?.grade === value,
+        offered: actor => actor.items.some(item => WARE_TYPES.has(item.type) && (item.system as { grade?: string }).grade === value),
+    }));
 const isWireless = (doc: ListedDoc) => typeof doc?.isWireless === 'function' && doc.isWireless();
 const actionType = (type: string): ListFilterChip =>
     ({ id: type, label: `SR5.ActionType.${type.charAt(0).toUpperCase()}${type.slice(1)}`, group: 'type', test: doc => doc?.system?.action?.type === type });
@@ -62,6 +70,7 @@ export const LIST_FILTERS: Record<string, ListFilterChip[]> = {
     ],
     augmentations: [
         { id: 'wireless', label: 'SR5.Redesign.ListFilter.Wireless', icon: 'fa-wifi', test: isWireless },
+        ...gradeOptions(),
     ],
     actions: ['free', 'simple', 'complex', 'interrupt'].map(actionType),
     // the magic table's columns: type, range, duration; then the element of elemental spells

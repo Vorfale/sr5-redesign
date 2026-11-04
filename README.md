@@ -26,6 +26,8 @@ SR5 Redesign tries to make the system's sheets more comfortable to play with:
 - **hints** where they were missing, like the modifier breakdown behind a number and a link to the rulebook page;
 - some content is **split by meaning**, like augmentations apart from the inventory;
 - what you usually miss when playing a character is on the sheet, like their **vehicles and drones**;
+- **your own rulebooks** can fill in the hover cards: import the PDFs you own, and their passages show under skills,
+  actions, spells and more;
 - some **pop-ups are reworked**: the karma, nuyen and reputation managers, the network manager.
 
 The first goal is a better overall experience: quality-of-life improvements all over the sheet, and a sheet that feels
@@ -35,7 +37,7 @@ like Shadowrun.
 
 - [x] character sheet
 - [x] vehicle and drone sheet
-- [ ] matrix actors, spirits, critters and NPCs
+- [ ] matrix actors (IC done), spirits, critters and NPCs
 - [ ] items
 - [ ] roll dialogs and chat cards
 
@@ -43,7 +45,7 @@ like Shadowrun.
 <summary>Everything on the sheet, in detail</summary>
 
 - Header: name, metatype and archetype, limits, and the character's art as a banner, moved and zoomed to frame it.
-- Attribute plates with modifier cards; Edge and Essence.
+- Attribute plates with modifier cards, in the rulebooks' order: Edge, Essence, then Magic or Resonance.
 - Sidebar: initiative modes and Blitz, condition monitors with wound modifiers and overflow damage as a third monitor,
   armor and movement, quick rolls (Defense, Soak, Composure, Judge Intentions, Memory, Lift/Carry, Drain or Fading)
   with their pools, favorites, running silent and the PAN; collapsible.
@@ -54,8 +56,17 @@ like Shadowrun.
 - Hover cards for items, skills, attributes, limits, armor and movement.
 - Expanded rows: an item's properties in one line with icons, its rulebook source, the Matrix condition monitor.
 - Favorites in the sidebar: drop any item on them, drag to reorder. A ⋮ menu button in every row.
+- Groups of your own on the Actions, Inventory, Augmentations, Magic and Vehicles tabs: drag a row onto a group, or
+  move it from the row's menu.
 - Matrix: the device as a card with its attributes swapped on it, actions grouped by limit, network, marked and owned
   icons.
+- Vehicles and drones: stat plates, the driver and control mode, the chase environment and (for vehicles with
+  off-road values) the road, skills with pools, mods, autosofts and the Matrix.
+- IC: the host's rating and Matrix attributes on the plates, the initiative and Matrix condition monitor, its actions,
+  and in the footer the host, the IC's place in the host's order and the marks the host holds.
+- Text from your own rulebooks: **Configure Settings → SR5 Redesign → Import from PDF** reads PDFs you own in your
+  browser and adds their passages to the hover cards and opened rows of attributes, skills, actions, spells, qualities,
+  adept powers, complex forms, metamagics and echoes. Nothing is uploaded, and no rulebook text comes with the module.
 - An update redraws only what changed; hidden tabs are drawn when the browser is idle. Sheets reopen at the size you
   last gave them.
 - A per-user Readable text setting; Latin and Cyrillic text.
@@ -100,8 +111,8 @@ Install it on the machine that **hosts** the game; players who connect get it au
    ```
 
 2. Open the world, **Game Settings → Manage Modules**, enable **SR5 Redesign**.
-3. Characters open in **SR5 Redesign (experimental)**. A character set to a particular sheet keeps it: header menu
-   **Sheet** → SR5 Redesign.
+3. Characters, vehicles, drones and IC open in **SR5 Redesign (experimental)**. An actor set to a particular sheet
+   keeps it: header menu **Sheet** → SR5 Redesign.
 
 <details>
 <summary>Update, remove, install by hand</summary>

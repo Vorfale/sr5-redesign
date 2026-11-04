@@ -1,0 +1,45 @@
+{{!-- A group of the player's own on an item tab (inventory, augmentations, magic, vehicles; RedesignOwnGroups), as the
+      Actions tab's: its header (the name; edit mode rename, remove and Add, which makes a new row in it), then either
+      a section per item type, each under that type's column captions (inventory, augmentations: a group may hold
+      weapons and armor), or the rows of one table with the columns given as the block (magic, vehicles). Collapsible
+      from the header in play mode like the tab's other cards. A row dragged onto it, or "Move to group" in its menu,
+      goes into it (SR5RedesignActorSheet#wireOwnGroupDrops). Params: group (SR5RedesignActorSheet#_ownGroupCards). --}}
+<div class="items-section card own-group{{#unless (or group.isOpen @root.isEditMode)}} collapsed{{/unless}}" data-type="{{group.type}}" data-own-group="{{group.key}}">
+    <div class="list-item list-item-header{{#if @root.isPlayMode}} collapsible-header{{/if}}"
+         {{#if @root.isPlayMode}}data-action="toggleExpanded" data-item-type="{{group.type}}"{{/if}}>
+        <div class="list-item-start{{#unless group.isOpen}} label-collapsed{{/unless}}"><label>{{group.label}}</label></div>
+        {{#if group.rowPartial}}{{> @partial-block }}{{/if}}
+        <div class="list-item-icons">
+            {{#if @root.isEditMode}}
+                <a data-action="renameOwnGroup" data-group="{{group.key}}" data-tooltip="SR5.Redesign.ActionGroups.RenameTitle"
+                   aria-label="{{localize 'SR5.Redesign.ActionGroups.RenameTitle'}}"><i class="fas fa-pen-to-square" aria-hidden="true"></i></a>
+                <a data-action="removeOwnGroup" data-group="{{group.key}}" data-tooltip="SR5.Redesign.ActionGroups.RemoveTitle"
+                   aria-label="{{localize 'SR5.Redesign.ActionGroups.RemoveTitle'}}"><i class="fas fa-trash" aria-hidden="true"></i></a>
+                {{#if group.canAdd}}
+                <a data-action="addOwnGroupRow" data-group="{{group.key}}" data-tooltip="{{localize 'SR5.Redesign.OwnGroups.AddTo' group=group.label}}">
+                    {{localize "SR5.Add"}}&nbsp;<i class="fas fa-plus"></i></a>
+                {{/if}}
+            {{/if}}
+            {{> "systems/shadowrun5e/dist/templates/v2/list-items/toggle-expand-icon.hbs" isOpen=group.isOpen type=group.type }}
+        </div>
+    </div>
+    {{!-- rendered when collapsed too (CSS hides them), so the list search finds them --}}
+    {{#if group.sections}}
+        {{!-- each type's own header for its captions; its collapse and Add are taken off (#stripOwnGroupHeaders) --}}
+        {{#each group.sections as |section|}}
+        <div class="items-section own-group-section" data-type="{{../group.type}}_{{section.type}}">
+            {{> (concat "systems/shadowrun5e/dist/templates/v2/list-items/" section.type "/header.hbs")
+                label=section.label isOpen=true type=section.type rootId=@root.rootId }}
+            {{#each section.items}}
+                {{> (concat "systems/shadowrun5e/dist/templates/v2/list-items/" section.type "/item.hbs") item=this rootId=@root.rootId }}
+            {{/each}}
+        </div>
+        {{/each}}
+    {{else}}
+        {{#each group.rows}}
+            {{> (lookup ../group 'rowPartial') item=this row=this rootId=@root.rootId }}
+        {{else}}
+            <div class="action-group-empty">{{localize "SR5.Redesign.OwnGroups.Empty"}}</div>
+        {{/each}}
+    {{/if}}
+</div>

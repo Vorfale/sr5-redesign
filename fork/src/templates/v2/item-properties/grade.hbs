@@ -1,0 +1,4 @@
+{{!-- the grade of a cyberware or bioware implant (system.grade), a stat between its rating and its Essence; standard included, so every implant says it --}}
+{{#unless (empty item.system.grade)}}
+    <label class="prop-grade" data-prop="stat"><i class="prop-icon fas fa-award" aria-hidden="true"></i>{{localize "SR5.CyberwareGrade"}}&nbsp;{{localizeOb item.system.grade @root.config.cyberwareGrades}}</label>
+{{/unless}}

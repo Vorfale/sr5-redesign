@@ -14,6 +14,39 @@
         {{#if (and system.is_npc system.npc.is_grunt)}}<span class="caption" aria-hidden="true">&middot;</span><span class="caption">{{localize "SR5.IsGrunt"}}</span>{{/if}}
     </div>
     {{/if}}
+    {{#if icFooter}}
+    {{!-- an IC: the host it runs on (its button opens it) and the host's own rating; the IC's place in the order the host
+          launches its IC, beside how many it may run at once (its rating, SR5#247); the icons the host holds marks on,
+          which its IC share --}}
+    <div class="ledger host">
+        <button type="button" class="ledger-button" data-action="openUuid" data-uuid="{{icFooter.uuid}}"
+                data-tooltip="SR5.Redesign.IC.OpenHost" aria-label="{{localize 'SR5.Redesign.IC.OpenHost'}}"><i class="fas fa-server" aria-hidden="true"></i></button>
+        <span class="caption">{{localize "SR5.Redesign.IC.Host"}}</span>
+        <span class="name" data-tooltip="{{icFooter.name}}">{{icFooter.name}}</span>
+        <span class="caption">{{localize "SR5.Rating"}}</span>
+        <span class="value">{{icFooter.rating}}</span>
+    </div>
+    {{#if icFooter.position}}
+    <div class="ledger ic-order">
+        <span class="ledger-button ledger-icon" aria-hidden="true"><i class="fas fa-list-ol"></i></span>
+        <span class="ledger-pair" data-tooltip="SR5.Redesign.IC.OrderHint">
+            <span class="caption">{{localize "SR5.Redesign.IC.OrderShort"}}</span>
+            <span class="value">{{icFooter.position}}&thinsp;/&thinsp;{{icFooter.count}}</span>
+        </span>
+        <span class="ledger-pair" data-tooltip="SR5.Redesign.IC.MaxHint">
+            <span class="caption muted">{{localize "SR5.Redesign.IC.MaxShort"}}</span>
+            <span class="value muted">{{icFooter.rating}}</span>
+        </span>
+    </div>
+    {{/if}}
+    <div class="ledger marks">
+        <span class="ledger-button ledger-icon" aria-hidden="true"><i class="fas fa-crosshairs"></i></span>
+        <span class="ledger-pair" data-tooltip="SR5.Redesign.IC.MarksHint">
+            <span class="caption">{{localize "SR5.Marks"}}</span>
+            <span class="value">{{icFooter.marks}}</span>
+        </span>
+    </div>
+    {{/if}}
     {{#if isVehicle}}
     {{!-- a vehicle's bookkeeping: what it costs to get (availability, price; SR5#461), then its source --}}
     <div class="ledger availability">

@@ -1,0 +1,30 @@
+{{!-- IC plates over the IC tab, built like the character's attribute plates (attributes.hbs): the host's rating, then the
+      four matrix attributes, the value in play big, the base under it. A click rolls the attribute. A host's IC takes
+      its rating and attributes from the host (SR5#247): edit mode changes them here only while it runs on none. --}}
+<section class="sr-abilities vehicle ic" aria-label="{{localize 'TYPES.Actor.ic'}}">
+    <div class="ability-groups">
+        <ul class="ability-row unlist vehicle-stats ic-stats">
+            {{#each icPlates as |plate|}}
+            <li class="ability-score vehicle-stat ic-stat ic-{{plate.id}}" data-attribute-id="{{plate.id}}" data-context-menu="attribute">
+                {{#if @root.isPlayMode}}
+                    <button type="button" class="label rollable" data-action="rollAttribute"
+                            data-tooltip="{{plate.label}}" data-tooltip-direction="UP" aria-label="{{localize 'SR5.Redesign.RollAttribute' name=plate.label}}">{{plate.short}}</button>
+                {{else}}
+                    <span class="label" data-tooltip="{{plate.label}}" data-tooltip-direction="UP">{{plate.short}}</span>
+                {{/if}}
+                <div class="mod" {{#if @root.isPlayMode}}aria-hidden="true"{{/if}}>{{plate.value}}</div>
+                {{#if (and @root.isEditMode plate.editable)}}
+                    <div class="score">
+                        <label class="sr-only" for="{{@root.rootId}}-stat-{{plate.id}}">{{plate.label}}</label>
+                        {{formInput plate.field value=plate.base classes="uninput" id=(concat @root.rootId "-stat-" plate.id)}}
+                    </div>
+                {{else if @root.isEditMode}}
+                    <div class="score" data-tooltip="SR5.Redesign.IC.FromHost" data-tooltip-direction="DOWN">{{plate.base}}</div>
+                {{else}}
+                    <div class="score" data-tooltip="SR5.Redesign.BaseRating" data-tooltip-direction="DOWN">{{plate.base}}</div>
+                {{/if}}
+            </li>
+            {{/each}}
+        </ul>
+    </div>
+</section>

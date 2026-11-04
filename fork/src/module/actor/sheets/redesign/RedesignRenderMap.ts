@@ -50,6 +50,7 @@ export const UPDATE_PARTS: [RegExp, string[]][] = [
     [/^flags\.shadowrun5e\.(-=)?(sheetPortrait|sheetPortraitMode)$/, ['sidebar']],
     [/^flags\.shadowrun5e\.(actionsUsed|freeActions)(\.|$)/, ['sidebar']], // the action tracker
     [/^flags\.shadowrun5e\.(-=)?(actionGroups|actionGroupOf)(\.|$)/, ['actions']], // the Actions tab's own groups
+    [/^flags\.shadowrun5e\.(-=)?(ownGroups|ownGroupOf)(\.|$)/, ['inventory', 'augmentations', 'magic', 'vehicles']], // the item tabs' own groups
 ];
 /** Item data that only counts (a weapon's rounds and spare clips, a stack's quantity). */
 export const COUNT_KEYS = /^system\.(ammo\.|technology\.quantity$)/;

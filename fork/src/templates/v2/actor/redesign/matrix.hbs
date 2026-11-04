@@ -7,6 +7,8 @@
     {{> 'systems/shadowrun5e/dist/templates/v2/actor/redesign/list-controls.hbs' }}
     <div class="matrix-columns">
         <div class="matrix-left">
+            {{!-- an IC has no device of its own: its rating and attributes are the plates over the tab (ic-stats.hbs) --}}
+            {{#unless isIC}}
             <div class="items-section card matrix-device{{#if matrixDeviceSwitch.hasDeck}} has-deck{{/if}}">
                 {{!-- the device as a plaque with a dropdown of the character's devices (type and DR in the list; the
                       closed plaque shows the name): a choice equips that device (#switchMatrixDevice). Right click: the
@@ -41,9 +43,6 @@
                     {{/if}}
                 </div>
                 <div class="device-body">
-                    {{#if (isType actor 'ic')}}
-                        {{> 'systems/shadowrun5e/dist/templates/v2/actor/parts/ic-attributes.hbs' }}
-                    {{else}}
                         {{!-- matrix attributes as plates like the attribute row on the first tab (click = roll), each
                               coloured by its role; on a cyberdeck a swap chip sits under each plate --}}
                         <div class="matrix-attributes">
@@ -84,7 +83,6 @@
                                 {{/with}}
                             {{/each}}
                         </div>
-                    {{/if}}
                     {{#if (isType actor 'character' 'vehicle')}}
                         {{#if system.matrix.condition_monitor.max}}
                             {{!-- built like the sidebar's monitors (sidebar.hbs): roll button with icon and name, count,
@@ -118,6 +116,7 @@
                     {{/if}}
                 </div>
             </div>
+            {{/unless}}
             <div class="items-section card matrix-network">
                 <div class="list-item list-item-header">
                     <div class="list-item-start">
@@ -166,11 +165,14 @@
                 <section class="content matrix-left-tab-content"></section>
             </div>
         </div>
+        {{!-- an IC with no action to roll (Attack 0, no host): no actions column in play mode --}}
+        {{#unless icNoActions}}
         <div class="matrix-right">
             <div class="items-section card matrix-actions">
                 {{tabGroup matrixRightTabs}}
                 <section class="content matrix-right-tab-content"></section>
             </div>
         </div>
+        {{/unless}}
     </div>
 </section>

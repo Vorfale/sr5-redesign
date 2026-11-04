@@ -19,6 +19,90 @@ sheet) would have been a minor release.
 
 ## [Unreleased]
 
+## [0.3.67] - 2026-10-30
+
+### Changed
+- Character attribute plates follow the rulebooks' stat blocks: Edge, Essence, then Magic or Resonance (Essence was
+  last).
+- Vehicle sheet: the On Road / Off Road switch under Conditions shows only for vehicles whose off-road Handling, Speed
+  or Acceleration differ from the on-road ones (cars, bikes, trucks, some boats and ground drones). Aircraft,
+  submarines and most drones have one value, so the switch changed nothing for them. The chase environment (Speed /
+  Handling) stays for every vehicle, in the air too.
+
+## [0.3.66] - 2026-10-29
+
+### Fixed
+- The page froze when a skill row was opened or a skill card shown after the compendium holding the imported rulebook
+  text had been deleted. Rows and cards now open without the text, the page links stay, and the console says what is
+  missing; import the books again to bring the text back.
+
+## [0.3.65] - 2026-10-28
+
+### Fixed
+- An IC without a host: its rating and matrix attributes typed on the plates in edit mode now stick (they were
+  replaced with 0).
+- The IC sheet opened slowly the first time after a reload when the grids hold many tokens: it now opens at once and
+  draws its IC tab under the field of 0s and 1s, as the character sheet's Matrix tab does. A character sheet that
+  opens on its Matrix tab does the same.
+- An error in the console when a token was created.
+
+## [0.3.64] - 2026-10-28
+
+### Added
+- An IC sheet in the same look, the default for IC (the system's IC sheet stays one choice away in Configure Sheet).
+  The header line shows its type and the host it runs on. Plates show the host's rating and the four matrix
+  attributes, coloured by role, and a click rolls one. The sidebar holds its initiative (Host Rating × 2 + 4D6) and
+  its matrix condition monitor. The IC tab lists its host, the icons it knows and has marked, and its actions by IC
+  type. Its rich cards cover the plates, the initiative and the monitor.
+- The IC sheet's footer: the host (its button opens it) with its rating, the IC's place in the host's order beside
+  how many IC the host may run at once, and the marks the host holds, which its IC share.
+- A token's copy of an IC reads the host of its base actor.
+- Text from your own rulebooks: Configure Settings > SR5 Redesign > Import from PDF reads the PDFs you choose in
+  your browser (nothing is uploaded) and adds their passages to the hover cards and opened rows of attributes,
+  skills, actions, spells and rituals, qualities, adept powers, complex forms, metamagics and echoes. The text is kept
+  in a compendium of the world.
+
+## [0.3.63] - 2026-10-26
+
+### Added
+- Groups of your own on the Inventory, Augmentations, Magic (spells) and Vehicles & Drones tabs, as on the Actions
+  tab. In edit mode the + by the tab title makes one; a group renames, removes and adds a new item (or vehicle)
+  into itself. Drag a row onto a group, or use "Move to group" in its menu, to put it there; drag it back onto its
+  own card to take it out. An item or vehicle dropped from elsewhere on a group is added and put there.
+- Inventory and Augmentations groups may hold different types: each type gets its own section with its columns.
+- Removing a group deletes nothing: what was in it goes back to its own cards.
+
+### Changed
+- Inventory and Augmentations: one + by the title, with a menu for a new group or a new inventory.
+- Creating and renaming an inventory asks in the sheet's own dialog; the new or renamed inventory is selected.
+- "Move to group" in row menus has a folder icon, so it no longer looks like "Move Item".
+
+## [0.3.62] - 2026-10-23
+
+### Added
+- Stat cards on the sidebar's condition monitors (damage, wound modifier, recovery pool, where the boxes come from)
+  and on the initiative (mode, formula, score, where the attribute and the dice come from).
+- Actions move to another group of the Actions tab: drag a row onto a group card, or use "Move to group" in the
+  row menu in edit mode. General actions move too.
+- Armor and implant modifications show as chips in their expanded rows, the ones not installed dimmed. An implant
+  shows its capacity, red when its modifications take more than it has. A weapon shows its loaded ammunition by
+  name. A modification dropped on a weapon, armor or implant row goes into it installed.
+- Implant grade in the expanded row (rating, grade and Essence), and grade filters on the Augmentations tab.
+- Interrupt actions show their initiative cost in the Type column. Opened action rows show the pool, limit, opposed
+  test, active defenses and book pages of their tests; costs you cannot pay in combat are muted.
+- General actions from the system's packs show their book page in their card's footer.
+- A Performance setting, on by default: copies of unlinked tokens on scenes nobody is viewing are rebuilt when they
+  are read, not at every change of their actor.
+
+### Changed
+- Social tab: contacts on the left, SIN and lifestyles on the right. On a narrow sheet SIN and lifestyles go on top
+  of the contacts instead of under them.
+- Opened rows are spaced by what belongs together (10px to the description, 6px between paragraphs) on one left edge.
+- The sheet opens without a blink, and it reads the action and skill group packs once.
+
+### Fixed
+- The illusion sense of a spell shows as Single-Sense or Multi-Sense, not as the raw key.
+
 ## [0.3.61] - 2026-10-21
 
 ### Changed
