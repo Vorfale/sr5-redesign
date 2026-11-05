@@ -1,9 +1,11 @@
 {{!-- Attribute plates in three groups: physical, mental, special (Edge, Essence, Magic/Resonance).
       Big number = current value (with augmentations), small box = base rating.
       Edge: points still available on top, the rating below. Essence: current on top, the base before implants below.
-      Below them the limits in one row, like the limit line at the bottom of the official ATTRIBUTES block. --}}
+      Below them the limits in one row, like the limit line at the bottom of the official ATTRIBUTES block.
+      `sr-static` (a plate without a roll), not `static`: modules with Tailwind (sr5-marketplace) ship a `.static`
+      utility that drops the plate's position and lets its face and base box spread over the whole row. --}}
 {{#*inline "abilityScore"}}
-<li class="ability-score{{#if attribute.physical}} physical{{/if}}{{#if attribute.mental}} mental{{/if}}{{#unless attribute.rollable}} static{{/unless}}"
+<li class="ability-score{{#if attribute.physical}} physical{{/if}}{{#if attribute.mental}} mental{{/if}}{{#unless attribute.rollable}} sr-static{{/unless}}"
     data-attribute-id="{{attribute.id}}" data-context-menu="attribute">
     {{#if (and attribute.rollable @root.isPlayMode)}}
         <button type="button" class="label rollable" data-action="rollAttribute" data-attribute-modifier-tooltip="{{attribute.id}}"
