@@ -1,0 +1,77 @@
+// The module's stylesheet loads into Foundry's `modules` CSS layer (module.json), above the system's `system` layer:
+// there the rules of other modules no longer outrank it, and utility classes that modules ship in a sublayer
+// (Tailwind's `.static`, `.list-item`, `.container`) lose to it whatever their names.
+//
+// Above the system's layer, every rule of the sheet would beat the system's rules, also where the system's rule is more
+// specific and wins in the fork (same layer, specificity decides). These are those system rules (release 0.37.8,
+// bundle.css), copied with the same selector and specificity, scoped to the redesign by `:where(.sr5-redesign)` (adds
+// none), and emitted before the sheet's rules: inside the module's layer the cascade is the fork's again.
+// Found by comparing the computed styles of every element of the character, vehicle, drone and IC sheets (play and
+// edit mode, every tab) in the two layers; the list is complete when that comparison shows no difference.
+
+// rows are flex boxes (the system's `.sr5v2 .list-item`): restated here, so a `.list-item` utility of another module
+// (Tailwind's `display: list-item`) cannot turn them into list items
+.sr5v2:where(.sr5-redesign) .list-item { display: flex; }
+
+// rows: names, links and icons in the row colour (not the link colour)
+.sr5v2:where(.sr5-redesign).actor .tab .list-item:not(.list-item-header) label,
+.sr5v2:where(.sr5-redesign).actor .tab .list-item:not(.list-item-header) a,
+.sr5v2:where(.sr5-redesign).actor .tab .list-item:not(.list-item-header) span,
+.sr5v2:where(.sr5-redesign).actor .tab .list-item:not(.list-item-header) .item-name-link,
+.sr5v2:where(.sr5-redesign).actor .tab .list-item:not(.list-item-header) .list-item-icons,
+.sr5v2:where(.sr5-redesign).actor .tab .list-item:not(.list-item-header) .list-item-icons a,
+.sr5v2:where(.sr5-redesign).actor .tab .list-item:not(.list-item-header) .list-item-icons i { color: inherit; }
+
+// zebra of the rows
+.sr5v2:where(.sr5-redesign) .list-item-container:not(.nobg):nth-of-type(2n),
+.sr5v2:where(.sr5-redesign) .list-item-container.forcebg { background: var(--sr5v2-bg-subtle); }
+.sr5v2:where(.sr5-redesign).actor #active-skills-scroll > .list-item-container.active-skill-row { background: none; }
+.sr5v2:where(.sr5-redesign).actor #active-skills-scroll > .list-item-container.active-skill-row:not(.hidden):nth-child(2n of .active-skill-row:not(.hidden)) {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+// the active skills filter
+.sr5v2:where(.sr5-redesign).actor #filter-active-skills {
+    background: none;
+    padding-left: 4px;
+    color: var(--sr5v2-label);
+    border-bottom: 1px solid var(--sr5v2-border);
+}
+
+// the edit mode switch in the window header
+.sr5v2:where(.sr5-redesign) .window-header > button.header-control.icon.fa-stack {
+    padding: 0px;
+    position: relative;
+    width: 1.75rem;
+    flex-basis: 1.75rem;
+    overflow: visible;
+    font-size: 0.8rem;
+}
+.sr5v2:where(.sr5-redesign) .window-header > button.header-control.icon.fa-stack > .fa-toggle-large-on,
+.sr5v2:where(.sr5-redesign) .window-header > button.header-control.icon.fa-stack > .fa-toggle-large-off {
+    left: 50%;
+    top: 50%;
+    width: 3.25em;
+    transform: translate(-50%, -90%);
+    z-index: 0;
+}
+
+// the spirit initiative formula (Misc tab, edit mode)
+.sr5v2:where(.sr5-redesign).actor .list-item.spirit-initiative-formula-item .list-item-col.spirit-initiative-formula-col .spirit-initiative-formula-line {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.2rem;
+    width: 100%;
+    white-space: nowrap;
+}
+.sr5v2:where(.sr5-redesign).actor .list-item.spirit-initiative-formula-item .spirit-initiative-formula-line .spirit-initiative-attribute {
+    flex: 1 1 0px;
+    min-width: 5rem;
+}
+
+// guards: the sheet's class names that are also Tailwind utilities, set to what they are without them
+// (`col-2` is the Details tab's two-column grid, `container` a container tile of the inventory's top row)
+.sr5v2:where(.sr5-redesign) .sr-details .col-2 { grid-column: auto; }
+.sr5v2:where(.sr5-redesign) .sr-inventory .containers > li.container { width: auto; max-width: none; }

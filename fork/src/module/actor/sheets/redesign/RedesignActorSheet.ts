@@ -1896,8 +1896,9 @@ export class SR5RedesignActorSheet extends SR5CharacterSheet {
 
     static #partPlaceholder(id: string, active = false): HTMLElement {
         const section = document.createElement('section');
-        // the open tab's placeholder shows (its loader goes in it)
-        section.className = active ? 'tab active' : 'tab';
+        // the open tab's placeholder shows (its loader goes in it); the matrix tab's carries the tab's own class, so the
+        // loader takes the box the tab is drawn in (an IC's tab starts under its plates: margin-top) and nothing jumps
+        section.className = ['tab', id === 'matrix' ? 'sr-matrix' : '', active ? 'active' : ''].filter(Boolean).join(' ');
         section.dataset.group = 'primary';
         section.dataset.tab = id;
         section.dataset.applicationPart = id;

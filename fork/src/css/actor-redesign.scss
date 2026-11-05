@@ -3297,7 +3297,7 @@ body.sr5-redesign-readable :is(.sr5v2.sr5-redesign, .application.sr5v2.sr5-redes
         // acceleration and armor roll nothing, but their plate shows a rich card like the others: the same gold frame
         // on hover in play mode, so the row answers the pointer the same everywhere (the cursor stays an arrow)
     }
-    &:not(.sr-edit-mode) > .window-content > .sr-abilities.vehicle .ability-score.static:has(.label:hover) {
+    &:not(.sr-edit-mode) > .window-content > .sr-abilities.vehicle .ability-score.sr-static:has(.label:hover) {
         .label { color: var(--sr-gold-500); }
         &::before { background: var(--sr-gold-500); }
     }

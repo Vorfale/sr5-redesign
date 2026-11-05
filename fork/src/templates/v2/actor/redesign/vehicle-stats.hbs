@@ -7,7 +7,7 @@
     <div class="ability-groups">
         <ul class="ability-row unlist vehicle-stats">
             {{#each vehiclePlates as |plate|}}
-            <li class="ability-score vehicle-stat{{#unless plate.roll}} static{{/unless}}" data-attribute-id="{{plate.id}}" data-context-menu="attribute">
+            <li class="ability-score vehicle-stat{{#unless plate.roll}} sr-static{{/unless}}" data-attribute-id="{{plate.id}}" data-context-menu="attribute">
                 {{#if (and plate.roll @root.isPlayMode)}}
                     <button type="button" class="label rollable" data-action="rollAttribute"
                             data-tooltip="{{plate.activeLabel}}" data-tooltip-direction="UP" aria-label="{{localize 'SR5.Redesign.RollAttribute' name=plate.activeLabel}}">{{plate.short}}</button>

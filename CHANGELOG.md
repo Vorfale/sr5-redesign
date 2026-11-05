@@ -19,6 +19,25 @@ sheet) would have been a minor release.
 
 ## [Unreleased]
 
+## [0.3.69] - 2026-11-05
+
+### Changed
+- The stylesheet loads into Foundry's layer for modules instead of the system's. Styles and utility classes of other
+  modules (Tailwind's `.list-item`, `.container` and the like) no longer override the sheet, whatever their names. The
+  sheets look as before: the computed styles of every element of the character, vehicle, drone and IC sheets and their
+  windows are the same in both layers.
+
+### Fixed
+- An IC opened on a large grid: the field of 0s and 1s shown while its devices load sits where the IC tab is drawn.
+  It started higher, and the tab jumped down when it came in.
+
+## [0.3.68] - 2026-11-05
+
+### Fixed
+- Together with modules built on Tailwind, such as Shadowrun 5e Marketplace, the character's Essence plate no longer
+  spreads its frame over the whole attribute row and no longer hides the limits under the tables. The same fix covers
+  the vehicle plates without a roll (Acceleration, Armor, Seats).
+
 ## [0.3.67] - 2026-10-30
 
 ### Changed

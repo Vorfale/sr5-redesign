@@ -13,8 +13,9 @@
 //                       and the karma / nuyen / reputation managers (system templates the redesign changed), with the
 //                       data paths of the release where 0.38 moved them; used by this sheet and its apps only.
 //   styles/sheet.css    the sheet's stylesheet, the apps' one and the fork's changes to the system's own stylesheets
-//                       (module-extra.scss), loaded into the system's CSS layer (module.json) so the cascade is the same
-//                       as in the fork; fonts/ with the Latin faces and the Cyrillic fallbacks.
+//                       (module-extra.scss), loaded into Foundry's `modules` CSS layer (module.json), above the system's,
+//                       where other modules' rules and utility classes do not outrank it; system-precedence.scss first
+//                       keeps the cascade the fork's; fonts/ with the Latin faces and the Cyrillic fallbacks.
 //   lang/en.json        SR5.Redesign.* and the other keys the sheet uses that the release does not have.
 //
 // Paths default to this workspace; the public source repository (scripts/export-public-repo.mjs) runs the same script
@@ -283,7 +284,7 @@ ${bundle}
 // ---------- styles and fonts ----------
 // one stylesheet: the sheet, the apps it opens (redesign-apps.scss uses actor-redesign, emitted once) and the fork's
 // changes to the system's own stylesheets (module-extra.scss)
-const compiled = sass.compileString(`@use 'actor-redesign';\n@use 'redesign-apps';\n@use 'module-extra';\n`, {
+const compiled = sass.compileString(`@use 'system-precedence';\n@use 'actor-redesign';\n@use 'redesign-apps';\n@use 'module-extra';\n`, {
     url: pathToFileURL(path.join(BUILD, 'sheet.scss')),
     loadPaths: [path.join(FORK, 'src/css'), BUILD],
     style: 'expanded',
@@ -363,8 +364,9 @@ const manifest = {
         systems: [{ id: 'shadowrun5e', type: 'system', compatibility: { minimum: '0.37.0', verified: stockVersion } }],
     },
     esmodules: ['scripts/sheet.mjs'],
-    // the system's layer: the sheet's rules meet the system's in the same cascade as in the fork
-    styles: [{ src: 'styles/sheet.css', layer: 'system' }],
+    // the modules' layer, above the system's: other modules' rules and their utility classes (Tailwind's sublayer)
+    // do not outrank the sheet; system-precedence.scss keeps the system rules that win in the fork winning here
+    styles: [{ src: 'styles/sheet.css', layer: 'modules' }],
     languages: [{ lang: 'en', name: 'English', path: 'lang/en.json' }],
     license: 'LICENSE',
 };
